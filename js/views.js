@@ -8,7 +8,6 @@ import {
   isCardDue,
   formatNextReview,
   cardThemeIndex,
-  getFlashcards,
   rateFlashcard,
   removeFlashcard,
 } from "./flashcards.js";
