@@ -1756,6 +1756,7 @@ code {
   flex-direction: column;
   gap: 0.35rem;
   margin-bottom: 0.75rem;
+  --note-editor-height: 28rem;
 }
 
 .rich-note-toolbar {
@@ -1775,14 +1776,47 @@ code {
   cursor: pointer;
 }
 
+/* flex: none — fixed height + scroll; min-height alone lets contenteditable grow */
 .rich-note-editor {
-  min-height: var(--note-editor-height, 28rem);
+  flex: none;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  font: inherit;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  height: min(var(--note-editor-height, 28rem), 85vh);
+  max-height: min(var(--note-editor-height, 28rem), 85vh);
   padding: 0.65rem 0.75rem;
   border: 1px solid rgba(28, 25, 23, 0.12);
   border-radius: 8px;
   background: #fff;
+  overflow-x: hidden;
   overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
   outline: none;
+}
+
+.rich-note-editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--ink-muted);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.rich-note-editor ul,
+.rich-note-editor ol {
+  margin: 0.35rem 0 0.35rem 1.25rem;
+  padding: 0;
+}
+
+.rich-note-editor p {
+  margin: 0 0 0.35rem;
+}
+
+.rich-note-editor p:last-child {
+  margin-bottom: 0;
 }
 
 [data-theme="dark"] .rich-note-editor {
