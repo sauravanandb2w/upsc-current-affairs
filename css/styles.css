@@ -632,3 +632,415 @@ code {
   font-size: 0.78rem;
   margin-top: 0.75rem;
 }
+
+/* Search & header actions */
+.search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #fff;
+  border: 1px solid rgba(28, 25, 23, 0.12);
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  min-width: 180px;
+  max-width: 280px;
+}
+
+.search-wrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.search-icon {
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+}
+
+.search-wrap input {
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 0.85rem;
+  width: 100%;
+  outline: none;
+}
+
+.btn-accent {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.btn-accent:hover {
+  filter: brightness(1.05);
+}
+
+/* Desk hero & stats */
+.hero-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.stat-chip {
+  font-size: 0.82rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid rgba(28, 25, 23, 0.08);
+  box-shadow: var(--shadow);
+}
+
+.stat-chip strong {
+  font-size: 1rem;
+  margin-right: 0.2rem;
+}
+
+.stat-todo {
+  border-color: var(--amber);
+}
+
+.stat-revise {
+  border-color: var(--maroon);
+}
+
+.status-pill {
+  font-size: 0.65rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.status-pill.status-studied {
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+.status-pill.status-revise {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-pill.status-todo {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge-draft {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.empty-hint {
+  font-size: 0.88rem;
+  color: var(--ink-muted);
+}
+
+.link-btn {
+  font: inherit;
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.stack-action {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+/* Timeline grouping */
+.timeline-grouped {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.month-head {
+  font-size: 1rem;
+  margin: 0 0 0.75rem;
+  color: var(--ink-muted);
+  font-family: var(--font-sans);
+  font-weight: 600;
+}
+
+.tag-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+}
+
+.tag-filter-btn {
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(28, 25, 23, 0.12);
+  background: #fff;
+  cursor: pointer;
+  color: var(--ink-muted);
+}
+
+.tag-filter-btn:hover,
+.tag-filter-btn.active {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+
+/* Revise view */
+.revise-head {
+  background: #fff;
+  padding: 1.25rem;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.revise-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.75rem 0;
+}
+
+.preset-btn {
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(28, 25, 23, 0.12);
+  background: var(--paper);
+  cursor: pointer;
+}
+
+.preset-btn:hover {
+  background: var(--paper-deep);
+}
+
+.revise-filters {
+  margin-top: 0.5rem;
+}
+
+.revise-count {
+  margin: 0.75rem 0 0;
+  font-size: 0.9rem;
+}
+
+.revise-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.revise-card {
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.25rem;
+  border-left: 4px solid var(--teal);
+  break-inside: avoid;
+}
+
+.revise-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px dashed rgba(28, 25, 23, 0.1);
+}
+
+.revise-card-head h3 {
+  margin: 0.25rem 0;
+  font-size: 1.15rem;
+}
+
+.revise-section {
+  margin-bottom: 0.85rem;
+}
+
+.revise-section h4 {
+  margin: 0 0 0.25rem;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-muted);
+}
+
+.revise-body {
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.revise-links {
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Item detail extras */
+.item-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.status-select-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.status-select {
+  font: inherit;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid rgba(28, 25, 23, 0.15);
+  background: var(--paper);
+}
+
+.draft-banner {
+  background: #ede9fe;
+  color: #4c1d95;
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+}
+
+.draft-banner code {
+  background: rgba(255, 255, 255, 0.6);
+  font-size: 0.78rem;
+}
+
+/* Add item dialog */
+.add-dialog {
+  border: none;
+  border-radius: var(--radius);
+  padding: 0;
+  max-width: 480px;
+  width: calc(100% - 2rem);
+  box-shadow: var(--shadow);
+}
+
+.add-dialog::backdrop {
+  background: rgba(28, 25, 23, 0.4);
+}
+
+.add-form {
+  padding: 1.25rem;
+}
+
+.field-hint {
+  font-weight: 400;
+  color: var(--ink-muted);
+}
+
+.gs-fieldset {
+  border: 1px solid rgba(28, 25, 23, 0.1);
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+  margin: 0 0 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.gs-fieldset legend {
+  font-size: 0.82rem;
+  color: var(--ink-muted);
+  padding: 0 0.25rem;
+}
+
+.gs-check {
+  font-size: 0.88rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.dialog-actions.wrap {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.cli-block {
+  background: var(--ink);
+  color: #e7e5e4;
+  padding: 0.85rem;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Print revision */
+@media print {
+  .site-header,
+  .back-btn,
+  .revise-presets,
+  .revise-filters,
+  .revise-card-head button {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .revise-card {
+    box-shadow: none;
+    border: 1px solid #ccc;
+    page-break-inside: avoid;
+  }
+}
+
+@media (max-width: 720px) {
+  .header-inner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-wrap {
+    max-width: none;
+  }
+
+  .main-nav {
+    padding-bottom: 0.5rem;
+  }
+}

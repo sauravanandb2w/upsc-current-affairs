@@ -21,16 +21,27 @@ Full schema: **[SCHEMA.md](./SCHEMA.md)**
 ```bash
 cd upsc-current-affairs
 
-# Add a new item
+# Add from laptop (git-backed)
 python3 scripts/add-item.py "RBI MPC February" --date 2025-02-08 --tag rbi --tag monetary-policy --thread 2025-rbi-monetary-policy --gs 3
+
+# Or use **+ Add CA** in the web app (saves on device; export to git from laptop)
 
 # Rebuild index after editing manifests
 python3 scripts/build-index.py
 
-# Run locally (required for fetch)
+# Run locally
 python3 -m http.server 8080
 # → http://localhost:8080
 ```
+
+### In the app
+
+| Action | Where |
+|--------|--------|
+| **Add new CA** | **+ Add CA** button (header or desk) |
+| **Revise by date range** | **Revise** tab → last 7/30/90 days or custom range |
+| **Search** | Header search box (title, tags, notes) |
+| **Status** | Open item → Status dropdown (to study / studied / revise) |
 
 ## Supabase (summary + links + sources only)
 
