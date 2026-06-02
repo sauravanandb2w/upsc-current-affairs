@@ -16,4 +16,4 @@ test
 
 ## Miscellaneous
 
-updated from mac pro
+save this to git from mac pro
