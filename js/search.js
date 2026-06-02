@@ -2,6 +2,8 @@
  * Global search: index-backed matching + header autocomplete.
  */
 
+import { formatDisplayDate } from "./date-picker.js";
+
 /** @type {Record<string, { title: string, date: string, tags: string[], threads: string[], text: string }>} */
 let searchIndexEntries = {};
 
@@ -157,7 +159,7 @@ export function bindSearchAutocomplete(opts) {
         const tag = (item.tags || [])[0];
         return `<li class="search-suggestion" role="option" data-index="${i}" data-item-id="${item.id}" aria-selected="${i === activeIndex}">
           <span class="search-suggestion-title">${highlightMatch(item.title, q)}</span>
-          <span class="search-suggestion-meta">${item.date || ""}${tag ? ` · ${tag}` : ""}</span>
+          <span class="search-suggestion-meta">${item.date ? formatDisplayDate(item.date) : ""}${tag ? ` · ${tag}` : ""}</span>
         </li>`;
       })
       .join("");

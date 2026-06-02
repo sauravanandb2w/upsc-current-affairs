@@ -82,7 +82,7 @@ import {
   isoDaysAgo,
   startOfMonthIso,
 } from "./views.js";
-import { mountDatePicker } from "./date-picker.js";
+import { mountDatePicker, mountDateField, formatDisplayDate } from "./date-picker.js";
 import { renderActivityDashboard } from "./activity-dashboard.js";
 import {
   recordCaNoteActivity,
@@ -305,7 +305,7 @@ function renderItemCard(item, { showSummary = true, compact = false } = {}) {
   return `
     <article class="ca-card ${statusClass(item.status)}" data-open-item="${escapeHtml(item.id)}">
       <div class="ca-card-meta">
-        <time>${escapeHtml(item.date || "")}</time>
+        <time datetime="${escapeHtml(item.date || "")}">${escapeHtml(item.date ? formatDisplayDate(item.date) : "")}</time>
         ${gsBadges(item.gsPapers)}
         ${draftBadge}
         ${starred ? '<span class="star-badge" title="Starred">★</span>' : ""}
@@ -531,13 +531,15 @@ async function renderRevise() {
         <button type="button" class="preset-btn" data-preset="90">Last 90 days</button>
       </div>
       <div class="topic-filters revise-filters">
-        <label>From <input type="date" id="reviseFrom" value="${state.reviseFrom}" /></label>
-        <label>To <input type="date" id="reviseTo" value="${state.reviseTo}" /></label>
+        <div class="revise-date-fields">
+          <label class="filter-field filter-field--date"><span>From</span><div id="reviseFromField" class="date-field-slot"></div></label>
+          <label class="filter-field filter-field--date"><span>To</span><div id="reviseToField" class="date-field-slot"></div></label>
+        </div>
         <label>Tag <input type="text" id="reviseTag" placeholder="optional" value="${escapeHtml(state.reviseTag)}" /></label>
         <button type="button" class="btn-primary btn-sm" id="reviseApplyBtn">Apply</button>
         <button type="button" class="btn-ghost btn-sm" id="revisePrintBtn">Print / PDF</button>
       </div>
-      <p class="revise-count"><strong>${items.length}</strong> items · ${escapeHtml(state.reviseFrom)} → ${escapeHtml(state.reviseTo)}</p>
+      <p class="revise-count"><strong>${items.length}</strong> items · ${escapeHtml(formatDisplayDate(state.reviseFrom))} → ${escapeHtml(formatDisplayDate(state.reviseTo))}</p>
     </section>
     <div class="revise-list" id="reviseList">
       ${items.length ? '<p class="muted">Loading notes…</p>' : '<p class="empty-hint">No items in this range — widen dates or add CA.</p>'}
@@ -557,9 +559,25 @@ async function renderRevise() {
     });
   });
 
+  const reviseFromPicker = mountDateField(document.getElementById("reviseFromField"), {
+    value: state.reviseFrom,
+    popover: true,
+    onChange(iso) {
+      state.reviseFrom = iso;
+    },
+  });
+  const reviseToPicker = mountDateField(document.getElementById("reviseToField"), {
+    value: state.reviseTo,
+    popover: true,
+    maxDate: todayIso(),
+    onChange(iso) {
+      state.reviseTo = iso;
+    },
+  });
+
   document.getElementById("reviseApplyBtn")?.addEventListener("click", () => {
-    state.reviseFrom = document.getElementById("reviseFrom")?.value || state.reviseFrom;
-    state.reviseTo = document.getElementById("reviseTo")?.value || state.reviseTo;
+    state.reviseFrom = reviseFromPicker?.getValue() || state.reviseFrom;
+    state.reviseTo = reviseToPicker?.getValue() || state.reviseTo;
     state.reviseTag = document.getElementById("reviseTag")?.value.trim() || "";
     renderRevise();
   });
@@ -579,7 +597,7 @@ async function renderRevise() {
       <article class="revise-card" id="revise-${escapeHtml(item.id)}">
         <header class="revise-card-head">
           <div>
-            <time>${escapeHtml(item.date)}</time>
+            <time datetime="${escapeHtml(item.date)}">${escapeHtml(formatDisplayDate(item.date))}</time>
             <h3>${escapeHtml(item.title)}</h3>
             <div class="item-badges">${gsBadges(item.gsPapers)} ${tagBadges(item.tags)}</div>
           </div>
@@ -734,7 +752,7 @@ async function renderItemDetail(itemId) {
       <header class="item-header">
         <div class="item-header-row">
           <div>
-            <time>${escapeHtml(item.date)}</time>
+            <time datetime="${escapeHtml(item.date)}">${escapeHtml(formatDisplayDate(item.date))}</time>
             <h2>${escapeHtml(item.title)}</h2>
           </div>
           <div class="item-actions-row">
@@ -1013,6 +1031,7 @@ function mountLinksEditor(itemId, userId, draft, links) {
 function mountSourcesEditor(itemId, userId, draft, sources) {
   const root = document.getElementById("sourcesList");
   if (!root) return;
+  const defaultDate = itemById(itemId)?.date || todayIso();
 
   const render = () => {
     root.innerHTML = sources
@@ -1025,27 +1044,43 @@ function mountSourcesEditor(itemId, userId, draft, sources) {
             .join("")}
         </select>
         <input class="src-name" placeholder="Name (The Hindu, Yojana…)" value="${escapeHtml(src.name || "")}" />
-        <input class="src-date" placeholder="Date" value="${escapeHtml(src.date || "")}" />
+        <div class="src-date-mount date-field-slot"></div>
         <input class="src-url" type="url" placeholder="URL or Drive link" value="${escapeHtml(src.url || "")}" />
         <button type="button" class="btn-ghost btn-sm src-remove" title="Remove">×</button>
       </div>`
       )
       .join("");
 
+    const datePickers = [];
+
     root.querySelectorAll(".source-row").forEach((row) => {
       const idx = Number(row.dataset.idx);
+      const src = sources[idx];
+      const dateMount = row.querySelector(".src-date-mount");
+      const initialDate =
+        src.date && /^\d{4}-\d{2}-\d{2}$/.test(src.date) ? src.date : defaultDate;
+
       const sync = () => {
         sources[idx] = {
           type: row.querySelector(".src-type")?.value || "other",
           name: row.querySelector(".src-name")?.value || "",
-          date: row.querySelector(".src-date")?.value || "",
+          date: datePickers[idx]?.getValue() || initialDate,
           url: row.querySelector(".src-url")?.value || "",
           file: sources[idx]?.file,
         };
         persistItemSources(itemId, userId, draft, sources);
       };
+
+      datePickers[idx] = mountDateField(dateMount, {
+        value: initialDate,
+        popover: true,
+        maxDate: todayIso(),
+        onChange: sync,
+      });
+
       row.querySelectorAll("input, select").forEach((inp) => inp.addEventListener("input", sync));
       row.querySelector(".src-remove")?.addEventListener("click", () => {
+        datePickers[idx]?.destroy?.();
         sources.splice(idx, 1);
         persistItemSources(itemId, userId, draft, sources);
         render();
@@ -1058,7 +1093,7 @@ function mountSourcesEditor(itemId, userId, draft, sources) {
   const newAddBtn = addBtn?.cloneNode(true);
   addBtn?.replaceWith(newAddBtn);
   newAddBtn?.addEventListener("click", () => {
-    sources.push({ type: "newspaper", name: "", date: "", url: "" });
+    sources.push({ type: "newspaper", name: "", date: defaultDate, url: "" });
     persistItemSources(itemId, userId, draft, sources);
     render();
   });

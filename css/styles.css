@@ -717,7 +717,9 @@ code {
 }
 
 .source-row {
-  grid-template-columns: 100px 1fr 100px 1fr auto;
+  grid-template-columns: minmax(6rem, 0.85fr) 1.2fr auto 1.4fr auto;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 @media (max-width: 700px) {
@@ -2437,6 +2439,110 @@ code {
   margin: 0.5rem 0 0;
   font-size: 0.82rem;
   color: var(--ink-muted);
+}
+
+.date-picker-iso {
+  font-size: 0.75rem;
+  opacity: 0.75;
+}
+
+.date-picker--compact {
+  padding: 0.45rem;
+  max-width: 16.5rem;
+}
+
+.date-picker--compact .date-picker-cell {
+  font-size: 0.72rem;
+  border-radius: 6px;
+}
+
+.date-picker--compact .date-picker-title {
+  font-size: 0.85rem;
+}
+
+.date-picker--compact .date-picker-nav {
+  width: 1.65rem;
+  height: 1.65rem;
+  font-size: 0.95rem;
+}
+
+.date-field-mount {
+  position: relative;
+  display: inline-block;
+}
+
+.date-field-slot {
+  min-width: 9rem;
+}
+
+.date-field-trigger {
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid rgba(28, 25, 23, 0.15);
+  background: var(--paper, #fff);
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+.date-field-trigger:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.date-field-popover {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  z-index: 150;
+  box-shadow: var(--shadow);
+  border-radius: var(--radius);
+}
+
+.date-field-popover .date-picker {
+  margin: 0;
+}
+
+.revise-date-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  align-items: flex-end;
+}
+
+.filter-field--date {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.filter-field--month .month-picker-slot {
+  min-width: 12rem;
+}
+
+.month-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid rgba(28, 25, 23, 0.12);
+  border-radius: var(--radius);
+  background: var(--paper, #fff);
+}
+
+.month-picker-label {
+  flex: 1;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.month-picker-iso {
+  margin-top: 0.35rem;
+  text-align: center;
 }
 
 /* Study activity tracker */

@@ -11,7 +11,7 @@ import {
   rateFlashcard,
 } from "./flashcards.js";
 import { noteHtmlToPlainText } from "./rich-notes.js";
-import { GIT_SECTIONS } from "./notes-md.js";
+import { mountMonthPicker, formatDisplayDate, formatDisplayMonth } from "./date-picker.js";
 import { exportCaAsMarkdown } from "./export-ca.js";
 import { collectAllThreads, renderThreadSelectOptions } from "./filter-options.js";
 
@@ -192,7 +192,7 @@ export function renderCalendar(ctx) {
       const date = btn.dataset.calDate;
       const dayItems = byDate.get(date) || [];
       const detail = document.getElementById("calDayDetail");
-      detail.innerHTML = `<h4>${date}</h4><div class="timeline">${dayItems.map((i) => ctx.renderItemCard(i)).join("") || "<p class='muted'>No items</p>"}</div>`;
+      detail.innerHTML = `<h4>${ctx.escapeHtml(formatDisplayDate(date))}</h4><div class="timeline">${dayItems.map((i) => ctx.renderItemCard(i)).join("") || "<p class='muted'>No items</p>"}</div>`;
     });
   });
 }
@@ -232,7 +232,7 @@ export function renderThreadDiff(ctx) {
                 .map((i) => {
                   const sum = noteHtmlToPlainText(getCloudEntry(i.id).summary || i.summary || "").slice(0, 160);
                   return `<article class="thread-card" data-open-item="${ctx.escapeHtml(i.id)}">
-                    <time>${ctx.escapeHtml(i.date)}</time>
+                    <time datetime="${ctx.escapeHtml(i.date)}">${ctx.escapeHtml(formatDisplayDate(i.date))}</time>
                     <h3>${ctx.escapeHtml(i.title)}</h3>
                     ${sum ? `<p class="thread-snippet">${ctx.escapeHtml(sum)}${sum.length >= 160 ? "…" : ""}</p>` : ""}
                     <div class="thread-card-tags">${(i.tags || []).map((t) => `<span class="badge badge-tag">${ctx.escapeHtml(t)}</span>`).join("")}</div>
@@ -405,9 +405,9 @@ export function renderMonthly(ctx) {
   ctx.el.main.innerHTML = `
     <section class="view-head">
       <h2>Monthly digest</h2>
-      <p class="muted">${items.length} items in ${month}</p>
+      <p class="muted">${items.length} items in ${formatDisplayMonth(month)}</p>
       <div class="topic-filters">
-        <label>Month <input type="month" id="monthlyPicker" value="${month}" /></label>
+        <label class="filter-field filter-field--month">Month <div id="monthlyPickerMount" class="month-picker-slot"></div></label>
         <button type="button" class="btn-primary btn-sm" id="monthlyApply">Show</button>
         <button type="button" class="btn-ghost btn-sm" id="monthlyExport">Export MD</button>
         <button type="button" class="btn-ghost btn-sm" id="monthlyPrint">Print</button>
@@ -419,7 +419,7 @@ export function renderMonthly(ctx) {
           const cloud = getCloudEntry(item.id);
           const git = ctx.getGitSections(item.id, null);
           return `<article class="revise-card">
-            <h3>${ctx.escapeHtml(item.date)} — ${ctx.escapeHtml(item.title)}</h3>
+            <h3><time datetime="${ctx.escapeHtml(item.date)}">${ctx.escapeHtml(formatDisplayDate(item.date))}</time> — ${ctx.escapeHtml(item.title)}</h3>
             ${cloud.summary ? `<p>${ctx.escapeHtml(noteHtmlToPlainText(cloud.summary).slice(0, 300))}</p>` : ""}
             ${GIT_SECTIONS.map((s) => {
               const t = noteHtmlToPlainText(git[s] || "");
@@ -430,8 +430,15 @@ export function renderMonthly(ctx) {
         .join("") || "<p class='muted'>No items this month</p>"}
     </div>`;
 
+  let monthPickerApi = mountMonthPicker(document.getElementById("monthlyPickerMount"), {
+    value: month,
+    onChange(ym) {
+      ctx.state.monthlyMonth = ym;
+    },
+  });
+
   document.getElementById("monthlyApply")?.addEventListener("click", () => {
-    ctx.state.monthlyMonth = document.getElementById("monthlyPicker")?.value || month;
+    ctx.state.monthlyMonth = monthPickerApi?.getValue() || month;
     renderMonthly(ctx);
   });
   document.getElementById("monthlyExport")?.addEventListener("click", () => {

@@ -1,4 +1,4 @@
-/** Mini month calendar for Add CA and other date fields. */
+/** Mini calendar for uniform ISO dates (YYYY-MM-DD) across the app. */
 
 const MONTHS = [
   "January",
@@ -17,33 +17,63 @@ const MONTHS = [
 
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
-function parseIso(iso) {
+export function parseIso(iso) {
   if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return new Date();
   const [y, m, d] = iso.split("-").map(Number);
   return new Date(y, m - 1, d, 12, 0, 0, 0);
 }
 
-function toIso(date) {
+export function toIso(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
 
-function todayIso() {
+export function todayIso() {
   return toIso(new Date());
+}
+
+/** Uniform display: 2 Jun 2026 */
+export function formatDisplayDate(iso) {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(String(iso))) return "Pick date";
+  return parseIso(iso).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+/** Uniform month display: June 2026 */
+export function formatDisplayMonth(ym) {
+  if (!ym || !/^\d{4}-\d{2}$/.test(String(ym))) return "Pick month";
+  const [y, m] = ym.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+}
+
+function isBeforeMin(iso, minDate) {
+  return minDate && iso < minDate;
+}
+
+function isAfterMax(iso, maxDate) {
+  return maxDate && iso > maxDate;
 }
 
 /**
  * @param {HTMLElement} container
- * @param {{ value?: string, onChange?: (iso: string) => void, maxDate?: string }} opts
+ * @param {{ value?: string, onChange?: (iso: string) => void, maxDate?: string|null, minDate?: string|null, compact?: boolean, showSelectedLine?: boolean }} opts
  */
-export function mountDatePicker(container, { value = todayIso(), onChange, maxDate } = {}) {
-  if (!container) return () => {};
+export function mountDatePicker(
+  container,
+  { value = todayIso(), onChange, maxDate = null, minDate = null, compact = false, showSelectedLine = true } = {}
+) {
+  if (!container) return null;
+
+  container.classList.add("date-picker");
+  if (compact) container.classList.add("date-picker--compact");
 
   let viewDate = parseIso(value);
   let selected = value || todayIso();
-  const max = maxDate || todayIso();
 
   function render() {
     const y = viewDate.getFullYear();
@@ -54,15 +84,15 @@ export function mountDatePicker(container, { value = todayIso(), onChange, maxDa
     const daysInMonth = last.getDate();
 
     const cells = [];
-    for (let i = 0; i < startPad; i++) cells.push({ empty: true });
-    for (let d = 1; d <= daysInMonth; d++) {
+    for (let i = 0; i < startPad; i += 1) cells.push({ empty: true });
+    for (let d = 1; d <= daysInMonth; d += 1) {
       const iso = toIso(new Date(y, m, d, 12, 0, 0, 0));
       cells.push({
         day: d,
         iso,
         isToday: iso === todayIso(),
         isSelected: iso === selected,
-        isFuture: iso > max,
+        isDisabled: isBeforeMin(iso, minDate) || isAfterMax(iso, maxDate),
       });
     }
 
@@ -82,15 +112,19 @@ export function mountDatePicker(container, { value = todayIso(), onChange, maxDa
                 "date-picker-cell",
                 c.isSelected ? "date-picker-cell--selected" : "",
                 c.isToday ? "date-picker-cell--today" : "",
-                c.isFuture ? "date-picker-cell--disabled" : "",
+                c.isDisabled ? "date-picker-cell--disabled" : "",
               ]
                 .filter(Boolean)
                 .join(" ");
-              return `<button type="button" class="${cls}" data-iso="${c.iso}" ${c.isFuture ? "disabled" : ""} aria-pressed="${c.isSelected}">${c.day}</button>`;
+              return `<button type="button" class="${cls}" data-iso="${c.iso}" ${c.isDisabled ? "disabled" : ""} aria-pressed="${c.isSelected}">${c.day}</button>`;
             })
             .join("")}
         </div>
-        <p class="date-picker-selected">Selected: <strong>${selected}</strong></p>
+        ${
+          showSelectedLine
+            ? `<p class="date-picker-selected">${formatDisplayDate(selected)} <span class="date-picker-iso">(${selected})</span></p>`
+            : ""
+        }
       </div>`;
 
     container.querySelectorAll("[data-nav]").forEach((btn) => {
@@ -114,8 +148,167 @@ export function mountDatePicker(container, { value = todayIso(), onChange, maxDa
   return {
     getValue: () => selected,
     setValue(iso) {
-      selected = iso;
-      viewDate = parseIso(iso);
+      selected = iso || todayIso();
+      viewDate = parseIso(selected);
+      render();
+    },
+  };
+}
+
+/**
+ * Hidden ISO input + calendar (inline or popover trigger).
+ * @param {HTMLElement} container
+ */
+export function mountDateField(
+  container,
+  {
+    value = todayIso(),
+    onChange,
+    maxDate = null,
+    minDate = null,
+    compact = true,
+    popover = false,
+  } = {}
+) {
+  if (!container) return null;
+
+  container.classList.add("date-field-mount");
+  const start = value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : todayIso();
+
+  if (popover) {
+    container.innerHTML = `
+      <input type="hidden" class="date-field-value" value="${start}" />
+      <button type="button" class="date-field-trigger" aria-haspopup="dialog">${formatDisplayDate(start)}</button>
+      <div class="date-field-popover hidden" role="dialog"></div>`;
+
+    const hidden = container.querySelector(".date-field-value");
+    const trigger = container.querySelector(".date-field-trigger");
+    const pop = container.querySelector(".date-field-popover");
+    let pickerApi = null;
+
+    const close = () => pop.classList.add("hidden");
+    const open = () => {
+      pop.classList.remove("hidden");
+      if (!pickerApi) {
+        pickerApi = mountDatePicker(pop, {
+          value: hidden.value,
+          maxDate,
+          minDate,
+          compact: true,
+          showSelectedLine: false,
+          onChange(iso) {
+            hidden.value = iso;
+            trigger.textContent = formatDisplayDate(iso);
+            onChange?.(iso);
+            close();
+          },
+        });
+      } else {
+        pickerApi.setValue(hidden.value);
+      }
+    };
+
+    trigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (pop.classList.contains("hidden")) open();
+      else close();
+    });
+
+    const onDocClick = (e) => {
+      if (!container.contains(e.target)) close();
+    };
+    document.addEventListener("click", onDocClick);
+
+    return {
+      getValue: () => hidden.value,
+      setValue(iso) {
+        hidden.value = iso;
+        trigger.textContent = formatDisplayDate(iso);
+        pickerApi?.setValue(iso);
+      },
+      destroy() {
+        document.removeEventListener("click", onDocClick);
+      },
+    };
+  }
+
+  container.innerHTML = `
+    <input type="hidden" class="date-field-value" value="${start}" />
+    <div class="date-field-inline"></div>`;
+
+  const hidden = container.querySelector(".date-field-value");
+  const inline = container.querySelector(".date-field-inline");
+  const pickerApi = mountDatePicker(inline, {
+    value: start,
+    maxDate,
+    minDate,
+    compact,
+    onChange(iso) {
+      hidden.value = iso;
+      onChange?.(iso);
+    },
+  });
+
+  return {
+    getValue: () => hidden.value || pickerApi.getValue(),
+    setValue(iso) {
+      hidden.value = iso;
+      pickerApi.setValue(iso);
+    },
+    destroy() {},
+  };
+}
+
+/**
+ * Month picker (YYYY-MM) with same nav style as calendar.
+ * @param {HTMLElement} container
+ */
+export function mountMonthPicker(container, { value = todayIso().slice(0, 7), onChange } = {}) {
+  if (!container) return null;
+
+  container.classList.add("month-picker-mount");
+  let year = Number(String(value).slice(0, 4)) || new Date().getFullYear();
+  let month = Number(String(value).slice(5, 7)) || new Date().getMonth() + 1;
+
+  const emit = () => {
+    const ym = `${year}-${String(month).padStart(2, "0")}`;
+    onChange?.(ym);
+    return ym;
+  };
+
+  function render() {
+    const label = formatDisplayMonth(`${year}-${String(month).padStart(2, "0")}`);
+    container.innerHTML = `
+      <div class="month-picker">
+        <button type="button" class="date-picker-nav month-picker-nav" data-nav="-1" aria-label="Previous month">‹</button>
+        <span class="month-picker-label">${label}</span>
+        <button type="button" class="date-picker-nav month-picker-nav" data-nav="1" aria-label="Next month">›</button>
+      </div>
+      <p class="date-picker-selected month-picker-iso">${year}-${String(month).padStart(2, "0")}</p>`;
+
+    container.querySelectorAll("[data-nav]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        month += Number(btn.dataset.nav);
+        if (month < 1) {
+          month = 12;
+          year -= 1;
+        } else if (month > 12) {
+          month = 1;
+          year += 1;
+        }
+        emit();
+        render();
+      });
+    });
+  }
+
+  render();
+
+  return {
+    getValue: () => `${year}-${String(month).padStart(2, "0")}`,
+    setValue(ym) {
+      year = Number(ym.slice(0, 4));
+      month = Number(ym.slice(5, 7));
       render();
     },
   };
