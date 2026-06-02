@@ -1,6 +1,6 @@
 import { getSupabase, isSupabaseConfigured } from "./supabase-client.js";
 import { fieldIdForSection } from "./field-locks.js";
-import { GIT_SECTIONS } from "./notes-md.js";
+import { GIT_SECTIONS, sectionPlainLength } from "./notes-md.js";
 
 const LS_CLOUD_PREFIX = "ca-cloud:";
 const LS_GIT_PREFIX = "ca-git-notes:";
@@ -8,6 +8,8 @@ const LS_META_PREFIX = "ca-meta:";
 const DEBOUNCE_MS = 700;
 
 const saveTimers = new Map();
+/** @type {Map<string, string|null>} */
+const pendingSaveUserIds = new Map();
 
 /** @type {Record<string, object>} */
 let cloudCache = {};
@@ -17,6 +19,128 @@ let metaCache = {};
 
 function emptyCloudEntry() {
   return { summary: "", links: [], sources: [], gitNotes: {}, __locks: {} };
+}
+
+function coalesceNoteText(...candidates) {
+  for (const value of candidates) {
+    if (sectionPlainLength(value) > 0) return String(value ?? "");
+  }
+  return String(candidates[candidates.length - 1] ?? "");
+}
+
+function readLocalCloudEntry(itemId) {
+  try {
+    const raw = localStorage.getItem(LS_CLOUD_PREFIX + itemId);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    parsed.__locks = parsed.__locks || {};
+    parsed.gitNotes = parsed.gitNotes || {};
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function readLocalGitNotes(itemId) {
+  try {
+    const raw = localStorage.getItem(LS_GIT_PREFIX + itemId);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function mergeGitNotesLocalRemote(local, remote) {
+  const merged = { ...(remote && typeof remote === "object" ? remote : {}) };
+  if (!local || typeof local !== "object") return merged;
+  for (const sec of GIT_SECTIONS) {
+    const fid = fieldIdForSection(sec);
+    const localVal = local[sec] ?? local[fid];
+    const remoteVal = remote?.[sec] ?? remote?.[fid];
+    merged[sec] = coalesceNoteText(localVal, remoteVal);
+  }
+  return merged;
+}
+
+function cloudEntryFromRow(row) {
+  const gitNotes = row.git_notes_json && typeof row.git_notes_json === "object" ? row.git_notes_json : {};
+  return {
+    summary: row.summary || "",
+    links: Array.isArray(row.links_json) ? row.links_json : [],
+    sources: Array.isArray(row.sources_json) ? row.sources_json : [],
+    gitNotes,
+    __locks: parseLocks(row.locked_fields),
+  };
+}
+
+function mergeCloudEntryWithLocal(itemId, local, remote, hasPendingSave) {
+  const localEntry = local || readLocalCloudEntry(itemId) || emptyCloudEntry();
+  const localGit = localEntry.gitNotes && Object.keys(localEntry.gitNotes).length
+    ? localEntry.gitNotes
+    : readLocalGitNotes(itemId);
+  const remoteEntry = remote || emptyCloudEntry();
+
+  if (hasPendingSave) {
+    return {
+      ...remoteEntry,
+      summary: coalesceNoteText(localEntry.summary, remoteEntry.summary),
+      links: localEntry.links?.length ? localEntry.links : remoteEntry.links,
+      sources: localEntry.sources?.length ? localEntry.sources : remoteEntry.sources,
+      gitNotes: mergeGitNotesLocalRemote(localGit, remoteEntry.gitNotes),
+      __locks: { ...remoteEntry.__locks },
+    };
+  }
+
+  return {
+    summary: coalesceNoteText(localEntry.summary, remoteEntry.summary),
+    links: localEntry.links?.length ? localEntry.links : remoteEntry.links,
+    sources: localEntry.sources?.length ? localEntry.sources : remoteEntry.sources,
+    gitNotes: mergeGitNotesLocalRemote(localGit, remoteEntry.gitNotes),
+    __locks: { ...remoteEntry.__locks },
+  };
+}
+
+function persistCloudEntry(itemId, entry) {
+  cloudCache[itemId] = entry;
+  localStorage.setItem(LS_CLOUD_PREFIX + itemId, JSON.stringify(entry));
+  if (entry.gitNotes && Object.keys(entry.gitNotes).length) {
+    localStorage.setItem(LS_GIT_PREFIX + itemId, JSON.stringify(entry.gitNotes));
+  }
+}
+
+async function pushCloudEntry(itemId, userId, payload) {
+  if (!isSupabaseConfigured() || !userId) return;
+  const sb = getSupabase();
+  const gitNotes = {};
+  for (const sec of GIT_SECTIONS) {
+    const fid = fieldIdForSection(sec);
+    if (payload.gitNotes?.[sec] !== undefined) gitNotes[sec] = payload.gitNotes[sec];
+    else if (payload.gitNotes?.[fid] !== undefined) gitNotes[sec] = payload.gitNotes[fid];
+  }
+  const { error } = await sb.from("ca_item_notes").upsert(
+    {
+      user_id: userId,
+      item_id: itemId,
+      summary: payload.summary || "",
+      links_json: payload.links || [],
+      sources_json: payload.sources || [],
+      locked_fields: serializeLocks(payload.__locks),
+      git_notes_json: gitNotes,
+    },
+    { onConflict: "user_id,item_id" }
+  );
+  if (error) console.warn("ca_item_notes save", error);
+}
+
+export async function flushPendingCloudSavesNow() {
+  const pendingIds = [...saveTimers.keys()];
+  for (const itemId of pendingIds) {
+    clearTimeout(saveTimers.get(itemId));
+    saveTimers.delete(itemId);
+    const userId = pendingSaveUserIds.get(itemId) ?? null;
+    pendingSaveUserIds.delete(itemId);
+    await pushCloudEntry(itemId, userId, getCloudEntry(itemId));
+  }
 }
 
 function parseLocks(raw) {
@@ -110,20 +234,26 @@ export async function loadAllCloudNotes(userId) {
   if (notesRes.error) console.warn("ca_item_notes load", notesRes.error);
   if (metaRes.error) console.warn("ca_item_meta load", metaRes.error);
 
+  const localSnapshot = { ...cloudCache };
+  const pendingIds = new Set(saveTimers.keys());
+  const seen = new Set();
+
   cloudCache = {};
   for (const row of notesRes.data || []) {
-    const gitNotes = row.git_notes_json && typeof row.git_notes_json === "object" ? row.git_notes_json : {};
-    cloudCache[row.item_id] = {
-      summary: row.summary || "",
-      links: Array.isArray(row.links_json) ? row.links_json : [],
-      sources: Array.isArray(row.sources_json) ? row.sources_json : [],
-      gitNotes,
-      __locks: parseLocks(row.locked_fields),
-    };
-    localStorage.setItem(LS_CLOUD_PREFIX + row.item_id, JSON.stringify(cloudCache[row.item_id]));
-    if (Object.keys(gitNotes).length) {
-      localStorage.setItem(LS_GIT_PREFIX + row.item_id, JSON.stringify(gitNotes));
-    }
+    seen.add(row.item_id);
+    const merged = mergeCloudEntryWithLocal(
+      row.item_id,
+      localSnapshot[row.item_id],
+      cloudEntryFromRow(row),
+      pendingIds.has(row.item_id)
+    );
+    persistCloudEntry(row.item_id, merged);
+  }
+
+  for (const [itemId, local] of Object.entries(localSnapshot)) {
+    if (seen.has(itemId)) continue;
+    cloudCache[itemId] = local;
+    localStorage.setItem(LS_CLOUD_PREFIX + itemId, JSON.stringify(local));
   }
 
   metaCache = {};
@@ -168,32 +298,15 @@ function scheduleCloudSave(itemId, userId, payload) {
 
   const prev = saveTimers.get(itemId);
   if (prev) clearTimeout(prev);
+  pendingSaveUserIds.set(itemId, userId);
 
   saveTimers.set(
     itemId,
     setTimeout(async () => {
       saveTimers.delete(itemId);
-      if (!isSupabaseConfigured() || !userId) return;
-      const sb = getSupabase();
-      const gitNotes = {};
-      for (const sec of GIT_SECTIONS) {
-        const fid = fieldIdForSection(sec);
-        if (payload.gitNotes?.[sec] !== undefined) gitNotes[sec] = payload.gitNotes[sec];
-        else if (payload.gitNotes?.[fid] !== undefined) gitNotes[sec] = payload.gitNotes[fid];
-      }
-      const { error } = await sb.from("ca_item_notes").upsert(
-        {
-          user_id: userId,
-          item_id: itemId,
-          summary: payload.summary || "",
-          links_json: payload.links || [],
-          sources_json: payload.sources || [],
-          locked_fields: serializeLocks(payload.__locks),
-          git_notes_json: gitNotes,
-        },
-        { onConflict: "user_id,item_id" }
-      );
-      if (error) console.warn("ca_item_notes save", error);
+      const uid = pendingSaveUserIds.get(itemId) ?? null;
+      pendingSaveUserIds.delete(itemId);
+      await pushCloudEntry(itemId, uid, payload);
     }, DEBOUNCE_MS)
   );
 }
@@ -280,6 +393,7 @@ export async function removeItemFromCloud(itemId, userId) {
   if (pending) {
     clearTimeout(pending);
     saveTimers.delete(itemId);
+    pendingSaveUserIds.delete(itemId);
   }
   if (!userId || !isSupabaseConfigured()) return;
   const sb = getSupabase();

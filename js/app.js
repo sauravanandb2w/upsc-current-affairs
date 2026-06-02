@@ -24,6 +24,7 @@ import {
   pickNoteValue,
   getLockedSnapshot,
   removeItemFromCloud,
+  flushPendingCloudSavesNow,
 } from "./ca-store.js";
 import {
   initSupabase,
@@ -141,6 +142,28 @@ const state = {
   pendingDraftId: null,
   drillIndex: 0,
 };
+
+let itemDetailRenderSeq = 0;
+
+function flushItemNoteEditorsFromDom() {
+  if (state.view !== "item" || !state.itemId) return;
+  const itemId = state.itemId;
+  const userId = state.session?.user?.id || null;
+
+  const summaryField = document.querySelector('[data-field-id="summary"]')?.closest(".note-field");
+  if (summaryField) {
+    updateCloudField(itemId, userId, "summary", readNoteFieldValue(summaryField));
+  }
+
+  const sections = { ...(getGitNotesFromLocal(itemId) || emptyGitSections()) };
+  document.querySelectorAll(".note-field[data-field]").forEach((fieldEl) => {
+    const editor = fieldEl.querySelector(".rich-note-editor");
+    const sec = editor?.dataset.section;
+    if (!sec) return;
+    sections[sec] = readNoteFieldValue(fieldEl);
+  });
+  saveGitNotesToLocal(itemId, sections, userId);
+}
 
 const el = {
   syncBadge: document.getElementById("syncBadge"),
@@ -759,6 +782,7 @@ function renderPdfList(itemId, pdfs) {
 }
 
 async function renderItemDetail(itemId) {
+  const renderSeq = ++itemDetailRenderSeq;
   recordCaViewActivity(itemId);
   const item = itemById(itemId);
   if (!item) {
@@ -769,6 +793,7 @@ async function renderItemDetail(itemId) {
   const merged = mergeCloudWithManifest(item);
   const cloud = getCloudEntry(itemId);
   const mdText = await fetchNotesMd(itemId);
+  if (renderSeq !== itemDetailRenderSeq || state.view !== "item" || state.itemId !== itemId) return;
   const sections = getGitSections(itemId, mdText);
   const userId = state.session?.user?.id || null;
   const draft = isDraftItem(item);
@@ -1412,6 +1437,10 @@ function bindSearch() {
 }
 
 function navigate(view, itemId = null) {
+  if (state.view === "item" && state.itemId) {
+    flushItemNoteEditorsFromDom();
+  }
+
   state.view = view;
   state.itemId = itemId;
   document.querySelectorAll(".nav-btn").forEach((btn) => {
@@ -1547,12 +1576,18 @@ async function initAuthBackground() {
     bindGitHubHeaderButton(el.githubConnectBtn);
     state.session = await withTimeout(getSession(), 8000, null);
     if (state.session?.user?.id) {
+      if (state.view === "item" && state.itemId) flushItemNoteEditorsFromDom();
+      await flushPendingCloudSavesNow();
       await withTimeout(loadAllCloudNotes(state.session.user.id), 12000, undefined);
       await withTimeout(loadFlashcards(state.session.user.id), 8000, undefined);
     }
     onAuthStateChange(async (session) => {
       state.session = session;
       updateAuthUi();
+      if (state.view === "item" && state.itemId) {
+        flushItemNoteEditorsFromDom();
+      }
+      await flushPendingCloudSavesNow();
       if (session?.user?.id) {
         await loadAllCloudNotes(session.user.id);
         await loadFlashcards(session.user.id);
@@ -1586,6 +1621,15 @@ async function init() {
     await loadIndex();
     await loadSearchIndex(assetUrl("data/search-index.json"));
     navigate("today");
+
+    const flushNotesOnHide = () => {
+      flushItemNoteEditorsFromDom();
+      flushPendingCloudSavesNow().catch((err) => console.warn("Notes flush on hide", err));
+    };
+    window.addEventListener("pagehide", flushNotesOnHide);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") flushNotesOnHide();
+    });
 
     void initAuthBackground();
   } catch (err) {
