@@ -795,7 +795,7 @@ async function renderItemDetail(itemId) {
         }).join("")}
 
         <div class="item-tool-row">
-          <button type="button" class="btn-ghost btn-sm" id="genFlashBtn">Generate flashcards</button>
+          <button type="button" class="btn-ghost btn-sm" id="genFlashBtn" title="From Facts &amp; Exam angle — one bullet per line">Generate flashcards</button>
           <button type="button" class="btn-ghost btn-sm" id="markRevisedBtn">Mark revised today</button>
           <button type="button" class="btn-ghost btn-sm" id="commitNotesBtn">Commit notes.md → GitHub</button>
         </div>
@@ -849,9 +849,27 @@ async function renderItemDetail(itemId) {
 
   bindNoteLocks(el.main, itemId, userId);
 
+  function readGitSectionsFromEditors() {
+    const live = { ...gitSections };
+    document.querySelectorAll(".note-field[data-field]").forEach((fieldEl) => {
+      const editor = fieldEl.querySelector(".rich-note-editor");
+      const sec = editor?.dataset.section;
+      if (!sec) return;
+      live[sec] = readNoteFieldValue(fieldEl);
+    });
+    return live;
+  }
+
   document.getElementById("genFlashBtn")?.addEventListener("click", async () => {
-    const n = await generateFlashcardsFromItem(userId, item, gitSections);
-    alert(`Created ${n.length} flashcards. Open Drill tab to revise.`);
+    const liveSections = readGitSectionsFromEditors();
+    const n = await generateFlashcardsFromItem(userId, item, liveSections);
+    if (!n.length) {
+      alert(
+        "No flashcards created.\n\nAdd notes in Facts or Exam angle — one point per line (or short paragraph). Each line needs a few words (not just \"-\").\n\nExample in Facts:\n• RBI kept repo rate unchanged at 6.5%\n• CPI target remains 4% with band"
+      );
+      return;
+    }
+    alert(`Created ${n.length} flashcard${n.length === 1 ? "" : "s"}. Open Drill tab to revise.`);
   });
 
   document.getElementById("markRevisedBtn")?.addEventListener("click", () => {

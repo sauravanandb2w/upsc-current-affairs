@@ -88,20 +88,46 @@ export function getDueFlashcards(now = new Date()) {
 }
 
 export function splitFactsToCards(text) {
-  const plain = noteHtmlToPlainText(text);
-  return plain
-    .split(/\n/)
-    .map((l) => l.replace(/^[-*•]\s*/, "").trim())
-    .filter((l) => l.length > 10);
+  const plain = noteHtmlToPlainText(text).trim();
+  if (!plain) return [];
+
+  const lines = [];
+  for (const block of plain.split(/\n+/)) {
+    let line = block.replace(/^[-*•]\d+[.)]\s*/, "").replace(/^[-*•]\s*/, "").trim();
+    if (!line || line === "-") continue;
+
+    if (line.length > 10) {
+      lines.push(line);
+      continue;
+    }
+
+    // Paragraph-style notes: split into sentences
+    for (const sentence of line.split(/(?<=[.!?])\s+/)) {
+      const s = sentence.trim();
+      if (s.length > 10) lines.push(s);
+    }
+  }
+
+  return [...new Set(lines)];
 }
 
 export async function generateFlashcardsFromItem(userId, item, sections) {
-  const facts = splitFactsToCards(sections.Facts || sections.facts || "");
-  const exam = splitFactsToCards(sections["Exam angle"] || sections.exam_angle || "");
-  const lines = [...facts, ...exam].slice(0, 12);
+  const sources = [
+    ["Facts", sections.Facts || sections.facts || ""],
+    ["Exam angle", sections["Exam angle"] || sections.exam_angle || ""],
+    ["Static connection", sections["Static connection"] || ""],
+    ["GS paper fit", sections["GS paper fit"] || ""],
+  ];
+
+  const lines = [];
+  for (const [, text] of sources) {
+    lines.push(...splitFactsToCards(text));
+  }
+
+  const unique = [...new Set(lines)].slice(0, 12);
   const month = (item.date || "").slice(0, 7);
   const created = [];
-  for (const line of lines) {
+  for (const line of unique) {
     const q = line.includes("?") ? line : `What do you know: ${line.slice(0, 80)}?`;
     const card = {
       id: `local-${crypto.randomUUID()}`,
