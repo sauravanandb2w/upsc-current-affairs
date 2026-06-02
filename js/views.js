@@ -8,11 +8,13 @@ import {
   isCardDue,
   formatNextReview,
   cardThemeIndex,
+  getFlashcards,
   rateFlashcard,
   removeFlashcard,
 } from "./flashcards.js";
 import { noteHtmlToPlainText } from "./rich-notes.js?v=27";
-import { mountMonthPicker, formatDisplayDate, formatDisplayMonth, effectiveItemDate } from "./date-picker.js";
+import { GIT_SECTIONS } from "./notes-md.js";
+import { mountMonthPicker, formatDisplayDate, formatDisplayMonth, effectiveItemDate, isValidIsoDate } from "./date-picker.js";
 import { exportCaAsMarkdown } from "./export-ca.js";
 import { collectAllThreads, renderThreadSelectOptions } from "./filter-options.js";
 
@@ -427,53 +429,169 @@ export function renderDrill(ctx) {
 }
 
 export function renderMonthly(ctx) {
-  const month = ctx.state.monthlyMonth || todayIso().slice(0, 7);
-  const items = ctx
-    .mergedItems()
-    .filter((i) => (i.date || "").startsWith(month))
-    .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const allItems = ctx.mergedItems().filter((i) => isValidIsoDate(effectiveItemDate(i)));
+  const mode = ctx.state.monthlyMode || "last30";
+  let month = ctx.state.monthlyMonth || todayIso().slice(0, 7);
+
+  if (mode === "month" && !allItems.some((i) => effectiveItemDate(i).startsWith(month))) {
+    const latest = allItems
+      .map((i) => effectiveItemDate(i))
+      .sort((a, b) => b.localeCompare(a))[0];
+    if (latest) month = latest.slice(0, 7);
+    ctx.state.monthlyMonth = month;
+  }
+
+  const from30 = isoDaysAgo(30);
+  const toToday = todayIso();
+  let items;
+  let periodLabel;
+
+  if (mode === "last30") {
+    items = allItems
+      .filter((i) => {
+        const d = effectiveItemDate(i);
+        return d >= from30 && d <= toToday;
+      })
+      .sort((a, b) => effectiveItemDate(a).localeCompare(effectiveItemDate(b)));
+    periodLabel = `Last 30 days (${formatDisplayDate(from30)} → ${formatDisplayDate(toToday)})`;
+  } else {
+    items = allItems
+      .filter((i) => effectiveItemDate(i).startsWith(month))
+      .sort((a, b) => effectiveItemDate(a).localeCompare(effectiveItemDate(b)));
+    periodLabel = formatDisplayMonth(month);
+  }
+
+  const tagSet = new Set();
+  items.forEach((i) => (i.tags || []).forEach((t) => tagSet.add(t)));
+  const flashInPeriod = getFlashcards().filter((c) => {
+    if (mode === "last30") return true;
+    return (c.month || "") === month;
+  }).length;
+
+  const weekGroups = new Map();
+  for (const item of items) {
+    const d = effectiveItemDate(item);
+    const dt = new Date(`${d}T12:00:00`);
+    const weekStart = new Date(dt);
+    weekStart.setDate(dt.getDate() - dt.getDay());
+    const key = weekStart.toISOString().slice(0, 10);
+    if (!weekGroups.has(key)) weekGroups.set(key, []);
+    weekGroups.get(key).push(item);
+  }
+
+  function renderMonthlyCard(item) {
+    const cloud = getCloudEntry(item.id);
+    const git = ctx.getGitSections(item.id, null);
+    const d = effectiveItemDate(item);
+    const summary = noteHtmlToPlainText(cloud.summary || "").trim();
+    const facts = noteHtmlToPlainText(git.Facts || "").trim();
+    const exam = noteHtmlToPlainText(git["Exam angle"] || "").trim();
+    const bullets = [];
+    for (const line of (facts || exam).split(/\n+/)) {
+      const t = line.replace(/^[-*•]\s*/, "").trim();
+      if (t.length > 8) bullets.push(t);
+      if (bullets.length >= 3) break;
+    }
+    const meta = getItemMeta(item.id);
+    return `<article class="monthly-card${meta.starred ? " monthly-card--starred" : ""}" data-open-item="${ctx.escapeHtml(item.id)}">
+      <header class="monthly-card-head">
+        <time datetime="${ctx.escapeHtml(d)}">${ctx.escapeHtml(formatDisplayDate(d))}</time>
+        ${meta.starred ? '<span class="monthly-star" title="Starred">★</span>' : ""}
+        <span class="status-pill ${ctx.escapeHtml(item.status || "to-study")}">${ctx.escapeHtml(item.status || "to-study")}</span>
+      </header>
+      <h3 class="monthly-card-title">${ctx.escapeHtml(item.title)}</h3>
+      ${summary ? `<p class="monthly-card-summary">${ctx.escapeHtml(summary.slice(0, 220))}${summary.length > 220 ? "…" : ""}</p>` : ""}
+      ${
+        bullets.length
+          ? `<ul class="monthly-card-bullets">${bullets.map((b) => `<li>${ctx.escapeHtml(b.slice(0, 120))}${b.length > 120 ? "…" : ""}</li>`).join("")}</ul>`
+          : ""
+      }
+      ${item.tags?.length ? `<div class="monthly-card-tags">${item.tags.map((t) => `<span class="badge badge-tag">${ctx.escapeHtml(t)}</span>`).join("")}</div>` : ""}
+      <button type="button" class="btn-ghost btn-sm monthly-open-btn" data-open-item="${ctx.escapeHtml(item.id)}">Open full notes →</button>
+    </article>`;
+  }
+
+  const weekBlocks = [...weekGroups.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([weekStart, weekItems]) => {
+      const end = new Date(`${weekStart}T12:00:00`);
+      end.setDate(end.getDate() + 6);
+      const label = `${formatDisplayDate(weekStart)} – ${formatDisplayDate(end.toISOString().slice(0, 10))}`;
+      return `<section class="monthly-week">
+        <h3 class="monthly-week-head">Week of ${ctx.escapeHtml(label)} <span class="count-pill">${weekItems.length}</span></h3>
+        <div class="monthly-week-grid">${weekItems.map(renderMonthlyCard).join("")}</div>
+      </section>`;
+    })
+    .join("");
 
   ctx.el.main.innerHTML = `
-    <section class="view-head">
-      <h2>Monthly digest</h2>
-      <p class="muted">${items.length} items in ${formatDisplayMonth(month)}</p>
-      <div class="topic-filters">
-        <label class="filter-field filter-field--month">Month <div id="monthlyPickerMount" class="month-picker-slot"></div></label>
-        <button type="button" class="btn-primary btn-sm" id="monthlyApply">Show</button>
+    <section class="monthly-hero">
+      <h2>Monthly consolidation</h2>
+      <p class="view-desc">One scrollable digest of recent CA — summaries and key facts for prelims-style revision.</p>
+      <div class="monthly-presets" role="tablist">
+        <button type="button" class="monthly-preset${mode === "last30" ? " active" : ""}" data-monthly-mode="last30">Last 30 days</button>
+        <button type="button" class="monthly-preset${mode === "month" ? " active" : ""}" data-monthly-mode="month">By month</button>
+      </div>
+      ${
+        mode === "month"
+          ? `<div class="monthly-month-row">
+              <label class="filter-field filter-field--month">Month <div id="monthlyPickerMount" class="month-picker-slot"></div></label>
+            </div>`
+          : ""
+      }
+      <div class="monthly-stats">
+        <div class="monthly-stat"><strong>${items.length}</strong> items</div>
+        <div class="monthly-stat"><strong>${tagSet.size}</strong> topics</div>
+        <div class="monthly-stat"><strong>${flashInPeriod}</strong> flashcards</div>
+      </div>
+      <p class="muted monthly-period">${ctx.escapeHtml(periodLabel)}</p>
+      <div class="monthly-actions">
         <button type="button" class="btn-ghost btn-sm" id="monthlyExport">Export MD</button>
-        <button type="button" class="btn-ghost btn-sm" id="monthlyPrint">Print</button>
+        <button type="button" class="btn-ghost btn-sm" id="monthlyPrint">Print digest</button>
       </div>
     </section>
-    <div class="revise-list">
-      ${items
-        .map((item) => {
-          const cloud = getCloudEntry(item.id);
-          const git = ctx.getGitSections(item.id, null);
-          return `<article class="revise-card">
-            <h3><time datetime="${ctx.escapeHtml(item.date)}">${ctx.escapeHtml(formatDisplayDate(item.date))}</time> — ${ctx.escapeHtml(item.title)}</h3>
-            ${cloud.summary ? `<p>${ctx.escapeHtml(noteHtmlToPlainText(cloud.summary).slice(0, 300))}</p>` : ""}
-            ${GIT_SECTIONS.map((s) => {
-              const t = noteHtmlToPlainText(git[s] || "");
-              return t.trim() ? `<p><strong>${s}:</strong> ${ctx.escapeHtml(t.slice(0, 200))}</p>` : "";
-            }).join("")}
-          </article>`;
-        })
-        .join("") || "<p class='muted'>No items this month</p>"}
-    </div>`;
+    ${
+      items.length
+        ? `<div class="monthly-tip">
+            <strong>How to use:</strong> Skim each week top-to-bottom once. Star weak items on the item page, then run <em>Drill</em> for flashcards.
+          </div>
+          <div class="monthly-body">${weekBlocks}</div>`
+        : `<div class="monthly-empty">
+            <p class="empty-state-title">No CA in this period</p>
+            <p class="muted">Try <strong>Last 30 days</strong> or pick an earlier month — sample items are dated 2025.</p>
+            <button type="button" class="btn-primary btn-sm" data-monthly-mode="month" data-monthly-jump="2025-06">Jump to June 2025</button>
+          </div>`
+    }`;
 
-  let monthPickerApi = mountMonthPicker(document.getElementById("monthlyPickerMount"), {
-    value: month,
-    onChange(ym) {
-      ctx.state.monthlyMonth = ym;
-    },
+  ctx.el.main.querySelectorAll("[data-monthly-mode]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      ctx.state.monthlyMode = btn.dataset.monthlyMode;
+      renderMonthly(ctx);
+    });
   });
 
-  document.getElementById("monthlyApply")?.addEventListener("click", () => {
-    ctx.state.monthlyMonth = monthPickerApi?.getValue() || month;
+  document.querySelector("[data-monthly-jump]")?.addEventListener("click", (e) => {
+    ctx.state.monthlyMode = "month";
+    ctx.state.monthlyMonth = e.target.dataset.monthlyJump;
     renderMonthly(ctx);
   });
+
+  if (mode === "month") {
+    mountMonthPicker(document.getElementById("monthlyPickerMount"), {
+      value: month,
+      onChange(ym) {
+        ctx.state.monthlyMonth = ym;
+        renderMonthly(ctx);
+      },
+    });
+  }
+
   document.getElementById("monthlyExport")?.addEventListener("click", () => {
-    exportCaAsMarkdown(ctx.mergedItems(), { month: ctx.state.monthlyMonth || month });
+    if (mode === "last30") {
+      exportCaAsMarkdown(allItems, { fromDate: from30, toDate: toToday });
+    } else {
+      exportCaAsMarkdown(allItems, { month });
+    }
   });
   document.getElementById("monthlyPrint")?.addEventListener("click", () => window.print());
 }

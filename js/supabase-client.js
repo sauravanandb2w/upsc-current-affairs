@@ -25,6 +25,15 @@ export async function initSupabase() {
   }
 
   if (!url || !key || url.includes("YOUR_PROJECT") || key.includes("YOUR_ANON")) {
+    const metaUrl = document.querySelector('meta[name="ca-supabase-url"]')?.content?.trim();
+    const metaKey = document.querySelector('meta[name="ca-supabase-anon-key"]')?.content?.trim();
+    if (metaUrl && metaKey) {
+      url = metaUrl;
+      key = metaKey;
+    }
+  }
+
+  if (!url || !key || url.includes("YOUR_PROJECT") || key.includes("YOUR_ANON")) {
     configured = false;
     client = null;
     return null;

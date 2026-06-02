@@ -10,6 +10,26 @@ const DEBOUNCE_MS = 700;
 const saveTimers = new Map();
 /** @type {Map<string, string|null>} */
 const pendingSaveUserIds = new Map();
+/** Active signed-in user for cloud upserts when handlers omit userId. */
+let syncUserId = null;
+
+export function setCloudSyncUserId(userId) {
+  syncUserId = userId || null;
+}
+
+function resolveUserId(userId) {
+  return userId || syncUserId || null;
+}
+
+function entryHasCloudContent(entry) {
+  if (!entry) return false;
+  if (String(entry.summary || "").trim()) return true;
+  if (entry.links?.length) return true;
+  if (entry.sources?.length) return true;
+  if (entry.gitNotes && Object.keys(entry.gitNotes).length) return true;
+  if (entry.__locks && Object.keys(entry.__locks).length) return true;
+  return false;
+}
 
 /** @type {Record<string, object>} */
 let cloudCache = {};
@@ -109,27 +129,58 @@ function persistCloudEntry(itemId, entry) {
 }
 
 async function pushCloudEntry(itemId, userId, payload) {
-  if (!isSupabaseConfigured() || !userId) return;
+  const uid = resolveUserId(userId);
+  if (!isSupabaseConfigured() || !uid) return false;
+  const live = payload || getCloudEntry(itemId);
+  if (!entryHasCloudContent(live)) return false;
   const sb = getSupabase();
   const gitNotes = {};
   for (const sec of GIT_SECTIONS) {
     const fid = fieldIdForSection(sec);
-    if (payload.gitNotes?.[sec] !== undefined) gitNotes[sec] = payload.gitNotes[sec];
-    else if (payload.gitNotes?.[fid] !== undefined) gitNotes[sec] = payload.gitNotes[fid];
+    if (live.gitNotes?.[sec] !== undefined) gitNotes[sec] = live.gitNotes[sec];
+    else if (live.gitNotes?.[fid] !== undefined) gitNotes[sec] = live.gitNotes[fid];
   }
   const { error } = await sb.from("ca_item_notes").upsert(
     {
-      user_id: userId,
+      user_id: uid,
       item_id: itemId,
-      summary: payload.summary || "",
-      links_json: payload.links || [],
-      sources_json: payload.sources || [],
-      locked_fields: serializeLocks(payload.__locks),
+      summary: live.summary || "",
+      links_json: live.links || [],
+      sources_json: live.sources || [],
+      locked_fields: serializeLocks(live.__locks),
       git_notes_json: gitNotes,
     },
     { onConflict: "user_id,item_id" }
   );
-  if (error) console.warn("ca_item_notes save", error);
+  if (error) {
+    console.warn("ca_item_notes save", itemId, error.message || error);
+    return false;
+  }
+  return true;
+}
+
+/** Push every local note row to Supabase (after sign-in or manual sync). */
+export async function pushAllLocalNotesToCloud(userId) {
+  const uid = resolveUserId(userId);
+  if (!isSupabaseConfigured() || !uid) return 0;
+
+  const itemIds = new Set(Object.keys(cloudCache));
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key?.startsWith(LS_CLOUD_PREFIX)) itemIds.add(key.slice(LS_CLOUD_PREFIX.length));
+    if (key?.startsWith(LS_GIT_PREFIX)) itemIds.add(key.slice(LS_GIT_PREFIX.length));
+  }
+
+  let pushed = 0;
+  for (const itemId of itemIds) {
+    const entry = getCloudEntry(itemId);
+    const gitLocal = readLocalGitNotes(itemId);
+    if (gitLocal && Object.keys(gitLocal).length) {
+      entry.gitNotes = mergeGitNotesLocalRemote(gitLocal, entry.gitNotes);
+    }
+    if (await pushCloudEntry(itemId, uid, entry)) pushed += 1;
+  }
+  return pushed;
 }
 
 export async function flushPendingCloudSavesNow() {
@@ -298,15 +349,15 @@ function scheduleCloudSave(itemId, userId, payload) {
 
   const prev = saveTimers.get(itemId);
   if (prev) clearTimeout(prev);
-  pendingSaveUserIds.set(itemId, userId);
+  pendingSaveUserIds.set(itemId, resolveUserId(userId));
 
   saveTimers.set(
     itemId,
     setTimeout(async () => {
       saveTimers.delete(itemId);
-      const uid = pendingSaveUserIds.get(itemId) ?? null;
+      const uid = pendingSaveUserIds.get(itemId) ?? syncUserId ?? null;
       pendingSaveUserIds.delete(itemId);
-      await pushCloudEntry(itemId, uid, payload);
+      await pushCloudEntry(itemId, uid, getCloudEntry(itemId));
     }, DEBOUNCE_MS)
   );
 }
@@ -314,12 +365,13 @@ function scheduleCloudSave(itemId, userId, payload) {
 function scheduleMetaSave(itemId, userId, meta) {
   metaCache[itemId] = meta;
   localStorage.setItem(LS_META_PREFIX + itemId, JSON.stringify(meta));
-  if (!isSupabaseConfigured() || !userId) return;
+  const uid = resolveUserId(userId);
+  if (!isSupabaseConfigured() || !uid) return;
   const sb = getSupabase();
   sb.from("ca_item_meta")
     .upsert(
       {
-        user_id: userId,
+        user_id: uid,
         item_id: itemId,
         starred: meta.starred,
         last_revised_at: meta.lastRevisedAt,

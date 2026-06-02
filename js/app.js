@@ -25,6 +25,8 @@ import {
   getLockedSnapshot,
   removeItemFromCloud,
   flushPendingCloudSavesNow,
+  setCloudSyncUserId,
+  pushAllLocalNotesToCloud,
 } from "./ca-store.js";
 import {
   initSupabase,
@@ -140,6 +142,7 @@ const state = {
   calendarMonth: todayIso().slice(0, 7),
   threadDiff: "2025-rbi-monetary-policy",
   monthlyMonth: todayIso().slice(0, 7),
+  monthlyMode: "last30",
   pendingDraftId: null,
   drillIndex: 0,
 };
@@ -1608,20 +1611,24 @@ async function initAuthBackground() {
     await initGitHubUploadConfig();
     bindGitHubHeaderButton(el.githubConnectBtn);
     state.session = await withTimeout(getSession(), 8000, null);
+    setCloudSyncUserId(state.session?.user?.id || null);
     if (state.session?.user?.id) {
       if (state.view === "item" && state.itemId) flushItemNoteEditorsFromDom();
       await flushPendingCloudSavesNow();
+      await pushAllLocalNotesToCloud(state.session.user.id);
       await withTimeout(loadAllCloudNotes(state.session.user.id), 12000, undefined);
       await withTimeout(loadFlashcards(state.session.user.id), 8000, undefined);
     }
     onAuthStateChange(async (session) => {
       state.session = session;
+      setCloudSyncUserId(session?.user?.id || null);
       updateAuthUi();
       if (state.view === "item" && state.itemId) {
         flushItemNoteEditorsFromDom();
       }
       await flushPendingCloudSavesNow();
       if (session?.user?.id) {
+        await pushAllLocalNotesToCloud(session.user.id);
         await loadAllCloudNotes(session.user.id);
         await loadFlashcards(session.user.id);
       }
