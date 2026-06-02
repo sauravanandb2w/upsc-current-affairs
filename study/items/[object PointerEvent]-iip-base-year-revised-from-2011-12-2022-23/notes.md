@@ -1,6 +1,6 @@
 ## Facts
 
-<div><ul><li>The number of items changed to 463 from 407</li><li><b>new addition</b>: CCTV, vaccine, aircraft parts, water supply, and waste management.</li><li><b>removed</b>: kerosene, sewing machine, CFL</li><li><b>removed</b>: kerosene, sewing machine, CFL</li></ul></div>
+<ul><li>The number of items changed to 463 from 407</li><li><b>new addition</b>: CCTV, vaccine, aircraft parts, water supply, and waste management.</li><li><b>removed</b>: kerosene, sewing machine, CFL</li></ul>
 
 ## Static connection
 
