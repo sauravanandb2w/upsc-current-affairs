@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="ca-github-repo" content="sauravanandb2w/upsc-current-affairs" />
+    <meta name="ca-github-branch" content="main" />
+    <meta
+      name="description"
+      content="Personal UPSC Current Affairs desk — curated news, structured notes, topic lens, synced summary and links."
+    />
+    <title>UPSC Current Affairs | CA Desk</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600;6..72,700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css?v=1" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="header-inner">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">CA</span>
+          <div>
+            <h1>UPSC Current Affairs</h1>
+            <p class="tagline">Your desk · curated · revise by topic</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <div class="sync-badge" id="syncBadge" aria-live="polite">Local only</div>
+          <button type="button" class="btn-ghost btn-sm" id="signInBtn">Sign in</button>
+          <button type="button" class="btn-ghost btn-sm hidden" id="signOutBtn">Sign out</button>
+        </div>
+      </div>
+      <nav class="main-nav" id="mainNav" aria-label="Main">
+        <button type="button" class="nav-btn active" data-view="desk">Desk</button>
+        <button type="button" class="nav-btn" data-view="timeline">Timeline</button>
+        <button type="button" class="nav-btn" data-view="topic">Topic lens</button>
+      </nav>
+    </header>
+
+    <main id="main" aria-live="polite">
+      <p class="muted">Loading…</p>
+    </main>
+
+    <dialog class="auth-dialog" id="authDialog">
+      <form class="auth-form" id="authForm" method="dialog">
+        <h2>Sign in</h2>
+        <p class="muted small">Sync summary, links &amp; sources (new Supabase project for CA).</p>
+        <div class="auth-tabs">
+          <button type="button" class="auth-tab active" data-auth-tab="signin">Sign in</button>
+          <button type="button" class="auth-tab" data-auth-tab="signup">Sign up</button>
+        </div>
+        <label class="auth-field">
+          <span>Email</span>
+          <input type="email" id="authEmail" required autocomplete="email" />
+        </label>
+        <label class="auth-field">
+          <span>Password</span>
+          <input type="password" id="authPassword" required minlength="6" autocomplete="current-password" />
+        </label>
+        <p class="auth-error hidden" id="authError"></p>
+        <button type="submit" class="btn-primary auth-submit" id="authSubmitBtn">Sign in</button>
+        <div class="auth-divider">or</div>
+        <button type="button" class="btn-ghost auth-google" id="authGoogleBtn">Continue with Google</button>
+        <p class="auth-config-note hidden" id="authConfigNote">
+          Copy <code>js/config.example.js</code> → <code>js/config.js</code> — see SUPABASE_SETUP.md
+        </p>
+      </form>
+    </dialog>
+
+    <script type="module" src="js/app.js?v=1"></script>
+  </body>
+</html>

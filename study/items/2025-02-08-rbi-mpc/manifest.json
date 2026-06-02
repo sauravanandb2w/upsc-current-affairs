@@ -1,0 +1,32 @@
+{
+  "id": "2025-02-08-rbi-mpc",
+  "date": "2025-02-08",
+  "title": "RBI MPC — repo rate unchanged at 6.5%",
+  "status": "studied",
+  "gsPapers": [3],
+  "tags": ["rbi", "monetary-policy", "mpc", "repo-rate"],
+  "threads": ["2025-rbi-monetary-policy"],
+  "images": [],
+  "sources": [
+    {
+      "type": "newspaper",
+      "name": "The Hindu",
+      "date": "2025-02-08",
+      "url": "https://www.thehindu.com/"
+    },
+    {
+      "type": "pib",
+      "name": "PIB",
+      "date": "2025-02-08",
+      "url": "https://pib.gov.in/"
+    }
+  ],
+  "links": [
+    {
+      "label": "RBI — Monetary Policy Statement",
+      "url": "https://www.rbi.org.in/",
+      "kind": "govt-site",
+      "addedAt": "2025-02-08"
+    }
+  ]
+}

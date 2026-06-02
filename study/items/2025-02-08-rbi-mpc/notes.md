@@ -1,0 +1,23 @@
+## Facts
+
+- MPC kept **repo rate at 6.5%** (example placeholder — replace with your notes).
+- Stance: **withdrawal of accommodation** (update per actual decision).
+- Next meeting: typically **April / June** cycle — note dates when announced.
+
+## Static connection
+
+- **Indian Economy — Banking:** RBI, MPC, monetary policy transmission.
+- Link to **inflation targeting framework** (4% CPI target, band).
+
+## GS paper fit
+
+- **GS III:** Monetary policy, inflation, growth trade-off, financial stability.
+
+## Exam angle
+
+- **Prelims:** repo rate, MPC composition (ex officio + external), policy stance terms.
+- **Mains GS III:** Use in answers on inflation control + growth (1–2 lines with current rate).
+
+## Miscellaneous
+
+- Compare with previous MPC if rate changed in next meeting — update same thread `2025-rbi-monetary-policy`.

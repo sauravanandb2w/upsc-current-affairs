@@ -1,0 +1,82 @@
+{
+  "generatedAt": "2026-06-02T11:08:13.981178Z",
+  "count": 2,
+  "items": [
+    {
+      "id": "2025-06-02-green-hydrogen",
+      "date": "2025-06-02",
+      "title": "National Green Hydrogen Mission — progress update",
+      "status": "to-study",
+      "gsPapers": [
+        3
+      ],
+      "tags": [
+        "environment",
+        "energy",
+        "green-hydrogen",
+        "scheme"
+      ],
+      "threads": [],
+      "images": [],
+      "sources": [
+        {
+          "type": "pib",
+          "name": "PIB",
+          "date": "2025-06-02",
+          "url": "https://pib.gov.in/"
+        }
+      ],
+      "links": [
+        {
+          "label": "MNRE — Green Hydrogen",
+          "url": "https://mnre.gov.in/",
+          "kind": "govt-site",
+          "addedAt": "2025-06-02"
+        }
+      ],
+      "_folder": "2025-06-02-green-hydrogen"
+    },
+    {
+      "id": "2025-02-08-rbi-mpc",
+      "date": "2025-02-08",
+      "title": "RBI MPC — repo rate unchanged at 6.5%",
+      "status": "studied",
+      "gsPapers": [
+        3
+      ],
+      "tags": [
+        "rbi",
+        "monetary-policy",
+        "mpc",
+        "repo-rate"
+      ],
+      "threads": [
+        "2025-rbi-monetary-policy"
+      ],
+      "images": [],
+      "sources": [
+        {
+          "type": "newspaper",
+          "name": "The Hindu",
+          "date": "2025-02-08",
+          "url": "https://www.thehindu.com/"
+        },
+        {
+          "type": "pib",
+          "name": "PIB",
+          "date": "2025-02-08",
+          "url": "https://pib.gov.in/"
+        }
+      ],
+      "links": [
+        {
+          "label": "RBI — Monetary Policy Statement",
+          "url": "https://www.rbi.org.in/",
+          "kind": "govt-site",
+          "addedAt": "2025-02-08"
+        }
+      ],
+      "_folder": "2025-02-08-rbi-mpc"
+    }
+  ]
+}
