@@ -914,7 +914,7 @@ async function renderItemDetail(itemId) {
           <span class="git-zone-badge git-zone-badge--notes">Commit notes.md → GitHub</span>
           <span class="git-zone-hint muted small">Summary, Facts, Exam angle, etc. → notes.md</span>
         </div>
-        <p class="note-locks-help muted small">Toolbar: <strong>bold</strong>, lists. <strong>Padlock</strong> = you can still edit, but changes after lock won't go to GitHub (Supabase sync still works). Box height: <strong>S/M/L</strong> in header.</p>
+        <p class="note-locks-help muted small">Toolbar: <strong>bold</strong>, lists. <strong>Padlock</strong> = you can still edit, but changes after lock won't go to GitHub (Supabase sync still works). Typing auto-saves to <strong>Supabase</strong> (if signed in) — git only when you click <strong>Commit notes.md</strong>. Box height: <strong>S/M/L</strong> in header.</p>
         <div class="note-field git-notes-field${isFieldLocked(itemId, "summary") ? " note-field--locked" : ""}" data-field="summary">
           ${renderNoteLabelRow("Summary", itemId, "summary", userId)}
           ${renderRichNoteEditorHtml({ "data-field-id": "summary" }, { placeholder: "What happened — story angle", rows: 4 })}
@@ -1344,7 +1344,7 @@ async function handleSaveToGitHub(item) {
     }
     if (searchEntry) setSearchIndexEntry(item.id, searchEntry);
     alert(
-      `Saved ${item.title} to GitHub (manifest + index).\n\nStatus, tags, links, and sources are synced — live in ~1–2 min.`
+      `Saved ${item.title} to GitHub (manifest + index only).\n\nNotes stay in Supabase until you click “Commit notes.md → GitHub”.`
     );
     navigate("item", item.id);
   } catch (err) {

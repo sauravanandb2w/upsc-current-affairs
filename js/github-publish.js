@@ -36,6 +36,15 @@ export function manifestFromItem(item) {
   };
 }
 
+function buildSearchMetaText(itemId, item = {}) {
+  return [item.title, item.id, ...(item.tags || []), ...(item.threads || [])]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 2000);
+}
+
 export function buildSearchTextForItem(itemId, item = {}) {
   const git = getGitNotesFromLocal(itemId) || getCloudEntry(itemId).gitNotes || {};
   const parts = [
@@ -57,13 +66,13 @@ export function buildSearchTextForItem(itemId, item = {}) {
     .slice(0, 8000);
 }
 
-function searchIndexEntryForItem(itemId, item) {
+function searchIndexEntryForItem(itemId, item, { includeNoteText = false } = {}) {
   return {
     title: item.title || "",
     date: effectiveItemDate(item) || "",
     tags: item.tags || [],
     threads: item.threads || [],
-    text: buildSearchTextForItem(itemId, item),
+    text: includeNoteText ? buildSearchTextForItem(itemId, item) : buildSearchMetaText(itemId, item),
   };
 }
 
@@ -111,9 +120,9 @@ async function readSearchIndexFile() {
   return { file, data };
 }
 
-export async function syncSearchIndexForItem(itemId, item, itemTitle) {
+export async function syncSearchIndexForItem(itemId, item, itemTitle, { includeNoteText = false } = {}) {
   const { file, data } = await readSearchIndexFile();
-  const entry = searchIndexEntryForItem(itemId, item);
+  const entry = searchIndexEntryForItem(itemId, item, { includeNoteText });
   data.entries[itemId] = entry;
   data.generatedAt = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
   await putRepoFile(
@@ -187,11 +196,11 @@ export async function publishDraftToGitHub(item) {
 
   const existingNotes = await getRepoFile(notesPath);
   if (!existingNotes) {
-    await putRepoFile(notesPath, textToBase64(notesBodyForItem(itemId)), `Add CA notes: ${item.title}`);
+    await putRepoFile(notesPath, textToBase64(defaultNotesTemplate()), `Add CA notes: ${item.title}`);
   }
 
   await upsertIndexEntry(manifest, itemId, item.title);
-  const searchEntry = await syncSearchIndexForItem(itemId, manifest, item.title);
+  const searchEntry = await syncSearchIndexForItem(itemId, manifest, item.title, { includeNoteText: false });
 
   return { itemId, manifestPath, indexPath: INDEX_PATH, searchEntry };
 }
@@ -234,7 +243,7 @@ export async function savePublishedItemToGitHub(item) {
   );
 
   await upsertIndexEntry(manifest, itemId, item.title);
-  const searchEntry = await syncSearchIndexForItem(itemId, manifest, item.title);
+  const searchEntry = await syncSearchIndexForItem(itemId, manifest, item.title, { includeNoteText: false });
 
   return { itemId, manifest, searchEntry };
 }

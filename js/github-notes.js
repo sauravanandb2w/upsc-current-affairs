@@ -62,7 +62,9 @@ export async function commitNotesMdToGitHub(itemId, item, liveSections = null) {
   );
 
   const meta = manifestFromItem(item);
-  const searchEntry = await syncSearchIndexForItem(itemId, meta, item.title || itemId);
+  const searchEntry = await syncSearchIndexForItem(itemId, meta, item.title || itemId, {
+    includeNoteText: true,
+  });
 
   return { path, searchEntry };
 }
