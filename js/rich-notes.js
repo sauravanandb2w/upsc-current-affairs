@@ -179,8 +179,10 @@ export function renderRichNoteEditorHtml(dataAttrs = {}, { placeholder = "", row
   const heightRem = noteEditorHeightRem(rows);
   return `<div class="rich-note" data-rows="${rows}" style="--note-editor-height: ${heightRem}rem">
     ${renderRichNoteToolbar()}
-    <div class="rich-note-editor" contenteditable="true" role="textbox" spellcheck="true"
-      data-placeholder="${String(placeholder).replace(/"/g, "&quot;")}" ${attrs}></div>
+    <div class="rich-note-scroll">
+      <div class="rich-note-editor" contenteditable="true" role="textbox" spellcheck="true"
+        data-placeholder="${String(placeholder).replace(/"/g, "&quot;")}" ${attrs}></div>
+    </div>
   </div>`;
 }
 

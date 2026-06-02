@@ -1514,12 +1514,12 @@ code {
   color: var(--ink);
 }
 
-.git-notes-field .rich-note-editor {
+.git-notes-field .rich-note-scroll {
   border-color: var(--git-notes-border);
   background: #fff;
 }
 
-.git-notes-field .rich-note-editor:focus {
+.git-notes-field .rich-note-scroll:focus-within {
   border-color: rgba(28, 25, 23, 0.35);
   box-shadow: 0 0 0 2px rgba(28, 25, 23, 0.08);
 }
@@ -1654,7 +1654,7 @@ code {
 }
 
 [data-theme="dark"] .ca-card,
-[data-theme="dark"] .git-notes-field .rich-note-editor {
+[data-theme="dark"] .git-notes-field .rich-note-scroll {
   background: #1c1917;
 }
 
@@ -1776,26 +1776,39 @@ code {
   cursor: pointer;
 }
 
-/* flex: none — fixed height + scroll; min-height alone lets contenteditable grow */
-.rich-note-editor {
+/* Fixed-height scroll shell — contenteditable grows inside; outer box never expands */
+.rich-note-scroll {
   flex: none;
-  display: block;
   box-sizing: border-box;
   width: 100%;
-  font: inherit;
-  font-size: 0.92rem;
-  line-height: 1.5;
   height: min(var(--note-editor-height, 28rem), 85vh);
   max-height: min(var(--note-editor-height, 28rem), 85vh);
-  padding: 0.65rem 0.75rem;
+  overflow-x: hidden;
+  overflow-y: auto;
   border: 1px solid rgba(28, 25, 23, 0.12);
   border-radius: 8px;
   background: #fff;
-  overflow-x: hidden;
-  overflow-y: auto;
+}
+
+.rich-note-scroll:focus-within {
+  border-color: var(--accent);
+}
+
+.rich-note-editor {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100%;
+  padding: 0.65rem 0.75rem;
+  font: inherit;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  border: none;
+  background: transparent;
+  outline: none;
+  overflow: visible;
   white-space: pre-wrap;
   word-break: break-word;
-  outline: none;
 }
 
 .rich-note-editor:empty::before {
@@ -1819,28 +1832,27 @@ code {
   margin-bottom: 0;
 }
 
-[data-theme="dark"] .rich-note-editor {
+[data-theme="dark"] .rich-note-scroll {
   background: #1c1917;
 }
 
 .rich-note-editor:focus {
-  border-color: var(--accent);
+  outline: none;
 }
 
-.note-field--locked .rich-note-editor {
+.note-field--locked .rich-note-scroll {
   border-style: dashed;
   border-color: color-mix(in srgb, var(--accent) 50%, var(--border, rgba(28, 25, 23, 0.12)));
   background: color-mix(in srgb, var(--accent) 10%, var(--paper, #fff));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
-  cursor: default;
 }
 
-[data-theme="dark"] .note-field--locked .rich-note-editor {
+[data-theme="dark"] .note-field--locked .rich-note-scroll {
   background: color-mix(in srgb, var(--accent) 16%, var(--paper-deep, #1c1917));
 }
 
 .rich-note-editor--locked {
-  cursor: default;
+  cursor: text;
 }
 
 .note-label-row {
