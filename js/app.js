@@ -1223,23 +1223,29 @@ function bindAuth() {
   });
 }
 
-async function init() {
+async function withTimeout(promise, ms, fallback) {
+  let timer;
   try {
-    initTheme();
-    bindThemeToggle(el.themeToggle);
-    bindNoteSizeControl(el.noteSizeControl);
-    bindExportButtons(el.exportJsonBtn, el.exportMdBtn, () => mergedItems());
-    loadLocalMeta();
-    hydrateCloudFromLocal();
-    await initSupabase();
+    return await Promise.race([
+      promise,
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve(fallback), ms);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function initAuthBackground() {
+  try {
+    await withTimeout(initSupabase(), 12000, null);
     await initGitHubUploadConfig();
     bindGitHubHeaderButton(el.githubConnectBtn);
-    state.session = await getSession();
+    state.session = await withTimeout(getSession(), 8000, null);
     if (state.session?.user?.id) {
-      await loadAllCloudNotes(state.session.user.id);
-      await loadFlashcards(state.session.user.id);
-    } else {
-      loadFlashcardsLocal();
+      await withTimeout(loadAllCloudNotes(state.session.user.id), 12000, undefined);
+      await withTimeout(loadFlashcards(state.session.user.id), 8000, undefined);
     }
     onAuthStateChange(async (session) => {
       state.session = session;
@@ -1251,6 +1257,22 @@ async function init() {
       if (state.view === "item" && state.itemId) renderItemDetail(state.itemId);
       else navigate(state.view);
     });
+    updateAuthUi();
+  } catch (err) {
+    console.warn("Auth / sync init", err);
+    updateAuthUi();
+  }
+}
+
+async function init() {
+  try {
+    initTheme();
+    bindThemeToggle(el.themeToggle);
+    bindNoteSizeControl(el.noteSizeControl);
+    bindExportButtons(el.exportJsonBtn, el.exportMdBtn, () => mergedItems());
+    loadLocalMeta();
+    hydrateCloudFromLocal();
+    loadFlashcardsLocal();
 
     bindAuth();
     bindAddItem();
@@ -1260,6 +1282,8 @@ async function init() {
 
     await loadIndex();
     navigate("today");
+
+    void initAuthBackground();
   } catch (err) {
     console.error("CA desk init failed", err);
     if (el.main) {

@@ -127,6 +127,32 @@
       </div>
     </dialog>
 
-    <script type="module" src="js/app.js?v=11"></script>
+    <script>
+      (function () {
+        const stuck = () => {
+          const m = document.getElementById("main");
+          return m && /Loading/.test(m.textContent);
+        };
+        const fail = (msg) => {
+          if (!stuck()) return;
+          document.getElementById("main").innerHTML =
+            '<p class="error">' + msg + "</p>";
+        };
+        window.addEventListener("error", (e) =>
+          fail("Script error: " + (e.message || "unknown") + ". Hard refresh: Cmd+Shift+R.")
+        );
+        window.addEventListener("unhandledrejection", (e) =>
+          fail("App error: " + (e.reason?.message || e.reason) + ". Hard refresh: Cmd+Shift+R.")
+        );
+        setTimeout(
+          () =>
+            fail(
+              "Still loading — hard refresh (Cmd+Shift+R) or open in a private window. If signed in, try Sign out after load."
+            ),
+          15000
+        );
+      })();
+    </script>
+    <script type="module" src="js/app.js?v=12"></script>
   </body>
 </html>
