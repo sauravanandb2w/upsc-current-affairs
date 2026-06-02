@@ -1,0 +1,27 @@
+{
+  "id": "[object PointerEvent]-iip-base-year-revised-from-2011-12-2022-23",
+  "date": "[object PointerEvent]",
+  "title": "IIP base year revised from 2011-12 → 2022-23.",
+  "status": "to-study",
+  "gsPapers": [
+    3
+  ],
+  "tags": [
+    "IIP",
+    "base year",
+    "GDP vs IIP"
+  ],
+  "threads": [
+    "base year economy"
+  ],
+  "images": [],
+  "sources": [],
+  "links": [
+    {
+      "label": "Source link",
+      "url": "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2267531&reg=3&lang=1",
+      "kind": "news",
+      "addedAt": "[object PointerEvent]"
+    }
+  ]
+}
