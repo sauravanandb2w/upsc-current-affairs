@@ -56,6 +56,12 @@ export function getLockedSnapshot(itemId, fieldId) {
   return getCloudEntry(itemId).__locks?.[fieldId]?.snapshot ?? "";
 }
 
+/** Value that should appear on GitHub — frozen at lock time when field is locked. */
+export function gitVisibleNoteValue(itemId, fieldId, liveValue) {
+  if (isFieldLocked(itemId, fieldId)) return getLockedSnapshot(itemId, fieldId);
+  return liveValue ?? "";
+}
+
 export function getGitNotesFromLocal(itemId) {
   const cloud = getCloudEntry(itemId);
   if (cloud.gitNotes && Object.keys(cloud.gitNotes).length) {
@@ -255,8 +261,7 @@ export function mergeCloudWithManifest(item) {
   };
 }
 
-export function pickNoteValue(itemId, fieldId, currentValue) {
-  if (isFieldLocked(itemId, fieldId)) return getLockedSnapshot(itemId, fieldId);
+export function pickNoteValue(_itemId, _fieldId, currentValue) {
   return currentValue;
 }
 

@@ -222,12 +222,9 @@ export function bindRichNoteEditor(editor, { onInput } = {}) {
 
 export function setRichNoteLocked(editor, locked) {
   if (!editor) return;
-  editor.setAttribute("contenteditable", locked ? "false" : "true");
+  editor.setAttribute("contenteditable", "true");
   editor.classList.toggle("rich-note-editor--locked", locked);
   editor.closest(".note-field")?.classList.toggle("note-field--locked", locked);
-  editor.closest(".rich-note")?.querySelectorAll(".rich-note-tool").forEach((btn) => {
-    btn.disabled = locked;
-  });
 }
 
 export function syncRichNoteLockState(fieldEl, locked) {

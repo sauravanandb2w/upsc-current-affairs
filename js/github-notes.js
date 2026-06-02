@@ -5,25 +5,25 @@
 import { getGitHubToken, getGitHubRepo, isGitHubUploadAllowed } from "./github-auth.js";
 import { getRepoFile, putRepoFile } from "./github-upload.js";
 import { serializeNotesMd, GIT_SECTIONS } from "./notes-md.js";
-import { getCloudEntry, getGitNotesFromLocal } from "./ca-store.js";
+import { getCloudEntry, getGitNotesFromLocal, gitVisibleNoteValue } from "./ca-store.js";
 import { noteHtmlToPlainText } from "./rich-notes.js";
 import { fieldIdForSection } from "./field-locks.js";
 import { manifestFromItem, syncSearchIndexForItem } from "./github-publish.js";
 
-function sectionPlainFromGit(git, sec) {
-  const fid = fieldIdForSection(sec);
-  return noteHtmlToPlainText(git[sec] ?? git[fid] ?? "");
-}
-
 function sectionsForCommit(itemId, liveSections = null) {
-  const git = liveSections || getGitNotesFromLocal(itemId) || getCloudEntry(itemId).gitNotes || {};
+  const git = getGitNotesFromLocal(itemId) || getCloudEntry(itemId).gitNotes || {};
   const out = {};
   for (const sec of GIT_SECTIONS) {
-    out[sec] = sectionPlainFromGit(git, sec);
+    const fid = fieldIdForSection(sec);
+    const live = liveSections
+      ? (liveSections[sec] ?? liveSections[fid] ?? git[sec] ?? git[fid] ?? "")
+      : (git[sec] ?? git[fid] ?? "");
+    out[sec] = noteHtmlToPlainText(gitVisibleNoteValue(itemId, fid, live));
   }
-  const summary = liveSections
-    ? noteHtmlToPlainText(liveSections.summary ?? liveSections["Summary / story"] ?? getCloudEntry(itemId).summary ?? "")
-    : noteHtmlToPlainText(getCloudEntry(itemId).summary || "");
+  const summaryLive = liveSections
+    ? (liveSections.summary ?? liveSections["Summary / story"] ?? getCloudEntry(itemId).summary ?? "")
+    : (getCloudEntry(itemId).summary || "");
+  const summary = noteHtmlToPlainText(gitVisibleNoteValue(itemId, "summary", summaryLive));
   if (summary.trim()) out["Summary / story"] = summary;
   return out;
 }

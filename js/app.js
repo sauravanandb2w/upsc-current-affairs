@@ -22,6 +22,7 @@ import {
   lockNoteField,
   unlockNoteField,
   pickNoteValue,
+  getLockedSnapshot,
 } from "./ca-store.js";
 import {
   initSupabase,
@@ -350,8 +351,8 @@ function parsedNotesToHtmlSections(parsed) {
   return out;
 }
 
-/** Keep local section text when git pull returned empty (e.g. stale Pages CDN). */
-function mergePulledGitWithLocal(parsed, local) {
+/** Keep local / locked-private text when git pull would overwrite it. */
+function mergePulledGitWithLocal(parsed, local, itemId) {
   const htmlSections = parsedNotesToHtmlSections(parsed);
   if (!local || typeof local !== "object") return htmlSections;
   for (const sec of GIT_SECTIONS) {
@@ -359,6 +360,10 @@ function mergePulledGitWithLocal(parsed, local) {
     const fid = fieldIdForSection(sec);
     const localVal = local[sec] ?? local[fid] ?? "";
     const localPlain = noteHtmlToPlainText(localVal);
+    if (itemId && isFieldLocked(itemId, fid)) {
+      htmlSections[sec] = localPlain.trim() ? localVal : plainTextToNoteHtml(getLockedSnapshot(itemId, fid));
+      continue;
+    }
     if (!gitPlain.trim() && localPlain.trim()) htmlSections[sec] = localVal;
   }
   return htmlSections;
@@ -372,14 +377,14 @@ function getGitSections(itemId, mdText) {
 
 function renderNoteLabelRow(label, itemId, fieldId, userId) {
   const locked = isFieldLocked(itemId, fieldId);
-  const lockBtn = `<span class="note-lock-wrap" title="Lock freezes this field — your text stays local until you unlock">
+  const lockBtn = `<span class="note-lock-wrap" title="Lock = keep editing locally; new text won't go to GitHub until you unlock">
         <button
           type="button"
           class="note-lock-btn${locked ? " note-lock-btn--locked" : ""}"
           data-lock-field="${fieldId}"
           data-item-id="${escapeHtml(itemId)}"
           aria-pressed="${locked ? "true" : "false"}"
-          aria-label="${locked ? "Unlock field" : "Lock field — stop cloud sync on this text"}"
+          aria-label="${locked ? "Unlock — allow GitHub commit for this field" : "Lock — edits stay private on GitHub commit"}"
         >${locked ? LOCK_ICON_CLOSED : LOCK_ICON_OPEN}</button>
       </span>`;
   return `<div class="note-label-row"><span class="note-label">${escapeHtml(label)}</span>${lockBtn}</div>`;
@@ -395,7 +400,7 @@ function syncNoteLockUi(btn, itemId, fieldId) {
   btn.setAttribute("aria-pressed", locked ? "true" : "false");
   btn.setAttribute(
     "aria-label",
-    locked ? "Unlock field" : "Lock field — stop cloud sync on this text"
+    locked ? "Unlock — allow GitHub commit for this field" : "Lock — edits stay private on GitHub commit"
   );
 }
 
@@ -854,7 +859,7 @@ async function renderItemDetail(itemId) {
           <span class="git-zone-badge git-zone-badge--notes">Commit notes.md → GitHub</span>
           <span class="git-zone-hint muted small">Summary, Facts, Exam angle, etc. → notes.md</span>
         </div>
-        <p class="note-locks-help muted small">Toolbar: <strong>bold</strong>, lists. Padlock = freeze field. Box height: <strong>S/M/L</strong> in header. ${userId ? "Supabase syncs as you type." : "Saved in browser until commit."}</p>
+        <p class="note-locks-help muted small">Toolbar: <strong>bold</strong>, lists. <strong>Padlock</strong> = you can still edit, but changes after lock won't go to GitHub (Supabase sync still works). Box height: <strong>S/M/L</strong> in header.</p>
         <div class="note-field git-notes-field${isFieldLocked(itemId, "summary") ? " note-field--locked" : ""}" data-field="summary">
           ${renderNoteLabelRow("Summary", itemId, "summary", userId)}
           ${renderRichNoteEditorHtml({ "data-field-id": "summary" }, { placeholder: "What happened — story angle", rows: 4 })}
@@ -990,9 +995,12 @@ async function renderItemDetail(itemId) {
       }
       const fromGit = parseNotesMd(mdText);
       const localBefore = getGitNotesFromLocal(itemId);
-      saveGitNotesToLocal(itemId, mergePulledGitWithLocal(fromGit, localBefore), userId);
+      saveGitNotesToLocal(itemId, mergePulledGitWithLocal(fromGit, localBefore, itemId), userId);
       if (fromGit[SUMMARY_SECTION]?.trim()) {
-        updateCloudField(itemId, userId, "summary", plainTextToNoteHtml(fromGit[SUMMARY_SECTION]));
+        const summaryHtml = plainTextToNoteHtml(fromGit[SUMMARY_SECTION]);
+        if (!isFieldLocked(itemId, "summary")) {
+          updateCloudField(itemId, userId, "summary", summaryHtml);
+        }
       }
       alert("Loaded notes from GitHub into this browser.");
       navigate("item", itemId);

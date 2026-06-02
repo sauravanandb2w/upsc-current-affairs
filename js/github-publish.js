@@ -5,8 +5,9 @@
 import { isGitHubConnected, isGitHubUploadAllowed } from "./github-auth.js";
 import { getRepoFile, putRepoFile } from "./github-upload.js";
 import { GIT_SECTIONS, serializeNotesMd, defaultNotesTemplate } from "./notes-md.js";
-import { getCloudEntry, getGitNotesFromLocal } from "./ca-store.js";
+import { getCloudEntry, getGitNotesFromLocal, gitVisibleNoteValue } from "./ca-store.js";
 import { noteHtmlToPlainText } from "./rich-notes.js";
+import { fieldIdForSection } from "./field-locks.js";
 
 const INDEX_PATH = "data/index.json";
 const SEARCH_INDEX_PATH = "data/search-index.json";
@@ -37,10 +38,11 @@ export function buildSearchTextForItem(itemId, item = {}) {
     item.id,
     ...(item.tags || []),
     ...(item.threads || []),
-    noteHtmlToPlainText(getCloudEntry(itemId).summary || item.summary || ""),
+    noteHtmlToPlainText(gitVisibleNoteValue(itemId, "summary", getCloudEntry(itemId).summary || item.summary || "")),
   ];
   for (const sec of GIT_SECTIONS) {
-    parts.push(noteHtmlToPlainText(git[sec] || ""));
+    const fid = fieldIdForSection(sec);
+    parts.push(noteHtmlToPlainText(gitVisibleNoteValue(itemId, fid, git[sec] ?? git[fid] ?? "")));
   }
   return parts
     .filter(Boolean)
@@ -78,9 +80,12 @@ function notesBodyForItem(itemId) {
   const git = getGitNotesFromLocal(itemId) || getCloudEntry(itemId).gitNotes || {};
   const sections = {};
   for (const sec of GIT_SECTIONS) {
-    sections[sec] = noteHtmlToPlainText(git[sec] || "");
+    const fid = fieldIdForSection(sec);
+    sections[sec] = noteHtmlToPlainText(gitVisibleNoteValue(itemId, fid, git[sec] ?? git[fid] ?? ""));
   }
-  const summary = noteHtmlToPlainText(getCloudEntry(itemId).summary || "");
+  const summary = noteHtmlToPlainText(
+    gitVisibleNoteValue(itemId, "summary", getCloudEntry(itemId).summary || "")
+  );
   const hasGit = Object.values(sections).some((v) => String(v).trim());
   if (!summary.trim() && !hasGit) return defaultNotesTemplate();
   if (summary.trim()) sections["Summary / story"] = summary;
