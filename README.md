@@ -43,8 +43,8 @@ Works offline in the browser for reading; sign-in and GitHub need network.
 | Data | Where | Sync |
 |------|--------|------|
 | **Summary, links, sources** | Supabase `ca_item_notes` | Phone ↔ laptop (auto-save) |
-| **Note sections while editing** | Supabase `git_notes_json` + browser | Same (instant) |
-| **Facts, static, GS fit, exam angle, misc** | Git `study/items/<id>/notes.md` | **Commit notes.md → GitHub** |
+| **Facts etc. while drafting** | Supabase `git_notes_json` + browser | Auto-save until **Commit notes.md** |
+| **Facts, static, GS fit, exam angle, misc (archive)** | Git `study/items/<id>/notes.md` | **Commit notes.md → GitHub** (clears `git_notes_json`) |
 | **Tags, threads, status, metadata** | Git `manifest.json` + `data/index.json` | **Save to GitHub** |
 | **Cuttings / small images** | Git in item folder | GitHub upload |
 | **Large magazines / PDFs** | Google Drive URL in sources | Link only (keeps repo small) |

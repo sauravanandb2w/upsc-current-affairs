@@ -28,6 +28,7 @@ import {
   setCloudSyncUserId,
   syncNotesToCloud,
   getLastCloudSyncError,
+  clearGitNotesDraftAfterCommit,
 } from "./ca-store.js";
 import {
   initSupabase,
@@ -914,7 +915,7 @@ async function renderItemDetail(itemId) {
           <span class="git-zone-badge git-zone-badge--notes">Commit notes.md → GitHub</span>
           <span class="git-zone-hint muted small">Summary, Facts, Exam angle, etc. → notes.md</span>
         </div>
-        <p class="note-locks-help muted small">Toolbar: <strong>bold</strong>, lists. <strong>Padlock</strong> = you can still edit, but changes after lock won't go to GitHub (Supabase sync still works). Typing auto-saves to <strong>Supabase</strong> (if signed in) — git only when you click <strong>Commit notes.md</strong>. Box height: <strong>S/M/L</strong> in header.</p>
+        <p class="note-locks-help muted small">Toolbar: <strong>bold</strong>, lists. <strong>Padlock</strong> = you can still edit, but changes after lock won't go to GitHub (Supabase sync still works). Facts etc. auto-save to <strong>Supabase as drafts</strong> while you type; after <strong>Commit notes.md</strong> they live in Git and are cleared from Supabase. Summary/links/sources keep syncing. Box height: <strong>S/M/L</strong> in header.</p>
         <div class="note-field git-notes-field${isFieldLocked(itemId, "summary") ? " note-field--locked" : ""}" data-field="summary">
           ${renderNoteLabelRow("Summary", itemId, "summary", userId)}
           ${renderRichNoteEditorHtml({ "data-field-id": "summary" }, { placeholder: "What happened — story angle", rows: 4 })}
@@ -1047,8 +1048,9 @@ async function renderItemDetail(itemId) {
       saveGitNotesToLocal(itemId, liveSections, userId);
       const { path, searchEntry } = await commitNotesMdToGitHub(itemId, merged, liveSections);
       if (searchEntry) setSearchIndexEntry(itemId, searchEntry);
+      await clearGitNotesDraftAfterCommit(itemId, userId);
       alert(
-        `Committed ${path} to GitHub.\n\nThis device already has your latest notes. On another device: sign in (Supabase sync) or use “Refresh notes from GitHub”.`
+        `Committed ${path} to GitHub.\n\nDeep notes cleared from Supabase (Git is the archive). This screen still shows your text. On another device use “Refresh notes from GitHub”. New edits here become Supabase drafts again until the next commit.`
       );
     } catch (err) {
       alert(err.message || String(err));

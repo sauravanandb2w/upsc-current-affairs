@@ -164,12 +164,39 @@ function mergeCloudEntryWithLocal(itemId, local, remote, hasPendingSave) {
   };
 }
 
+function cancelPendingCloudSave(itemId) {
+  const pending = saveTimers.get(itemId);
+  if (pending) {
+    clearTimeout(pending);
+    saveTimers.delete(itemId);
+    pendingSaveUserIds.delete(itemId);
+  }
+}
+
 function persistCloudEntry(itemId, entry) {
   cloudCache[itemId] = entry;
   localStorage.setItem(LS_CLOUD_PREFIX + itemId, JSON.stringify(entry));
   if (entry.gitNotes && Object.keys(entry.gitNotes).length) {
     localStorage.setItem(LS_GIT_PREFIX + itemId, JSON.stringify(entry.gitNotes));
+  } else {
+    localStorage.removeItem(LS_GIT_PREFIX + itemId);
   }
+}
+
+/**
+ * After notes.md is committed to GitHub, drop deep-section drafts from Supabase.
+ * Summary, links, sources, and locks stay synced; Facts etc. reload from Git on other devices.
+ */
+export async function clearGitNotesDraftAfterCommit(itemId, userId) {
+  cancelPendingCloudSave(itemId);
+  const entry = getCloudEntry(itemId);
+  entry.gitNotes = {};
+  persistCloudEntry(itemId, entry);
+
+  const uid = resolveUserId(userId);
+  if (!isSupabaseConfigured() || !uid) return { ok: true };
+
+  return pushCloudEntry(itemId, uid, entry, { force: true });
 }
 
 async function pushCloudEntry(itemId, userId, payload, { force = false } = {}) {
@@ -535,12 +562,7 @@ export async function removeItemFromCloud(itemId, userId) {
   localStorage.removeItem(LS_CLOUD_PREFIX + itemId);
   localStorage.removeItem(LS_GIT_PREFIX + itemId);
   localStorage.removeItem(LS_META_PREFIX + itemId);
-  const pending = saveTimers.get(itemId);
-  if (pending) {
-    clearTimeout(pending);
-    saveTimers.delete(itemId);
-    pendingSaveUserIds.delete(itemId);
-  }
+  cancelPendingCloudSave(itemId);
   if (!userId || !isSupabaseConfigured()) return;
   const sb = getSupabase();
   const [notesRes, metaRes, flashRes] = await Promise.all([

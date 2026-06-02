@@ -67,7 +67,7 @@ Repository → **Settings** → **Secrets** → **Actions**:
 | Summary | Yes (+ field locks) |
 | Links | `links_json` |
 | Sources | `sources_json` |
-| Deep notes (Facts, etc.) | `git_notes_json` when signed in |
+| Deep notes (Facts, etc.) — drafts only | `git_notes_json` until **Commit notes.md** (then cleared; Git holds archive) |
 | Field locks | `locked_fields` |
 | Stars / last revised | `ca_item_meta` |
 | Flashcards | `ca_flashcards` |
