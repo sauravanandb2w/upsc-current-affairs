@@ -19,9 +19,6 @@ import {
 } from "./github-upload.js";
 
 export function renderGitHubConnectHint() {
-  if (!isGitHubUploadConfiguredSync()) {
-    return `<p class="github-upload-note">Set up GitHub OAuth to upload from the app — <code>GITHUB_UPLOAD_SETUP.md</code></p>`;
-  }
   if (isGitHubConnected()) {
     return `<p class="github-upload-note github-upload-note--ok">GitHub connected — files commit to repo (~1–2 min to appear).</p>`;
   }
@@ -133,7 +130,7 @@ export function bindGitHubUploadControl(root, onDone) {
     if (!file) return;
 
     if (!(await initGitHubUploadConfig())) {
-      status.textContent = "OAuth not set — click Connect GitHub in header.";
+      status.textContent = "Missing config — hard refresh, then Connect GitHub in header.";
       return;
     }
 

@@ -1,0 +1,5 @@
+# Supabase CLI — link with: supabase link --project-ref hqrxdvrxzmlntejwojep
+project_id = "hqrxdvrxzmlntejwojep"
+
+[functions.github-oauth]
+verify_jwt = false

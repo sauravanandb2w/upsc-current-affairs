@@ -31,18 +31,27 @@ You can reuse the same OAuth app as PYQ **if** you add the CA callback URLs abov
 
 ## 2. Supabase Edge Function (CA project)
 
-Deploy `github-oauth` on your **CA Supabase project** (not PYQ):
+Project ref: **`hqrxdvrxzmlntejwojep`** (upsc-current-affairs)
+
+The `github-oauth` function is in this repo. Deploy once, then set secrets:
 
 ```bash
 cd upsc-current-affairs
 supabase login
-supabase link --project-ref YOUR_CA_PROJECT_REF
+supabase link --project-ref hqrxdvrxzmlntejwojep
 
-supabase secrets set GITHUB_CLIENT_ID=your_client_id
+# Same client ID + secret as your PYQ OAuth app (or regenerate secret in GitHub OAuth app settings)
+GITHUB_CLIENT_SECRET='paste_secret_here' bash scripts/setup-ca-github-oauth.sh
+
+# Or manually:
+supabase secrets set GITHUB_CLIENT_ID=Ov23lih0ATmpjlWl49vn
 supabase secrets set GITHUB_CLIENT_SECRET=your_client_secret
-
 supabase functions deploy github-oauth --no-verify-jwt --use-api
 ```
+
+**Symptom:** “GitHub OAuth not configured on server” after GitHub redirects back → secrets not set on this Supabase project yet.
+
+**Symptom:** “github-oauth … not deployed” → run `supabase functions deploy` above.
 
 ---
 
