@@ -38,6 +38,7 @@ import {
   isDraftItem,
   setStatusOverride,
   removeDraft,
+  clearStatusOverride,
   updateDraftItem,
   draftCliCommand,
   downloadTextFile,
@@ -62,7 +63,13 @@ import { initTheme, bindThemeToggle, bindNoteSizeControl } from "./theme.js";
 import { bindExportButtons } from "./export-ca.js";
 import { loadFlashcards, loadFlashcardsLocal, generateFlashcardsFromItem } from "./flashcards.js";
 import { commitNotesMdToGitHub } from "./github-notes.js";
-import { publishDraftToGitHub } from "./github-publish.js";
+import { publishDraftToGitHub, savePublishedItemToGitHub } from "./github-publish.js";
+import {
+  loadSearchIndex,
+  setSearchIndexEntry,
+  matchesSearch as matchItemSearch,
+  bindSearchAutocomplete,
+} from "./search.js";
 import {
   renderToday,
   renderCalendar,
@@ -129,6 +136,8 @@ const el = {
   main: document.getElementById("main"),
   nav: document.getElementById("mainNav"),
   globalSearch: document.getElementById("globalSearch"),
+  searchSuggestions: document.getElementById("searchSuggestions"),
+  searchCombobox: document.getElementById("searchCombobox"),
   addItemBtn: document.getElementById("addItemBtn"),
   addItemDialog: document.getElementById("addItemDialog"),
   addItemForm: document.getElementById("addItemForm"),
@@ -153,6 +162,15 @@ const el = {
 
 const LOCK_ICON_OPEN = `<svg class="note-lock-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M15 11V5a4 4 0 0 1 3 0"/></svg>`;
 const LOCK_ICON_CLOSED = `<svg class="note-lock-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+
+const searchDeps = {
+  getCloudEntry,
+  getGitNotesFromLocal,
+};
+
+function matchesSearch(item, query) {
+  return matchItemSearch(item, query, searchDeps);
+}
 
 function viewCtx() {
   return {
@@ -221,26 +239,6 @@ function splitCsv(value) {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-}
-
-function matchesSearch(item, query) {
-  if (!query) return true;
-  const q = query.toLowerCase();
-  const cloud = getCloudEntry(item.id);
-  const localNotes = getGitNotesFromLocal(item.id);
-  const hay = [
-    item.title,
-    item.date,
-    item.id,
-    ...(item.tags || []),
-    ...(item.threads || []),
-    cloud.summary,
-    localNotes ? Object.values(localNotes).join(" ") : "",
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-  return hay.includes(q);
 }
 
 function filterByDateRange(items, from, to) {
@@ -598,7 +596,8 @@ async function renderRevise() {
 }
 
 function renderTopicLens() {
-  const allItems = mergedItems();
+  const q = state.searchQuery.trim();
+  const allItems = mergedItems().filter((i) => matchesSearch(i, q));
   const tagOptions = collectAllTags(allItems);
   const threadOptions = collectAllThreads(allItems);
   const filtered = filterByTopic(allItems).sort((a, b) =>
@@ -802,7 +801,12 @@ async function renderItemDetail(itemId) {
         <div class="item-tool-row">
           <button type="button" class="btn-ghost btn-sm" id="genFlashBtn" title="From Facts &amp; Exam angle — one bullet per line">Generate flashcards</button>
           <button type="button" class="btn-ghost btn-sm" id="markRevisedBtn">Mark revised today</button>
-          <button type="button" class="btn-ghost btn-sm" id="commitNotesBtn">Commit notes.md → GitHub</button>
+          ${
+            !draft
+              ? `<button type="button" class="btn-primary btn-sm" id="saveGitHubBtn" title="Status, tags, links, sources → manifest + index">Save to GitHub</button>`
+              : ""
+          }
+          <button type="button" class="btn-ghost btn-sm" id="commitNotesBtn" ${draft ? 'disabled title="Publish first"' : ""}>Commit notes.md → GitHub</button>
         </div>
       </section>
     </article>`;
@@ -810,6 +814,8 @@ async function renderItemDetail(itemId) {
   document.getElementById("backBtn")?.addEventListener("click", () => navigate(state.view === "item" ? "today" : state.view));
 
   document.getElementById("publishDraftBtn")?.addEventListener("click", () => handlePublishDraft(item));
+
+  document.getElementById("saveGitHubBtn")?.addEventListener("click", () => handleSaveToGitHub(item));
 
   document.getElementById("starBtn")?.addEventListener("click", () => {
     toggleStar(itemId, userId);
@@ -886,8 +892,11 @@ async function renderItemDetail(itemId) {
 
   document.getElementById("commitNotesBtn")?.addEventListener("click", async () => {
     try {
-      const path = await commitNotesMdToGitHub(itemId, item.title);
-      alert(`Committed ${path} — live after deploy + build-index.py`);
+      const { path, searchEntry } = await commitNotesMdToGitHub(itemId, merged);
+      if (searchEntry) setSearchIndexEntry(itemId, searchEntry);
+      alert(
+        `Committed ${path} to GitHub.\n\nNotes and search index updated — live on site in ~1–2 min (no build-index needed).`
+      );
     } catch (err) {
       alert(err.message || String(err));
     }
@@ -1058,7 +1067,7 @@ async function handlePublishDraft(item) {
     if (!isGitHubConnected()) {
       throw new Error("Connect GitHub in the header first.");
     }
-    await publishDraftToGitHub(item);
+    const result = await publishDraftToGitHub(item);
     const published = { ...item, _folder: item.id };
     delete published._draft;
     removeDraft(item.id);
@@ -1066,6 +1075,7 @@ async function handlePublishDraft(item) {
     if (!state.items.some((row) => row.id === item.id)) {
       state.items.push(published);
     }
+    if (result.searchEntry) setSearchIndexEntry(item.id, result.searchEntry);
     el.draftExportDialog?.close();
     alert(`Published ${item.title} to git. Live on site in ~1–2 min after GitHub Pages deploys.`);
     navigate("item", item.id);
@@ -1074,6 +1084,38 @@ async function handlePublishDraft(item) {
     if (btn) {
       btn.disabled = false;
       btn.textContent = "Publish to GitHub";
+    }
+  }
+}
+
+async function handleSaveToGitHub(item) {
+  const btn = document.getElementById("saveGitHubBtn");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Saving…";
+  }
+  try {
+    if (!isGitHubConnected()) {
+      throw new Error("Connect GitHub in the header first.");
+    }
+    const merged = mergeCloudWithManifest(item);
+    const { manifest, searchEntry } = await savePublishedItemToGitHub(merged);
+    clearStatusOverride(item.id);
+    const idx = state.items.findIndex((row) => row.id === item.id);
+    if (idx >= 0) {
+      state.items[idx] = { ...state.items[idx], ...manifest, _folder: item.id };
+    }
+    if (searchEntry) setSearchIndexEntry(item.id, searchEntry);
+    alert(
+      `Saved ${item.title} to GitHub (manifest + index).\n\nStatus, tags, links, and sources are synced — live in ~1–2 min.`
+    );
+    navigate("item", item.id);
+  } catch (err) {
+    alert(err.message || String(err));
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Save to GitHub";
     }
   }
 }
@@ -1171,10 +1213,21 @@ function bindAddItem() {
 }
 
 function bindSearch() {
-  el.globalSearch?.addEventListener("input", () => {
-    state.searchQuery = el.globalSearch.value;
-    if (state.view === "item") return;
-    navigate(state.view);
+  bindSearchAutocomplete({
+    inputEl: el.globalSearch,
+    suggestionsEl: el.searchSuggestions,
+    getItems: mergedItems,
+    deps: searchDeps,
+    onQueryChange: (query) => {
+      state.searchQuery = query;
+      el.globalSearch?.setAttribute("aria-expanded", query.trim() ? "true" : "false");
+      if (state.view === "item") return;
+      navigate(state.view);
+    },
+    onSelectItem: (itemId) => {
+      el.globalSearch?.setAttribute("aria-expanded", "false");
+      navigate("item", itemId);
+    },
   });
 }
 
@@ -1351,6 +1404,7 @@ async function init() {
     updateAuthUi();
 
     await loadIndex();
+    await loadSearchIndex(assetUrl("data/search-index.json"));
     navigate("today");
 
     void initAuthBackground();

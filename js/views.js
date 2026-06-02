@@ -190,7 +190,8 @@ export function renderCalendar(ctx) {
 }
 
 export function renderThreadDiff(ctx) {
-  const allItems = ctx.mergedItems();
+  const q = ctx.state.searchQuery.trim();
+  const allItems = ctx.mergedItems().filter((i) => ctx.matchesSearch(i, q));
   const threadOptions = collectAllThreads(allItems);
   let thread = (ctx.state.threadDiff || "").trim();
   if (!thread && threadOptions.length === 1) {

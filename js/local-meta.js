@@ -63,6 +63,12 @@ export function setStatusOverride(itemId, status) {
   persistStatus();
 }
 
+export function clearStatusOverride(itemId) {
+  if (!itemId || !(itemId in statusOverrides)) return;
+  delete statusOverrides[itemId];
+  persistStatus();
+}
+
 export function applyStatus(item) {
   const override = statusOverrides[item.id];
   if (override) return { ...item, status: override };

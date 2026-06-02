@@ -7,6 +7,7 @@ import { getRepoFile, putRepoFile } from "./github-upload.js";
 import { serializeNotesMd, GIT_SECTIONS } from "./notes-md.js";
 import { getCloudEntry, getGitNotesFromLocal } from "./ca-store.js";
 import { noteHtmlToPlainText } from "./rich-notes.js";
+import { manifestFromItem, syncSearchIndexForItem } from "./github-publish.js";
 
 function sectionsForCommit(itemId) {
   const git = getGitNotesFromLocal(itemId) || getCloudEntry(itemId).gitNotes || {};
@@ -19,7 +20,11 @@ function sectionsForCommit(itemId) {
   return out;
 }
 
-export async function commitNotesMdToGitHub(itemId, itemTitle) {
+/**
+ * @param {string} itemId
+ * @param {object} item merged item (title, date, tags, …)
+ */
+export async function commitNotesMdToGitHub(itemId, item) {
   if (!(await isGitHubUploadAllowed())) {
     throw new Error("Connect GitHub first (repo owner only).");
   }
@@ -36,8 +41,12 @@ export async function commitNotesMdToGitHub(itemId, itemTitle) {
   await putRepoFile(
     path,
     content,
-    `Update CA notes: ${itemTitle || itemId}`,
+    `Update CA notes: ${item.title || itemId}`,
     existing?.sha || null
   );
-  return path;
+
+  const meta = manifestFromItem(item);
+  const searchEntry = await syncSearchIndexForItem(itemId, meta, item.title || itemId);
+
+  return { path, searchEntry };
 }

@@ -1,5 +1,5 @@
 /**
- * Publish a browser draft CA item to git via GitHub API (no terminal).
+ * Publish and update CA items on git via GitHub API (no terminal).
  */
 
 import { isGitHubConnected, isGitHubUploadAllowed } from "./github-auth.js";
@@ -8,11 +8,14 @@ import { GIT_SECTIONS, serializeNotesMd, defaultNotesTemplate } from "./notes-md
 import { getCloudEntry, getGitNotesFromLocal } from "./ca-store.js";
 import { noteHtmlToPlainText } from "./rich-notes.js";
 
+const INDEX_PATH = "data/index.json";
+const SEARCH_INDEX_PATH = "data/search-index.json";
+
 function textToBase64(text) {
   return btoa(unescape(encodeURIComponent(text)));
 }
 
-function manifestFromItem(item) {
+export function manifestFromItem(item) {
   return {
     id: item.id,
     date: item.date,
@@ -25,6 +28,50 @@ function manifestFromItem(item) {
     sources: item.sources || [],
     links: item.links || [],
   };
+}
+
+export function buildSearchTextForItem(itemId, item = {}) {
+  const git = getGitNotesFromLocal(itemId) || getCloudEntry(itemId).gitNotes || {};
+  const parts = [
+    item.title,
+    item.id,
+    ...(item.tags || []),
+    ...(item.threads || []),
+    noteHtmlToPlainText(getCloudEntry(itemId).summary || item.summary || ""),
+  ];
+  for (const sec of GIT_SECTIONS) {
+    parts.push(noteHtmlToPlainText(git[sec] || ""));
+  }
+  return parts
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 8000);
+}
+
+function searchIndexEntryForItem(itemId, item) {
+  return {
+    title: item.title || "",
+    date: item.date || "",
+    tags: item.tags || [],
+    threads: item.threads || [],
+    text: buildSearchTextForItem(itemId, item),
+  };
+}
+
+function mergeSourcesForSave(gitSources = [], itemSources = []) {
+  const fileSources = (gitSources || []).filter((s) => s?.file?.storage === "git");
+  const urlSources = (itemSources || []).filter((s) => s?.url && !s?.file?.storage);
+  const seen = new Set();
+  const out = [...fileSources];
+  for (const source of urlSources) {
+    const key = source.url;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(source);
+  }
+  return out;
 }
 
 function notesBodyForItem(itemId) {
@@ -40,41 +87,36 @@ function notesBodyForItem(itemId) {
   return serializeNotesMd(sections, { includeSummary: Boolean(summary.trim()) });
 }
 
-/**
- * Create manifest + notes.md + update data/index.json in the repo.
- * @param {object} item draft item from local-meta
- */
-export async function publishDraftToGitHub(item) {
-  if (!isGitHubConnected()) {
-    throw new Error("Connect GitHub in the header first.");
+async function readSearchIndexFile() {
+  const file = await getRepoFile(SEARCH_INDEX_PATH);
+  let data = { generatedAt: null, entries: {} };
+  if (file?.text) {
+    try {
+      data = JSON.parse(file.text);
+    } catch {
+      /* rebuild */
+    }
   }
-  if (!(await isGitHubUploadAllowed())) {
-    throw new Error("Publishing is restricted to the repo owner account.");
-  }
+  if (!data.entries || typeof data.entries !== "object") data.entries = {};
+  return { file, data };
+}
 
-  const itemId = item.id;
-  const manifest = manifestFromItem(item);
-  const manifestPath = `study/items/${itemId}/manifest.json`;
-  const notesPath = `study/items/${itemId}/notes.md`;
-  const indexPath = "data/index.json";
-
-  const existingManifest = await getRepoFile(manifestPath);
-  if (existingManifest) {
-    throw new Error(`Already in git: ${itemId}. Open the item to edit, or change title/date.`);
-  }
-
+export async function syncSearchIndexForItem(itemId, item, itemTitle) {
+  const { file, data } = await readSearchIndexFile();
+  const entry = searchIndexEntryForItem(itemId, item);
+  data.entries[itemId] = entry;
+  data.generatedAt = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
   await putRepoFile(
-    manifestPath,
-    textToBase64(`${JSON.stringify(manifest, null, 2)}\n`),
-    `Add CA: ${item.title}`
+    SEARCH_INDEX_PATH,
+    textToBase64(`${JSON.stringify(data, null, 2)}\n`),
+    `Update search index: ${itemTitle || itemId}`,
+    file?.sha || null
   );
+  return entry;
+}
 
-  const existingNotes = await getRepoFile(notesPath);
-  if (!existingNotes) {
-    await putRepoFile(notesPath, textToBase64(notesBodyForItem(itemId)), `Add CA notes: ${item.title}`);
-  }
-
-  const indexFile = await getRepoFile(indexPath);
+async function upsertIndexEntry(manifest, itemId, messageTitle) {
+  const indexFile = await getRepoFile(INDEX_PATH);
   let indexData = { generatedAt: new Date().toISOString(), count: 0, items: [] };
   if (indexFile?.text) {
     try {
@@ -98,11 +140,91 @@ export async function publishDraftToGitHub(item) {
   };
 
   await putRepoFile(
-    indexPath,
+    INDEX_PATH,
     textToBase64(`${JSON.stringify(payload, null, 2)}\n`),
-    `Update index: ${item.title}`,
+    `Update index: ${messageTitle}`,
     indexFile?.sha || null
   );
+}
 
-  return { itemId, manifestPath, indexPath };
+/**
+ * Create manifest + notes.md + update index and search index in the repo.
+ * @param {object} item draft item from local-meta
+ */
+export async function publishDraftToGitHub(item) {
+  if (!isGitHubConnected()) {
+    throw new Error("Connect GitHub in the header first.");
+  }
+  if (!(await isGitHubUploadAllowed())) {
+    throw new Error("Publishing is restricted to the repo owner account.");
+  }
+
+  const itemId = item.id;
+  const manifest = manifestFromItem(item);
+  const manifestPath = `study/items/${itemId}/manifest.json`;
+  const notesPath = `study/items/${itemId}/notes.md`;
+
+  const existingManifest = await getRepoFile(manifestPath);
+  if (existingManifest) {
+    throw new Error(`Already in git: ${itemId}. Open the item to edit, or change title/date.`);
+  }
+
+  await putRepoFile(
+    manifestPath,
+    textToBase64(`${JSON.stringify(manifest, null, 2)}\n`),
+    `Add CA: ${item.title}`
+  );
+
+  const existingNotes = await getRepoFile(notesPath);
+  if (!existingNotes) {
+    await putRepoFile(notesPath, textToBase64(notesBodyForItem(itemId)), `Add CA notes: ${item.title}`);
+  }
+
+  await upsertIndexEntry(manifest, itemId, item.title);
+  const searchEntry = await syncSearchIndexForItem(itemId, manifest, item.title);
+
+  return { itemId, manifestPath, indexPath: INDEX_PATH, searchEntry };
+}
+
+/**
+ * Update manifest + index + search index for an item already in git.
+ * @param {object} item merged item (status, tags, links, sources, etc.)
+ */
+export async function savePublishedItemToGitHub(item) {
+  if (!isGitHubConnected()) {
+    throw new Error("Connect GitHub in the header first.");
+  }
+  if (!(await isGitHubUploadAllowed())) {
+    throw new Error("Saving is restricted to the repo owner account.");
+  }
+
+  const itemId = item.id;
+  const manifestPath = `study/items/${itemId}/manifest.json`;
+  const existing = await getRepoFile(manifestPath);
+  if (!existing) {
+    throw new Error("Not in git yet. Use Publish to GitHub first.");
+  }
+
+  let gitData = {};
+  try {
+    gitData = JSON.parse(existing.text);
+  } catch {
+    gitData = {};
+  }
+
+  const manifest = manifestFromItem(item);
+  manifest.images = gitData.images || manifest.images || [];
+  manifest.sources = mergeSourcesForSave(gitData.sources, item.sources);
+
+  await putRepoFile(
+    manifestPath,
+    textToBase64(`${JSON.stringify(manifest, null, 2)}\n`),
+    `Update CA: ${item.title}`,
+    existing.sha
+  );
+
+  await upsertIndexEntry(manifest, itemId, item.title);
+  const searchEntry = await syncSearchIndexForItem(itemId, manifest, item.title);
+
+  return { itemId, manifest, searchEntry };
 }

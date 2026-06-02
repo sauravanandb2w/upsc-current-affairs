@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600;6..72,700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="css/styles.css?v=11" />
+    <link rel="stylesheet" href="css/styles.css?v=12" />
   </head>
   <body>
     <header class="site-header">
@@ -26,10 +26,22 @@
           </div>
         </div>
         <div class="header-actions">
-          <label class="search-wrap" aria-label="Search">
-            <span class="search-icon" aria-hidden="true">⌕</span>
-            <input type="search" id="globalSearch" placeholder="Search…" autocomplete="off" />
-          </label>
+          <div class="search-combobox" id="searchCombobox">
+            <label class="search-wrap" aria-label="Search">
+              <span class="search-icon" aria-hidden="true">⌕</span>
+              <input
+                type="search"
+                id="globalSearch"
+                placeholder="Search title, tags, notes…"
+                autocomplete="off"
+                role="combobox"
+                aria-expanded="false"
+                aria-controls="searchSuggestions"
+                aria-autocomplete="list"
+              />
+            </label>
+            <ul class="search-suggestions hidden" id="searchSuggestions" role="listbox"></ul>
+          </div>
           <button type="button" class="btn-accent btn-sm" id="addItemBtn">+ Add CA</button>
           <div class="sync-badge" id="syncBadge">Local only</div>
           <button type="button" class="btn-ghost btn-sm" id="githubConnectBtn">Connect GitHub</button>
@@ -160,6 +172,6 @@
         );
       })();
     </script>
-    <script type="module" src="js/app.js?v=14"></script>
+    <script type="module" src="js/app.js?v=15"></script>
   </body>
 </html>
