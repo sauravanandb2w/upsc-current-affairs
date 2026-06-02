@@ -633,6 +633,22 @@ code {
   margin-top: 0.75rem;
 }
 
+.auth-area {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.auth-user {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Search & header actions */
 .search-wrap {
   display: flex;
@@ -1043,4 +1059,113 @@ code {
   .main-nav {
     padding-bottom: 0.5rem;
   }
+}
+
+/* Materials panel */
+.materials-panel {
+  padding: 1.25rem;
+  border-bottom: 1px dashed rgba(28, 25, 23, 0.12);
+  background: linear-gradient(to bottom, #fffefb, #fff);
+}
+
+.materials-block {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(28, 25, 23, 0.06);
+}
+
+.materials-block:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.materials-subhead {
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.links-editor {
+  margin: 0.5rem 0;
+}
+
+.item-notes-panel {
+  padding: 1.25rem;
+}
+
+.upload-row {
+  margin-top: 0.5rem;
+}
+
+.github-upload-note {
+  font-size: 0.82rem;
+  color: var(--ink-muted);
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.65rem;
+  background: var(--paper);
+  border-radius: 8px;
+}
+
+.github-upload-note--ok {
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.github-upload-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.github-upload-label {
+  cursor: pointer;
+}
+
+.github-upload-status {
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+}
+
+.gallery-item {
+  position: relative;
+}
+
+.github-delete-btn {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  z-index: 2;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  border: none;
+  background: rgba(28, 25, 23, 0.75);
+  color: #fff;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.pdf-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.pdf-link {
+  color: var(--navy);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.pdf-link:hover {
+  text-decoration: underline;
+}
+
+.oauth-callback {
+  padding: 2rem;
+  text-align: center;
 }

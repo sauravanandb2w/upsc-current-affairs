@@ -30,9 +30,17 @@ import {
   addDraftItem,
   isDraftItem,
   setStatusOverride,
+  updateDraftItem,
   draftCliCommand,
   downloadTextFile,
 } from "./local-meta.js";
+import { initGitHubUploadConfig } from "./github-auth.js";
+import {
+  renderGitHubConnectHint,
+  renderGitHubUploadButton,
+  bindGitHubHeaderButton,
+  bindAllMaterialsUploads,
+} from "./github-upload-ui.js";
 
 const LINK_KINDS = [
   "news",
@@ -86,8 +94,8 @@ const el = {
   authSubmitBtn: document.getElementById("authSubmitBtn"),
   authGoogleBtn: document.getElementById("authGoogleBtn"),
   authConfigNote: document.getElementById("authConfigNote"),
-  signInBtn: document.getElementById("signInBtn"),
-  signOutBtn: document.getElementById("signOutBtn"),
+  authArea: document.getElementById("authArea"),
+  githubConnectBtn: document.getElementById("githubConnectBtn"),
 };
 
 function todayIso() {
@@ -501,6 +509,67 @@ function renderTopicLens() {
   });
 }
 
+function manifestJsonForUpload(item) {
+  const { _draft, _createdAt, _folder, ...rest } = item;
+  return rest;
+}
+
+function gitPdfEntries(item) {
+  const sources = mergeCloudWithManifest(item).sources || [];
+  return sources.filter((s) => s?.file?.storage === "git" && s?.file?.path);
+}
+
+function persistItemLinks(itemId, userId, draft, links) {
+  if (draft) {
+    updateDraftItem(itemId, { links });
+    return;
+  }
+  updateCloudField(itemId, userId, "links", links);
+}
+
+function persistItemSources(itemId, userId, draft, sources) {
+  if (draft) {
+    updateDraftItem(itemId, { sources });
+    return;
+  }
+  updateCloudField(itemId, userId, "sources", sources);
+}
+
+function renderGalleryImages(itemId, images) {
+  if (!images?.length) {
+    return `<p class="muted small">No cuttings yet — upload below or connect GitHub.</p>`;
+  }
+  return images
+    .map((img) => {
+      const name = typeof img === "string" ? img : img?.file || "";
+      const src = assetUrl(`study/items/${itemId}/${name}`);
+      return `
+        <figure class="gallery-item">
+          <button type="button" class="github-delete-btn hidden" data-file="${escapeHtml(name)}" data-file-kind="image" title="Delete from git">×</button>
+          <img src="${escapeHtml(src)}" alt="" loading="lazy" />
+          <figcaption class="small muted">${escapeHtml(name)}</figcaption>
+        </figure>`;
+    })
+    .join("");
+}
+
+function renderPdfList(itemId, pdfs) {
+  if (!pdfs.length) {
+    return `<p class="muted small">No PDFs in git — upload below or paste a Drive link in Sources.</p>`;
+  }
+  return pdfs
+    .map((src) => {
+      const path = src.file.path;
+      const href = assetUrl(`study/items/${itemId}/${path}`);
+      return `
+        <div class="pdf-row">
+          <a class="pdf-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">📄 ${escapeHtml(src.name || path)}</a>
+          <button type="button" class="github-delete-btn btn-ghost btn-sm hidden" data-file="${escapeHtml(path)}" data-file-kind="pdf">Delete</button>
+        </div>`;
+    })
+    .join("");
+}
+
 async function renderItemDetail(itemId) {
   const item = itemById(itemId);
   if (!item) {
@@ -508,17 +577,15 @@ async function renderItemDetail(itemId) {
     return;
   }
 
+  const merged = mergeCloudWithManifest(item);
   const cloud = getCloudEntry(itemId);
   const mdText = await fetchNotesMd(itemId);
   const sections = getGitSections(itemId, mdText);
-  const images = (item.images || []).map((img) => {
-    const src = assetUrl(`study/items/${itemId}/${img}`);
-    return `<figure class="gallery-item"><img src="${escapeHtml(src)}" alt="" loading="lazy" /></figure>`;
-  });
-
-  const userId = state.session?.user?.id;
-  const canEditCloud = Boolean(userId);
+  const userId = state.session?.user?.id || null;
   const draft = isDraftItem(item);
+  const canEditCloud = true;
+  const manifestJson = JSON.stringify(manifestJsonForUpload(item)).replace(/"/g, "&quot;");
+  const pdfs = gitPdfEntries(item);
 
   el.main.innerHTML = `
     <button type="button" class="btn-ghost back-btn" id="backBtn">← Back</button>
@@ -547,40 +614,56 @@ async function renderItemDetail(itemId) {
         <div class="item-badges">${gsBadges(item.gsPapers)} ${tagBadges(item.tags)}</div>
       </header>
 
-      <section class="link-ribbon-wrap">
-        <h3 class="section-label">Links</h3>
-        <div class="link-ribbon" id="linkRibbon">${renderLinkRibbon(mergeCloudWithManifest(item).links)}</div>
-        ${
-          canEditCloud
-            ? `<details class="edit-links"><summary>Add / edit links (syncs)</summary>
-               <div id="linksEditor"></div>
-               <button type="button" class="btn-ghost btn-sm" id="addLinkBtn">+ Link</button></details>`
-            : `<p class="muted small">Sign in to edit links (Supabase sync).</p>`
-        }
+      <section class="materials-panel" id="materialsPanel">
+        <h3 class="section-label">Materials — links, cuttings, PDFs</h3>
+        ${renderGitHubConnectHint()}
+
+        <div class="materials-block">
+          <h4 class="materials-subhead">Quick links <span class="sync-tag">${userId ? "Supabase sync" : "Saved in browser"}</span></h4>
+          <div class="link-ribbon" id="linkRibbon">${renderLinkRibbon(merged.links)}</div>
+          <div id="linksEditor" class="links-editor"></div>
+          <button type="button" class="btn-ghost btn-sm" id="addLinkBtn">+ Add link</button>
+        </div>
+
+        <div class="materials-block">
+          <h4 class="materials-subhead">Sources &amp; PDF links <span class="sync-tag">${userId ? "Supabase sync" : "Saved in browser"}</span></h4>
+          <p class="muted small">Newspaper, PIB, magazine. For large PDFs on Drive — paste URL here (type: magazine/report).</p>
+          <div id="sourcesList" class="sources-list"></div>
+          <button type="button" class="btn-ghost btn-sm" id="addSourceBtn">+ Add source</button>
+          <button type="button" class="btn-ghost btn-sm" id="addPdfLinkBtn">+ Paste PDF / Drive link</button>
+        </div>
+
+        <div class="materials-block materials-uploads">
+          <h4 class="materials-subhead">Cuttings &amp; photos <span class="sync-tag git-tag">Git</span></h4>
+          <div class="materials-gallery gallery">${renderGalleryImages(itemId, item.images)}</div>
+          <div class="upload-row">
+            ${renderGitHubUploadButton("ca-image", { "item-id": itemId, "item-manifest": manifestJson })}
+          </div>
+        </div>
+
+        <div class="materials-block materials-uploads">
+          <h4 class="materials-subhead">PDF in git <span class="sync-tag git-tag">Git · max ~8 MB</span></h4>
+          <p class="muted small">Small magazine PDFs only. Larger files → Google Drive URL in Sources above.</p>
+          <div class="materials-pdfs">${renderPdfList(itemId, pdfs)}</div>
+          <div class="upload-row">
+            ${renderGitHubUploadButton("ca-pdf", { "item-id": itemId, "item-manifest": manifestJson })}
+          </div>
+        </div>
       </section>
 
-      <div class="item-grid">
-        <section class="gallery-panel">
-          <h3 class="section-label">Cuttings / images</h3>
-          <div class="gallery">${images.join("") || '<p class="muted small">Add images to git folder on laptop.</p>'}</div>
-        </section>
-        <section class="notes-panel">
-          <h3 class="section-label">Summary <span class="sync-tag">Supabase</span></h3>
-          <textarea class="note-box" id="summaryField" rows="4" ${canEditCloud ? "" : "readonly"} placeholder="What happened — story angle">${escapeHtml(cloud.summary || item.summary || "")}</textarea>
+      <section class="notes-panel item-notes-panel">
+        <h3 class="section-label">Summary <span class="sync-tag">Supabase</span></h3>
+        <textarea class="note-box" id="summaryField" rows="4" placeholder="What happened — story angle">${escapeHtml(cloud.summary || item.summary || "")}</textarea>
+        ${!userId ? `<p class="muted small">Sign in to sync summary across devices.</p>` : ""}
 
-          <h3 class="section-label">Sources <span class="sync-tag">Supabase</span></h3>
-          <div id="sourcesList" class="sources-list"></div>
-          ${canEditCloud ? `<button type="button" class="btn-ghost btn-sm" id="addSourceBtn">+ Source row</button>` : ""}
-
-          <h3 class="section-label">Deep notes <span class="sync-tag git-tag">Browser · git later</span></h3>
-          <p class="muted small">Saved in this browser. Commit <code>notes.md</code> from laptop for backup.</p>
-          ${GIT_SECTIONS.map(
-            (sec) => `
-            <label class="note-label">${escapeHtml(sec)}</label>
-            <textarea class="note-box git-note" data-section="${escapeHtml(sec)}" rows="4">${escapeHtml(sections[sec] || "")}</textarea>`
-          ).join("")}
-        </section>
-      </div>
+        <h3 class="section-label">Deep notes <span class="sync-tag git-tag">Browser · git later</span></h3>
+        <p class="muted small">Facts, static, exam angle — saved in this browser.</p>
+        ${GIT_SECTIONS.map(
+          (sec) => `
+          <label class="note-label">${escapeHtml(sec)}</label>
+          <textarea class="note-box git-note" data-section="${escapeHtml(sec)}" rows="4">${escapeHtml(sections[sec] || "")}</textarea>`
+        ).join("")}
+      </section>
     </article>`;
 
   document.getElementById("backBtn")?.addEventListener("click", () => navigate(state.view === "item" ? "desk" : state.view));
@@ -590,14 +673,29 @@ async function renderItemDetail(itemId) {
     navigate("item", itemId);
   });
 
-  if (canEditCloud) {
-    const summaryEl = document.getElementById("summaryField");
-    summaryEl?.addEventListener("input", () => {
-      updateCloudField(itemId, userId, "summary", summaryEl.value);
+  const summaryEl = document.getElementById("summaryField");
+  summaryEl?.addEventListener("input", () => {
+    if (userId) updateCloudField(itemId, userId, "summary", summaryEl.value);
+    else updateCloudField(itemId, null, "summary", summaryEl.value);
+  });
+
+  mountLinksEditor(itemId, userId, draft, [...(merged.links || [])]);
+  mountSourcesEditor(itemId, userId, draft, [...(merged.sources || [])]);
+
+  document.getElementById("addPdfLinkBtn")?.addEventListener("click", () => {
+    const sources = [...(mergeCloudWithManifest(itemById(itemId)).sources || [])];
+    sources.push({
+      type: "magazine",
+      name: "Magazine / PDF",
+      date: item.date || todayIso(),
+      url: "",
     });
-    mountLinksEditor(itemId, userId, mergeCloudWithManifest(item).links || []);
-    mountSourcesEditor(itemId, userId, mergeCloudWithManifest(item).sources || []);
-  }
+    persistItemSources(itemId, userId, draft, sources);
+    mountSourcesEditor(itemId, userId, draft, sources);
+  });
+  bindAllMaterialsUploads(materialsPanel, itemId, manifestJsonForUpload(item), () => {
+    setTimeout(() => renderItemDetail(itemId), 1500);
+  });
 
   document.querySelectorAll(".git-note").forEach((ta) => {
     ta.addEventListener("input", () => {
@@ -610,7 +708,7 @@ async function renderItemDetail(itemId) {
   });
 }
 
-function mountLinksEditor(itemId, userId, links) {
+function mountLinksEditor(itemId, userId, draft, links) {
   const root = document.getElementById("linksEditor");
   if (!root) return;
 
@@ -622,7 +720,7 @@ function mountLinksEditor(itemId, userId, links) {
         <input type="text" class="link-label" placeholder="Label" value="${escapeHtml(link.label || "")}" />
         <input type="url" class="link-url" placeholder="https://..." value="${escapeHtml(link.url || "")}" />
         <select class="link-kind">${LINK_KINDS.map((k) => `<option value="${k}" ${link.kind === k ? "selected" : ""}>${k}</option>`).join("")}</select>
-        <button type="button" class="btn-ghost btn-sm link-remove">×</button>
+        <button type="button" class="btn-ghost btn-sm link-remove" title="Remove">×</button>
       </div>`
       )
       .join("");
@@ -636,13 +734,13 @@ function mountLinksEditor(itemId, userId, links) {
           kind: row.querySelector(".link-kind")?.value || "other",
           addedAt: links[idx]?.addedAt || new Date().toISOString().slice(0, 10),
         };
-        updateCloudField(itemId, userId, "links", links);
+        persistItemLinks(itemId, userId, draft, links);
         document.getElementById("linkRibbon").innerHTML = renderLinkRibbon(links);
       };
       row.querySelectorAll("input, select").forEach((inp) => inp.addEventListener("input", sync));
       row.querySelector(".link-remove")?.addEventListener("click", () => {
         links.splice(idx, 1);
-        updateCloudField(itemId, userId, "links", links);
+        persistItemLinks(itemId, userId, draft, links);
         render();
         document.getElementById("linkRibbon").innerHTML = renderLinkRibbon(links);
       });
@@ -650,14 +748,17 @@ function mountLinksEditor(itemId, userId, links) {
   };
 
   render();
-  document.getElementById("addLinkBtn")?.addEventListener("click", () => {
+  const addBtn = document.getElementById("addLinkBtn");
+  const newAddBtn = addBtn?.cloneNode(true);
+  addBtn?.replaceWith(newAddBtn);
+  newAddBtn?.addEventListener("click", () => {
     links.push({ label: "", url: "", kind: "news", addedAt: new Date().toISOString().slice(0, 10) });
-    updateCloudField(itemId, userId, "links", links);
+    persistItemLinks(itemId, userId, draft, links);
     render();
   });
 }
 
-function mountSourcesEditor(itemId, userId, sources) {
+function mountSourcesEditor(itemId, userId, draft, sources) {
   const root = document.getElementById("sourcesList");
   if (!root) return;
 
@@ -671,10 +772,10 @@ function mountSourcesEditor(itemId, userId, sources) {
             .map((t) => `<option ${src.type === t ? "selected" : ""}>${t}</option>`)
             .join("")}
         </select>
-        <input class="src-name" placeholder="Name" value="${escapeHtml(src.name || "")}" />
+        <input class="src-name" placeholder="Name (The Hindu, Yojana…)" value="${escapeHtml(src.name || "")}" />
         <input class="src-date" placeholder="Date" value="${escapeHtml(src.date || "")}" />
-        <input class="src-url" type="url" placeholder="URL" value="${escapeHtml(src.url || "")}" />
-        <button type="button" class="btn-ghost btn-sm src-remove">×</button>
+        <input class="src-url" type="url" placeholder="URL or Drive link" value="${escapeHtml(src.url || "")}" />
+        <button type="button" class="btn-ghost btn-sm src-remove" title="Remove">×</button>
       </div>`
       )
       .join("");
@@ -687,22 +788,26 @@ function mountSourcesEditor(itemId, userId, sources) {
           name: row.querySelector(".src-name")?.value || "",
           date: row.querySelector(".src-date")?.value || "",
           url: row.querySelector(".src-url")?.value || "",
+          file: sources[idx]?.file,
         };
-        updateCloudField(itemId, userId, "sources", sources);
+        persistItemSources(itemId, userId, draft, sources);
       };
       row.querySelectorAll("input, select").forEach((inp) => inp.addEventListener("input", sync));
       row.querySelector(".src-remove")?.addEventListener("click", () => {
         sources.splice(idx, 1);
-        updateCloudField(itemId, userId, "sources", sources);
+        persistItemSources(itemId, userId, draft, sources);
         render();
       });
     });
   };
 
   render();
-  document.getElementById("addSourceBtn")?.addEventListener("click", () => {
+  const addBtn = document.getElementById("addSourceBtn");
+  const newAddBtn = addBtn?.cloneNode(true);
+  addBtn?.replaceWith(newAddBtn);
+  newAddBtn?.addEventListener("click", () => {
     sources.push({ type: "newspaper", name: "", date: "", url: "" });
-    updateCloudField(itemId, userId, "sources", sources);
+    persistItemSources(itemId, userId, draft, sources);
     render();
   });
 }
@@ -811,14 +916,36 @@ function navigate(view, itemId = null) {
   else if (view === "item" && itemId) renderItemDetail(itemId);
 }
 
+function userDisplayName(user) {
+  if (!user) return "Signed in";
+  const meta = user.user_metadata || {};
+  return meta.full_name || meta.name || user.email?.split("@")[0] || "Signed in";
+}
+
+function renderAuthArea() {
+  if (!el.authArea) return;
+  const user = state.session?.user;
+  if (user) {
+    const name = userDisplayName(user);
+    const email = user.email || "";
+    el.authArea.innerHTML = `
+      <span class="auth-user" title="${escapeHtml(email)}">${escapeHtml(name)}</span>
+      <button type="button" class="btn-ghost btn-sm" id="signOutBtn">Sign out</button>`;
+    document.getElementById("signOutBtn")?.addEventListener("click", () => signOut());
+  } else {
+    el.authArea.innerHTML =
+      '<button type="button" class="btn-ghost btn-sm" id="signInBtn">Sign in</button>';
+    document.getElementById("signInBtn")?.addEventListener("click", () => el.authDialog?.showModal());
+  }
+}
+
 function updateAuthUi() {
   const configured = isSupabaseConfigured();
   const signedIn = Boolean(state.session);
   el.syncBadge.textContent = signedIn ? "Cloud sync on" : configured ? "Sign in to sync" : "Local only";
   el.syncBadge.classList.toggle("sync-on", signedIn);
-  el.signInBtn?.classList.toggle("hidden", signedIn);
-  el.signOutBtn?.classList.toggle("hidden", !signedIn);
   el.authConfigNote?.classList.toggle("hidden", configured);
+  renderAuthArea();
 }
 
 async function loadIndex() {
@@ -844,9 +971,8 @@ function bindGlobalClicks() {
 }
 
 function bindAuth() {
-  el.signInBtn?.addEventListener("click", () => el.authDialog?.showModal());
-  el.signOutBtn?.addEventListener("click", async () => {
-    await signOut();
+  el.authArea?.addEventListener("click", (e) => {
+    if (e.target.closest("#signInBtn")) el.authDialog?.showModal();
   });
 
   document.querySelectorAll("[data-auth-tab]").forEach((tab) => {
@@ -889,6 +1015,8 @@ async function init() {
   loadLocalMeta();
   hydrateCloudFromLocal();
   await initSupabase();
+  await initGitHubUploadConfig();
+  bindGitHubHeaderButton(el.githubConnectBtn);
   state.session = await getSession();
   if (state.session?.user?.id) {
     await loadAllCloudNotes(state.session.user.id);

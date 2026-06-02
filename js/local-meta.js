@@ -121,6 +121,14 @@ export function removeDraft(itemId) {
   if (drafts.length !== before) persistDrafts();
 }
 
+export function updateDraftItem(itemId, patch) {
+  const idx = drafts.findIndex((d) => d.id === itemId);
+  if (idx < 0) return null;
+  drafts[idx] = { ...drafts[idx], ...patch };
+  persistDrafts();
+  return drafts[idx];
+}
+
 export function draftCliCommand(item) {
   const tags = (item.tags || []).map((t) => ` --tag ${t}`).join("");
   const threads = (item.threads || []).map((t) => ` --thread ${t}`).join("");

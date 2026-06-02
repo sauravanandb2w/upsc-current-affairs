@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GitHub sign-in · UPSC Current Affairs</title>
+    <link rel="stylesheet" href="../css/styles.css?v=2" />
+  </head>
+  <body>
+    <main id="main" class="oauth-callback">
+      <p id="status">Connecting GitHub…</p>
+    </main>
+    <script type="module">
+      import { completeGitHubLogin, consumeOAuthReturnPath } from "../js/github-auth.js";
+
+      const status = document.getElementById("status");
+      const params = new URLSearchParams(location.search);
+      const code = params.get("code");
+      const state = params.get("state");
+      const err = params.get("error");
+
+      (async () => {
+        try {
+          if (err) throw new Error(params.get("error_description") || err);
+          if (!code || !state) throw new Error("Missing OAuth code.");
+          await completeGitHubLogin(code, state);
+          status.textContent = "GitHub connected — redirecting…";
+          location.replace(consumeOAuthReturnPath());
+        } catch (e) {
+          status.textContent = `GitHub login failed: ${e.message || e}`;
+        }
+      })();
+    </script>
+  </body>
+</html>
