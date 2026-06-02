@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="CA Desk">
+  <rect width="32" height="32" rx="7" fill="#9a3412"/>
+  <rect x="6" y="7" width="20" height="3" rx="1.5" fill="#fdba74" opacity="0.85"/>
+  <rect x="6" y="12" width="14" height="2" rx="1" fill="#fef3c7" opacity="0.5"/>
+  <rect x="6" y="16" width="17" height="2" rx="1" fill="#fef3c7" opacity="0.5"/>
+  <text x="16" y="27" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="11" font-weight="700" fill="#fff7ed">CA</text>
+</svg>
