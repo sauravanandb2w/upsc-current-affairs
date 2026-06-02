@@ -81,10 +81,44 @@ export function getFlashcards() {
 
 export function getDueFlashcards(now = new Date()) {
   const t = now.getTime();
-  return flashCache.filter((c) => {
-    if (!c.nextReviewAt) return true;
-    return new Date(c.nextReviewAt).getTime() <= t;
-  });
+  return flashCache.filter((c) => isCardDue(c, now));
+}
+
+export function isCardDue(card, now = new Date()) {
+  if (!card?.nextReviewAt) return true;
+  return new Date(card.nextReviewAt).getTime() <= now.getTime();
+}
+
+/** Due cards first, then the rest (soonest review date next). */
+export function getDrillDeck(now = new Date()) {
+  const all = flashCache.slice();
+  if (!all.length) return [];
+  const due = all.filter((c) => isCardDue(c, now));
+  const dueIds = new Set(due.map((c) => c.id));
+  const later = all
+    .filter((c) => !dueIds.has(c.id))
+    .sort(
+      (a, b) =>
+        new Date(a.nextReviewAt || 0).getTime() - new Date(b.nextReviewAt || 0)
+    );
+  return [...due, ...later];
+}
+
+export function formatNextReview(card) {
+  if (!card?.nextReviewAt) return "New";
+  if (isCardDue(card)) return "Due now";
+  const d = new Date(card.nextReviewAt);
+  const days = Math.ceil((d.getTime() - Date.now()) / 86400000);
+  if (days <= 1) return "Due tomorrow";
+  return `Due in ${days} days`;
+}
+
+/** Stable accent index from item id (0–5). */
+export function cardThemeIndex(card) {
+  const key = String(card?.itemId || card?.id || "");
+  let h = 0;
+  for (let i = 0; i < key.length; i += 1) h = (h + key.charCodeAt(i)) % 6;
+  return h;
 }
 
 export function splitFactsToCards(text) {

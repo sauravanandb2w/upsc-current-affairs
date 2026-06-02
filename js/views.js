@@ -1,7 +1,15 @@
 /** View renderers for CA Desk */
 
 import { getCloudEntry, getItemMeta, markRevised, toggleStar } from "./ca-store.js";
-import { getDueFlashcards, getFlashcards, rateFlashcard, generateFlashcardsFromItem } from "./flashcards.js";
+import {
+  getDueFlashcards,
+  getDrillDeck,
+  getFlashcards,
+  isCardDue,
+  formatNextReview,
+  cardThemeIndex,
+  rateFlashcard,
+} from "./flashcards.js";
 import { noteHtmlToPlainText } from "./rich-notes.js";
 import { GIT_SECTIONS } from "./notes-md.js";
 import { exportCaAsMarkdown } from "./export-ca.js";
@@ -242,35 +250,146 @@ export function renderThreadDiff(ctx) {
 }
 
 export function renderDrill(ctx) {
-  const due = getDueFlashcards();
-  const card = due[0];
-  if (!card) {
+  const deck = getDrillDeck();
+  const dueCount = getDueFlashcards().length;
+  const total = getFlashcards().length;
+
+  if (!total) {
     ctx.el.main.innerHTML = `
-      <section class="view-head"><h2>Flashcard drill</h2>
-      <p class="muted">No cards due. Open an item → Generate flashcards from Facts.</p>
-      <p class="muted">${getFlashcards().length} total cards in bank.</p></section>`;
+      <section class="view-head drill-head">
+        <h2>Flashcard drill</h2>
+        <p class="view-desc">Quick recall from your CA notes — one bullet becomes one card.</p>
+      </section>
+      <div class="drill-empty">
+        <div class="drill-empty-icon" aria-hidden="true">🃏</div>
+        <p class="drill-empty-title">No cards yet</p>
+        <ol class="drill-empty-steps">
+          <li>Open any CA item</li>
+          <li>Add bullet points under <strong>Facts</strong> or <strong>Exam angle</strong></li>
+          <li>Click <strong>Generate flashcards</strong></li>
+        </ol>
+      </div>`;
     return;
   }
 
+  if (ctx.state.drillIndex >= deck.length) ctx.state.drillIndex = 0;
+  if (ctx.state.drillIndex < 0) ctx.state.drillIndex = 0;
+  const card = deck[ctx.state.drillIndex % deck.length];
+  const themeIdx = cardThemeIndex(card);
+  const due = isCardDue(card);
+  const item = ctx.mergedItems().find((i) => i.id === card.itemId);
+  const itemTitle = item?.title || card.itemId;
+  const practiceNote =
+    dueCount === 0
+      ? `<p class="drill-practice-note">All caught up — still practicing the full deck (${total} cards).</p>`
+      : "";
+
   ctx.state.drillCardId = card.id;
   ctx.el.main.innerHTML = `
-    <section class="view-head"><h2>Flashcard drill</h2>
-    <p class="muted">${due.length} due · buckets 7 → 365 days</p></section>
-    <div class="drill-card">
-      <p class="drill-q">${ctx.escapeHtml(card.question)}</p>
-      <details class="drill-answer"><summary>Show answer</summary>
-        <p>${ctx.escapeHtml(card.answer)}</p>
-      </details>
-      <div class="drill-actions">
-        <button type="button" class="btn-ghost" data-rate="1">Hard</button>
-        <button type="button" class="btn-ghost" data-rate="3">OK</button>
-        <button type="button" class="btn-primary" data-rate="5">Easy</button>
+    <section class="view-head drill-head">
+      <h2>Flashcard drill</h2>
+      <p class="muted drill-stats">
+        <span class="drill-stat drill-stat--due"><strong>${dueCount}</strong> due</span>
+        <span class="drill-stat"><strong>${total}</strong> in deck</span>
+        <span class="drill-stat">Card ${(ctx.state.drillIndex % deck.length) + 1} of ${deck.length}</span>
+      </p>
+      ${practiceNote}
+    </section>
+
+    <div class="drill-stage">
+      <article
+        class="flash-card flash-card--theme-${themeIdx}${due ? " flash-card--due" : ""}"
+        id="flashCard"
+        data-flipped="false"
+        tabindex="0"
+        aria-label="Flashcard — tap to flip"
+      >
+        <div class="flash-card-inner">
+          <div class="flash-card-face flash-card-front">
+            <span class="flash-card-label">Question</span>
+            <p class="flash-card-text">${ctx.escapeHtml(card.question)}</p>
+            <span class="flash-card-hint">Tap to reveal answer</span>
+          </div>
+          <div class="flash-card-face flash-card-back">
+            <span class="flash-card-label">Answer</span>
+            <p class="flash-card-text">${ctx.escapeHtml(card.answer)}</p>
+            <span class="flash-card-hint">Tap to hide</span>
+          </div>
+        </div>
+        <div class="flash-card-meta">
+          <span class="flash-card-badge ${due ? "flash-card-badge--due" : "flash-card-badge--later"}">${ctx.escapeHtml(formatNextReview(card))}</span>
+          <button type="button" class="flash-card-source" data-open-item="${ctx.escapeHtml(card.itemId)}">${ctx.escapeHtml(itemTitle)}</button>
+          ${card.month ? `<span class="flash-card-month">${ctx.escapeHtml(card.month)}</span>` : ""}
+        </div>
+      </article>
+
+      <div class="drill-actions drill-actions--rated hidden" id="drillRateRow">
+        <span class="drill-rate-label">How well did you recall it?</span>
+        <button type="button" class="drill-rate-btn drill-rate-btn--hard" data-rate="1">Hard</button>
+        <button type="button" class="drill-rate-btn drill-rate-btn--ok" data-rate="3">OK</button>
+        <button type="button" class="drill-rate-btn drill-rate-btn--easy" data-rate="5">Easy</button>
       </div>
-    </div>`;
+      <p class="drill-flip-prompt muted" id="drillFlipPrompt">Flip the card to see the answer, then rate yourself.</p>
+    </div>
+
+    <section class="drill-deck-section">
+      <h3 class="drill-deck-title">Your deck</h3>
+      <div class="drill-deck-strip" role="list">
+        ${deck
+          .map((c, i) => {
+            const active = i === ctx.state.drillIndex % deck.length;
+            const chipDue = isCardDue(c);
+            const ti = cardThemeIndex(c);
+            const short = c.answer.slice(0, 42) + (c.answer.length > 42 ? "…" : "");
+            return `<button
+              type="button"
+              class="drill-deck-chip drill-deck-chip--theme-${ti}${active ? " active" : ""}${chipDue ? " due" : ""}"
+              data-drill-pick="${i}"
+              role="listitem"
+              title="${ctx.escapeHtml(c.question)}"
+            >
+              <span class="drill-deck-chip-num">${i + 1}</span>
+              <span class="drill-deck-chip-text">${ctx.escapeHtml(short)}</span>
+            </button>`;
+          })
+          .join("")}
+      </div>
+    </section>`;
+
+  const flashEl = document.getElementById("flashCard");
+  const rateRow = document.getElementById("drillRateRow");
+  const flipPrompt = document.getElementById("drillFlipPrompt");
+
+  const setFlipped = (on) => {
+    flashEl.dataset.flipped = on ? "true" : "false";
+    rateRow.classList.toggle("hidden", !on);
+    flipPrompt.classList.toggle("hidden", on);
+  };
+
+  const toggleFlip = () => setFlipped(flashEl.dataset.flipped !== "true");
+
+  flashEl?.addEventListener("click", (e) => {
+    if (e.target.closest(".flash-card-source")) return;
+    toggleFlip();
+  });
+  flashEl?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggleFlip();
+    }
+  });
 
   ctx.el.main.querySelectorAll("[data-rate]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       await rateFlashcard(ctx.state.session?.user?.id, card.id, Number(btn.dataset.rate));
+      ctx.state.drillIndex = (ctx.state.drillIndex + 1) % deck.length;
+      renderDrill(ctx);
+    });
+  });
+
+  ctx.el.main.querySelectorAll("[data-drill-pick]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      ctx.state.drillIndex = Number(btn.dataset.drillPick);
       renderDrill(ctx);
     });
   });

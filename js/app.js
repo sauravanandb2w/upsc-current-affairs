@@ -129,6 +129,7 @@ const state = {
   threadDiff: "2025-rbi-monetary-policy",
   monthlyMonth: todayIso().slice(0, 7),
   pendingDraftId: null,
+  drillIndex: 0,
 };
 
 const el = {

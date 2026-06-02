@@ -1815,23 +1815,341 @@ code {
   background: var(--paper-deep);
 }
 
-.drill-card {
-  background: #fff;
-  border-radius: var(--radius);
-  padding: 1.5rem;
-  box-shadow: var(--shadow);
-  max-width: 640px;
+/* Flashcard drill */
+.drill-head .drill-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  margin-top: 0.35rem;
 }
 
-.drill-q {
+.drill-stat strong {
+  color: var(--ink);
+}
+
+.drill-stat--due strong {
+  color: var(--accent);
+}
+
+.drill-practice-note {
+  font-size: 0.88rem;
+  color: var(--ink-muted);
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+  background: var(--accent-soft);
+  border-radius: 8px;
+  max-width: 36rem;
+}
+
+.drill-empty {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  max-width: 28rem;
+  margin: 0 auto;
+}
+
+.drill-empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.drill-empty-title {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  margin: 0 0 1rem;
+}
+
+.drill-empty-steps {
+  text-align: left;
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--ink-muted);
+  line-height: 1.7;
+}
+
+.drill-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.flash-card {
+  width: 100%;
+  max-width: 520px;
+  perspective: 1200px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+}
+
+.flash-card-inner {
+  position: relative;
+  min-height: 280px;
+  transform-style: preserve-3d;
+  transition: transform 0.45s cubic-bezier(0.4, 0.2, 0.2, 1);
+}
+
+.flash-card[data-flipped="true"] .flash-card-inner {
+  transform: rotateY(180deg);
+}
+
+.flash-card-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: 16px;
+  padding: 1.5rem 1.35rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 40px rgba(28, 25, 23, 0.12);
+  border: 2px solid transparent;
+}
+
+.flash-card-back {
+  transform: rotateY(180deg);
+}
+
+.flash-card--theme-0 .flash-card-face {
+  background: linear-gradient(145deg, #fef9c3 0%, #fde68a 55%, #fcd34d 100%);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+.flash-card--theme-1 .flash-card-face {
+  background: linear-gradient(145deg, #dbeafe 0%, #bfdbfe 55%, #93c5fd 100%);
+  border-color: rgba(59, 130, 246, 0.35);
+}
+.flash-card--theme-2 .flash-card-face {
+  background: linear-gradient(145deg, #d1fae5 0%, #a7f3d0 55%, #6ee7b7 100%);
+  border-color: rgba(16, 185, 129, 0.35);
+}
+.flash-card--theme-3 .flash-card-face {
+  background: linear-gradient(145deg, #fce7f3 0%, #fbcfe8 55%, #f9a8d4 100%);
+  border-color: rgba(236, 72, 153, 0.35);
+}
+.flash-card--theme-4 .flash-card-face {
+  background: linear-gradient(145deg, #ede9fe 0%, #ddd6fe 55%, #c4b5fd 100%);
+  border-color: rgba(139, 92, 246, 0.35);
+}
+.flash-card--theme-5 .flash-card-face {
+  background: linear-gradient(145deg, #ffedd5 0%, #fed7aa 55%, #fdba74 100%);
+  border-color: rgba(249, 115, 22, 0.35);
+}
+
+.flash-card--due .flash-card-front {
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.25), 0 12px 40px rgba(28, 25, 23, 0.12);
+}
+
+.flash-card-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(28, 25, 23, 0.55);
+  margin-bottom: 0.75rem;
+}
+
+.flash-card-text {
   font-family: var(--font-serif);
   font-size: 1.2rem;
+  line-height: 1.45;
+  margin: 0;
+  flex: 1;
+  color: #1c1917;
 }
 
-.drill-actions {
+.flash-card-hint {
+  font-size: 0.78rem;
+  color: rgba(28, 25, 23, 0.5);
+  margin-top: 1rem;
+}
+
+.flash-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  padding: 0 0.15rem;
+}
+
+.flash-card-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+}
+
+.flash-card-badge--due {
+  background: #7c3aed;
+  color: #fff;
+}
+
+.flash-card-badge--later {
+  background: rgba(28, 25, 23, 0.08);
+  color: var(--ink-muted);
+}
+
+.flash-card-source {
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border: none;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.flash-card-month {
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+}
+
+.drill-flip-prompt {
+  font-size: 0.85rem;
+  margin: 0;
+  text-align: center;
+}
+
+.drill-actions--rated {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 520px;
+}
+
+.drill-rate-label {
+  width: 100%;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-muted);
+  margin-bottom: 0.15rem;
+}
+
+.drill-rate-btn {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.55rem 1.1rem;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+
+.drill-rate-btn:hover {
+  transform: translateY(-1px);
+}
+
+.drill-rate-btn--hard {
+  background: #fecaca;
+  color: #991b1b;
+}
+
+.drill-rate-btn--ok {
+  background: #fde68a;
+  color: #92400e;
+}
+
+.drill-rate-btn--easy {
+  background: #bbf7d0;
+  color: #166534;
+}
+
+.drill-deck-section {
+  margin-top: 0.5rem;
+}
+
+.drill-deck-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-muted);
+  margin: 0 0 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.drill-deck-strip {
   display: flex;
   gap: 0.5rem;
-  margin-top: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scroll-snap-type: x mandatory;
+}
+
+.drill-deck-chip {
+  flex: 0 0 auto;
+  width: 9.5rem;
+  min-height: 4.5rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  scroll-snap-align: start;
+  transition: transform 0.12s, box-shadow 0.12s;
+  font: inherit;
+}
+
+.drill-deck-chip:hover {
+  transform: translateY(-2px);
+}
+
+.drill-deck-chip.active {
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+.drill-deck-chip.due {
+  box-shadow: 0 0 0 2px #7c3aed;
+}
+
+.drill-deck-chip--theme-0 { background: linear-gradient(135deg, #fef9c3, #fde68a); }
+.drill-deck-chip--theme-1 { background: linear-gradient(135deg, #dbeafe, #bfdbfe); }
+.drill-deck-chip--theme-2 { background: linear-gradient(135deg, #d1fae5, #a7f3d0); }
+.drill-deck-chip--theme-3 { background: linear-gradient(135deg, #fce7f3, #fbcfe8); }
+.drill-deck-chip--theme-4 { background: linear-gradient(135deg, #ede9fe, #ddd6fe); }
+.drill-deck-chip--theme-5 { background: linear-gradient(135deg, #ffedd5, #fed7aa); }
+
+.drill-deck-chip-num {
+  font-size: 0.65rem;
+  font-weight: 700;
+  opacity: 0.6;
+}
+
+.drill-deck-chip-text {
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #1c1917;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .flash-card-text,
+[data-theme="dark"] .drill-deck-chip-text {
+  color: #1c1917;
+}
+
+[data-theme="dark"] .flash-card-label,
+[data-theme="dark"] .flash-card-hint {
+  color: rgba(28, 25, 23, 0.65);
+}
+
+/* Legacy drill-card alias — removed */
+.drill-card {
+  display: none;
 }
 
 .star-badge {
