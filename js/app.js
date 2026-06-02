@@ -4,6 +4,8 @@ import {
   GIT_SECTIONS,
   emptyGitSections,
   defaultNotesTemplate,
+  mergeGitSectionsWithLocal,
+  SUMMARY_SECTION,
 } from "./notes-md.js";
 import {
   hydrateCloudFromLocal,
@@ -331,10 +333,9 @@ async function fetchNotesMd(itemId) {
 }
 
 function getGitSections(itemId, mdText) {
+  const fromGit = mdText ? parseNotesMd(mdText) : emptyGitSections();
   const local = getGitNotesFromLocal(itemId);
-  if (local) return { ...emptyGitSections(), ...local };
-  if (mdText) return parseNotesMd(mdText);
-  return emptyGitSections();
+  return mergeGitSectionsWithLocal(fromGit, local);
 }
 
 function renderNoteLabelRow(label, itemId, fieldId, userId) {
@@ -808,6 +809,11 @@ async function renderItemDetail(itemId) {
               : ""
           }
           <button type="button" class="btn-ghost btn-sm" id="commitNotesBtn" ${draft ? 'disabled title="Publish first"' : ""}>Commit notes.md → GitHub</button>
+          ${
+            !draft
+              ? `<button type="button" class="btn-ghost btn-sm" id="pullNotesBtn" title="Load notes.md from GitHub into this browser">Refresh notes from GitHub</button>`
+              : ""
+          }
         </div>
       </section>
     </article>`;
@@ -896,8 +902,24 @@ async function renderItemDetail(itemId) {
       const { path, searchEntry } = await commitNotesMdToGitHub(itemId, merged);
       if (searchEntry) setSearchIndexEntry(itemId, searchEntry);
       alert(
-        `Committed ${path} to GitHub.\n\nNotes and search index updated — live on site in ~1–2 min (no build-index needed).`
+        `Committed ${path} to GitHub.\n\nOther devices: hard-refresh, wait ~2 min for Pages, then use “Refresh notes from GitHub”. Or sign in on both — Supabase syncs notes instantly.`
       );
+    } catch (err) {
+      alert(err.message || String(err));
+    }
+  });
+
+  document.getElementById("pullNotesBtn")?.addEventListener("click", async () => {
+    try {
+      const mdText = await fetchNotesMd(itemId);
+      if (!mdText) throw new Error("Could not load notes.md from GitHub yet — wait for Pages deploy (~2 min).");
+      const fromGit = parseNotesMd(mdText);
+      saveGitNotesToLocal(itemId, fromGit, userId);
+      if (fromGit[SUMMARY_SECTION]?.trim()) {
+        updateCloudField(itemId, userId, "summary", fromGit[SUMMARY_SECTION]);
+      }
+      alert("Loaded notes from GitHub into this browser.");
+      navigate("item", itemId);
     } catch (err) {
       alert(err.message || String(err));
     }

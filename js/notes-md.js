@@ -1,5 +1,7 @@
 /** Parse and serialize study/items/<id>/notes.md (git-only sections). */
 
+import { fieldIdForSection } from "./field-locks.js";
+
 export const GIT_SECTIONS = [
   "Facts",
   "Static connection",
@@ -9,6 +11,25 @@ export const GIT_SECTIONS = [
 ];
 
 export const SUMMARY_SECTION = "Summary / story";
+
+function sectionPlainLength(value) {
+  return String(value || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim().length;
+}
+
+/** Git notes.md as base; browser/Supabase overrides only non-empty sections. */
+export function mergeGitSectionsWithLocal(fromGit, local) {
+  const merged = { ...emptyGitSections(), ...fromGit };
+  if (!local || typeof local !== "object") return merged;
+  for (const sec of GIT_SECTIONS) {
+    const fid = fieldIdForSection(sec);
+    const val = local[sec] ?? local[fid];
+    if (val != null && sectionPlainLength(val) > 0) merged[sec] = val;
+  }
+  return merged;
+}
 
 export function emptyGitSections() {
   return Object.fromEntries(GIT_SECTIONS.map((k) => [k, ""]));
