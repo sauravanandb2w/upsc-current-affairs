@@ -60,11 +60,13 @@ import {
   readNoteFieldValue,
   setRichNoteLocked,
   noteHtmlToPlainText,
+  plainTextToNoteHtml,
 } from "./rich-notes.js";
 import { initTheme, bindThemeToggle, bindNoteSizeControl } from "./theme.js";
 import { bindExportButtons } from "./export-ca.js";
 import { loadFlashcards, loadFlashcardsLocal, generateFlashcardsFromItem } from "./flashcards.js";
-import { commitNotesMdToGitHub } from "./github-notes.js";
+import { commitNotesMdToGitHub, fetchNotesMdFromGitHub } from "./github-notes.js";
+import { isGitHubConnected } from "./github-auth.js";
 import { publishDraftToGitHub, savePublishedItemToGitHub } from "./github-publish.js";
 import {
   loadSearchIndex,
@@ -322,6 +324,14 @@ async function fetchNotesMd(itemId) {
   if (isDraftItem(itemById(itemId) || {})) {
     return defaultNotesTemplate();
   }
+  if (isGitHubConnected()) {
+    try {
+      const fromApi = await fetchNotesMdFromGitHub(itemId);
+      if (fromApi) return fromApi;
+    } catch {
+      /* fall through to Pages CDN */
+    }
+  }
   const path = assetUrl(`study/items/${itemId}/notes.md`);
   try {
     const res = await fetch(path, { cache: "no-cache" });
@@ -330,6 +340,29 @@ async function fetchNotesMd(itemId) {
   } catch {
     return null;
   }
+}
+
+function parsedNotesToHtmlSections(parsed) {
+  const out = {};
+  for (const sec of GIT_SECTIONS) {
+    const raw = parsed[sec] || "";
+    out[sec] = raw ? plainTextToNoteHtml(raw) : "";
+  }
+  return out;
+}
+
+/** Keep local section text when git pull returned empty (e.g. stale Pages CDN). */
+function mergePulledGitWithLocal(parsed, local) {
+  const htmlSections = parsedNotesToHtmlSections(parsed);
+  if (!local || typeof local !== "object") return htmlSections;
+  for (const sec of GIT_SECTIONS) {
+    const gitPlain = noteHtmlToPlainText(htmlSections[sec] || "");
+    const fid = fieldIdForSection(sec);
+    const localVal = local[sec] ?? local[fid] ?? "";
+    const localPlain = noteHtmlToPlainText(localVal);
+    if (!gitPlain.trim() && localPlain.trim()) htmlSections[sec] = localVal;
+  }
+  return htmlSections;
 }
 
 function getGitSections(itemId, mdText) {
@@ -933,10 +966,12 @@ async function renderItemDetail(itemId) {
 
   document.getElementById("commitNotesBtn")?.addEventListener("click", async () => {
     try {
-      const { path, searchEntry } = await commitNotesMdToGitHub(itemId, merged);
+      const liveSections = readGitSectionsFromEditors();
+      saveGitNotesToLocal(itemId, liveSections, userId);
+      const { path, searchEntry } = await commitNotesMdToGitHub(itemId, merged, liveSections);
       if (searchEntry) setSearchIndexEntry(itemId, searchEntry);
       alert(
-        `Committed ${path} to GitHub.\n\nOther devices: hard-refresh, wait ~2 min for Pages, then use “Refresh notes from GitHub”. Or sign in on both — Supabase syncs notes instantly.`
+        `Committed ${path} to GitHub.\n\nThis device already has your latest notes. On another device: sign in (Supabase sync) or use “Refresh notes from GitHub”.`
       );
     } catch (err) {
       alert(err.message || String(err));
@@ -946,11 +981,18 @@ async function renderItemDetail(itemId) {
   document.getElementById("pullNotesBtn")?.addEventListener("click", async () => {
     try {
       const mdText = await fetchNotesMd(itemId);
-      if (!mdText) throw new Error("Could not load notes.md from GitHub yet — wait for Pages deploy (~2 min).");
+      if (!mdText) {
+        throw new Error(
+          isGitHubConnected()
+            ? "Could not load notes.md from GitHub. Commit first, or wait ~2 min for Pages if you are not signed in."
+            : "Connect GitHub to refresh notes, or wait ~2 min after commit for Pages to update."
+        );
+      }
       const fromGit = parseNotesMd(mdText);
-      saveGitNotesToLocal(itemId, fromGit, userId);
+      const localBefore = getGitNotesFromLocal(itemId);
+      saveGitNotesToLocal(itemId, mergePulledGitWithLocal(fromGit, localBefore), userId);
       if (fromGit[SUMMARY_SECTION]?.trim()) {
-        updateCloudField(itemId, userId, "summary", fromGit[SUMMARY_SECTION]);
+        updateCloudField(itemId, userId, "summary", plainTextToNoteHtml(fromGit[SUMMARY_SECTION]));
       }
       alert("Loaded notes from GitHub into this browser.");
       navigate("item", itemId);

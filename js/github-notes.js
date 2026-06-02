@@ -7,24 +7,40 @@ import { getRepoFile, putRepoFile } from "./github-upload.js";
 import { serializeNotesMd, GIT_SECTIONS } from "./notes-md.js";
 import { getCloudEntry, getGitNotesFromLocal } from "./ca-store.js";
 import { noteHtmlToPlainText } from "./rich-notes.js";
+import { fieldIdForSection } from "./field-locks.js";
 import { manifestFromItem, syncSearchIndexForItem } from "./github-publish.js";
 
-function sectionsForCommit(itemId) {
-  const git = getGitNotesFromLocal(itemId) || getCloudEntry(itemId).gitNotes || {};
+function sectionPlainFromGit(git, sec) {
+  const fid = fieldIdForSection(sec);
+  return noteHtmlToPlainText(git[sec] ?? git[fid] ?? "");
+}
+
+function sectionsForCommit(itemId, liveSections = null) {
+  const git = liveSections || getGitNotesFromLocal(itemId) || getCloudEntry(itemId).gitNotes || {};
   const out = {};
   for (const sec of GIT_SECTIONS) {
-    out[sec] = noteHtmlToPlainText(git[sec] || "");
+    out[sec] = sectionPlainFromGit(git, sec);
   }
-  const summary = noteHtmlToPlainText(getCloudEntry(itemId).summary || "");
+  const summary = liveSections
+    ? noteHtmlToPlainText(liveSections.summary ?? liveSections["Summary / story"] ?? getCloudEntry(itemId).summary ?? "")
+    : noteHtmlToPlainText(getCloudEntry(itemId).summary || "");
   if (summary.trim()) out["Summary / story"] = summary;
   return out;
+}
+
+/** Read notes.md from the repo via GitHub API (immediate after commit). */
+export async function fetchNotesMdFromGitHub(itemId) {
+  const path = `study/items/${itemId}/notes.md`;
+  const file = await getRepoFile(path);
+  return file?.text ?? null;
 }
 
 /**
  * @param {string} itemId
  * @param {object} item merged item (title, date, tags, …)
+ * @param {object|null} liveSections optional live editor sections (section name keys)
  */
-export async function commitNotesMdToGitHub(itemId, item) {
+export async function commitNotesMdToGitHub(itemId, item, liveSections = null) {
   if (!(await isGitHubUploadAllowed())) {
     throw new Error("Connect GitHub first (repo owner only).");
   }
@@ -33,7 +49,7 @@ export async function commitNotesMdToGitHub(itemId, item) {
   if (!token || !owner || !name) throw new Error("Connect GitHub first.");
 
   const path = `study/items/${itemId}/notes.md`;
-  const sections = sectionsForCommit(itemId);
+  const sections = sectionsForCommit(itemId, liveSections);
   const body = serializeNotesMd(sections, { includeSummary: Boolean(sections["Summary / story"]) });
   const content = btoa(unescape(encodeURIComponent(body)));
 
