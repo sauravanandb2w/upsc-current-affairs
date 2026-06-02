@@ -401,6 +401,7 @@ function syncNoteLockUi(btn, itemId, fieldId) {
 
 function bindNoteLocks(root, itemId, userId) {
   root.querySelectorAll(".note-lock-btn").forEach((btn) => {
+    syncNoteLockUi(btn, itemId, btn.dataset.lockField);
     btn.addEventListener("click", async () => {
       const fieldId = btn.dataset.lockField;
       const field = btn.closest(".note-field");
@@ -854,14 +855,14 @@ async function renderItemDetail(itemId) {
           <span class="git-zone-hint muted small">Summary, Facts, Exam angle, etc. → notes.md</span>
         </div>
         <p class="note-locks-help muted small">Toolbar: <strong>bold</strong>, lists. Padlock = freeze field. Box height: <strong>S/M/L</strong> in header. ${userId ? "Supabase syncs as you type." : "Saved in browser until commit."}</p>
-        <div class="note-field git-notes-field" data-field="summary">
+        <div class="note-field git-notes-field${isFieldLocked(itemId, "summary") ? " note-field--locked" : ""}" data-field="summary">
           ${renderNoteLabelRow("Summary", itemId, "summary", userId)}
           ${renderRichNoteEditorHtml({ "data-field-id": "summary" }, { placeholder: "What happened — story angle", rows: 4 })}
         </div>
 
         ${GIT_SECTIONS.map((sec) => {
           const fid = fieldIdForSection(sec);
-          return `<div class="note-field git-notes-field" data-field="${fid}">
+          return `<div class="note-field git-notes-field${isFieldLocked(itemId, fid) ? " note-field--locked" : ""}" data-field="${fid}">
             ${renderNoteLabelRow(sec, itemId, fid, userId)}
             ${renderRichNoteEditorHtml({ "data-field-id": fid, "data-section": sec }, { placeholder: sec, rows: 5 })}
           </div>`;
