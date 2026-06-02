@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-06-02T16:18:59Z",
-  "count": 4,
+  "generatedAt": "2026-06-02T17:16:58Z",
+  "count": 3,
   "items": [
     {
       "id": "[object PointerEvent]-iip-base-year-revised-from-2011-12-2022-23",
@@ -32,40 +32,6 @@
         }
       ],
       "_folder": "[object PointerEvent]-iip-base-year-revised-from-2011-12-2022-23"
-    },
-    {
-      "id": "2025-06-02-green-hydrogen",
-      "date": "2025-06-02",
-      "title": "National Green Hydrogen Mission — progress update",
-      "status": "to-study",
-      "gsPapers": [
-        3
-      ],
-      "tags": [
-        "environment",
-        "energy",
-        "green-hydrogen",
-        "scheme"
-      ],
-      "threads": [],
-      "images": [],
-      "sources": [
-        {
-          "type": "pib",
-          "name": "PIB",
-          "date": "2025-06-02",
-          "url": "https://pib.gov.in/"
-        }
-      ],
-      "links": [
-        {
-          "label": "MNRE — Green Hydrogen",
-          "url": "https://mnre.gov.in/",
-          "kind": "govt-site",
-          "addedAt": "2025-06-02"
-        }
-      ],
-      "_folder": "2025-06-02-green-hydrogen"
     },
     {
       "id": "2025-04-01-rbi-mpc-april",
