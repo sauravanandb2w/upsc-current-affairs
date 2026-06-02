@@ -66,7 +66,6 @@ import { initTheme, bindThemeToggle, bindNoteSizeControl } from "./theme.js";
 import { bindExportButtons } from "./export-ca.js";
 import { loadFlashcards, loadFlashcardsLocal, generateFlashcardsFromItem } from "./flashcards.js";
 import { commitNotesMdToGitHub, fetchNotesMdFromGitHub } from "./github-notes.js";
-import { isGitHubConnected } from "./github-auth.js";
 import { publishDraftToGitHub, savePublishedItemToGitHub } from "./github-publish.js";
 import {
   loadSearchIndex,
