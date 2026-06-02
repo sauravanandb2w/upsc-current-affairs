@@ -1045,7 +1045,6 @@ async function renderItemDetail(itemId) {
   document.getElementById("commitNotesBtn")?.addEventListener("click", async () => {
     try {
       const liveSections = readGitSectionsFromEditors();
-      saveGitNotesToLocal(itemId, liveSections, userId);
       const { path, searchEntry } = await commitNotesMdToGitHub(itemId, merged, liveSections);
       if (searchEntry) setSearchIndexEntry(itemId, searchEntry);
       await clearGitNotesDraftAfterCommit(itemId, userId);
