@@ -5,6 +5,12 @@ import { getDueFlashcards, getFlashcards, rateFlashcard, generateFlashcardsFromI
 import { noteHtmlToPlainText } from "./rich-notes.js";
 import { GIT_SECTIONS } from "./notes-md.js";
 import { exportCaAsMarkdown } from "./export-ca.js";
+import { collectAllThreads, renderThreadSelectOptions } from "./filter-options.js";
+
+function formatTodayHeading(iso) {
+  const d = new Date(`${iso}T12:00:00`);
+  return d.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+}
 
 export function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -59,30 +65,62 @@ export function renderReviseTodayPanel(ctx, items) {
 export function renderToday(ctx) {
   const today = todayIso();
   const q = ctx.state.searchQuery.trim();
-  let items = ctx.mergedItems().filter((i) => ctx.matchesSearch(i, q));
+  const items = ctx.mergedItems().filter((i) => ctx.matchesSearch(i, q));
   const todayItems = items.filter((i) => i.date === today);
-  const weekItems = items.filter((i) => (i.date || "") >= isoDaysAgo(7));
+  const weekItems = items
+    .filter((i) => (i.date || "") >= isoDaysAgo(7) && i.date !== today)
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   const stats = ctx.deskStats(items);
+  const dueCards = getDueFlashcards().length;
+  const heading = formatTodayHeading(today);
+
+  const subline = [
+    stats.total ? `${stats.total} in desk` : null,
+    stats.todo ? `${stats.todo} to study` : null,
+    stats.revise ? `${stats.revise} to revise` : null,
+    dueCards ? `${dueCards} cards due` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  let body = "";
+
+  if (!todayItems.length && !weekItems.length) {
+    body = `
+      <section class="empty-state empty-state--hero">
+        <p class="empty-state-title">Nothing captured yet</p>
+        <p class="empty-state-desc">Use <strong>+ Add CA</strong> in the header when you read something worth noting.</p>
+      </section>`;
+  } else {
+    if (todayItems.length) {
+      body += `
+        <section class="content-block">
+          <h3 class="content-block-title">Today <span class="count-pill">${todayItems.length}</span></h3>
+          <div class="timeline">${todayItems.map((i) => ctx.renderItemCard(i)).join("")}</div>
+        </section>`;
+    } else {
+      body += `
+        <section class="content-block content-block--quiet">
+          <p class="empty-inline">No CA dated today — add one with <strong>+ Add CA</strong>.</p>
+        </section>`;
+    }
+
+    if (weekItems.length) {
+      body += `
+        <section class="content-block">
+          <h3 class="content-block-title">Earlier this week <span class="count-pill">${weekItems.length}</span></h3>
+          <div class="timeline timeline--compact">${weekItems.slice(0, 8).map((i) => ctx.renderItemCard(i, { compact: true })).join("")}</div>
+        </section>`;
+    }
+  }
 
   ctx.el.main.innerHTML = `
     ${renderReviseTodayPanel(ctx, items)}
-    <section class="desk-hero">
-      <h2>Today · ${today}</h2>
-      <p class="muted">${todayItems.length} item(s) dated today · ${weekItems.length} this week</p>
-      <div class="stats-row">
-        <div class="stat-chip"><strong>${stats.total}</strong> total</div>
-        <div class="stat-chip"><strong>${getDueFlashcards().length}</strong> cards due</div>
-        <div class="stat-chip stat-todo"><strong>${stats.todo}</strong> to study</div>
-      </div>
-    </section>
-    <section class="today-section">
-      <h3 class="stack-head stack-todo">Today's CA <span>${todayItems.length}</span></h3>
-      <div class="timeline">${todayItems.map((i) => ctx.renderItemCard(i)).join("") || '<p class="empty-hint">Nothing dated today — use <strong>+ Add CA</strong> in the header.</p>'}</div>
-    </section>
-    <section class="today-section">
-      <h3 class="stack-head">This week</h3>
-      <div class="timeline">${weekItems.slice(0, 10).map((i) => ctx.renderItemCard(i, { compact: true })).join("") || '<p class="muted">Empty</p>'}</div>
-    </section>`;
+    <header class="today-hero">
+      <h2>${ctx.escapeHtml(heading)}</h2>
+      ${subline ? `<p class="today-subline">${ctx.escapeHtml(subline)}</p>` : ""}
+    </header>
+    ${body}`;
 
   ctx.bindReviseTodayClicks();
 }
@@ -152,44 +190,52 @@ export function renderCalendar(ctx) {
 }
 
 export function renderThreadDiff(ctx) {
-  const thread = (ctx.state.threadDiff || "").trim();
-  const items = ctx
-    .mergedItems()
-    .filter((i) => (i.threads || []).includes(thread))
+  const allItems = ctx.mergedItems();
+  const threadOptions = collectAllThreads(allItems);
+  let thread = (ctx.state.threadDiff || "").trim();
+  if (!thread && threadOptions.length === 1) {
+    ctx.state.threadDiff = threadOptions[0];
+    thread = threadOptions[0];
+  }
+  const items = allItems
+    .filter((i) => thread && (i.threads || []).includes(thread))
     .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
 
   ctx.el.main.innerHTML = `
     <section class="view-head">
-      <h2>Topic thread timeline</h2>
-      <p class="muted">Compare recurring topics across the year (e.g. RBI MPC)</p>
-      <div class="topic-filters">
-        <label>Thread id <input type="text" id="threadDiffInput" value="${ctx.escapeHtml(thread)}" placeholder="2025-rbi-monetary-policy" /></label>
-        <button type="button" class="btn-primary btn-sm" id="threadDiffApply">Apply</button>
+      <h2>Thread timeline</h2>
+      <p class="view-desc">Follow a recurring story across the year — e.g. RBI MPC meetings.</p>
+      <div class="filter-bar">
+        <label class="filter-field filter-field--wide"><span>Thread</span>
+          <select id="threadDiffSelect" aria-label="Choose thread">
+            ${renderThreadSelectOptions(threadOptions, thread)}
+          </select>
+        </label>
       </div>
+      ${thread ? `<p class="filter-result">${items.length} item${items.length === 1 ? "" : "s"} in <code>${ctx.escapeHtml(thread)}</code></p>` : ""}
     </section>
     ${
-      thread
-        ? `<table class="thread-table">
-        <thead><tr><th>Date</th><th>Title</th><th>Summary snippet</th><th>Tags</th></tr></thead>
-        <tbody>
-          ${items
-            .map((i) => {
-              const sum = noteHtmlToPlainText(getCloudEntry(i.id).summary || i.summary || "").slice(0, 120);
-              return `<tr data-open-item="${ctx.escapeHtml(i.id)}" class="thread-row">
-                <td>${ctx.escapeHtml(i.date)}</td>
-                <td>${ctx.escapeHtml(i.title)}</td>
-                <td>${ctx.escapeHtml(sum)}${sum.length >= 120 ? "…" : ""}</td>
-                <td>${(i.tags || []).map((t) => ctx.escapeHtml(t)).join(", ")}</td>
-              </tr>`;
-            })
-            .join("") || "<tr><td colspan='4'>No items — set thread in manifest when adding CA</td></tr>"}
-        </tbody>
-      </table>`
-        : "<p class='muted'>Enter a thread id from your items (manifest threads[]).</p>"
+      !thread
+        ? `<p class="empty-state">Pick a thread from the dropdown — set threads when adding CA.</p>`
+        : items.length
+          ? `<div class="thread-timeline">
+              ${items
+                .map((i) => {
+                  const sum = noteHtmlToPlainText(getCloudEntry(i.id).summary || i.summary || "").slice(0, 160);
+                  return `<article class="thread-card" data-open-item="${ctx.escapeHtml(i.id)}">
+                    <time>${ctx.escapeHtml(i.date)}</time>
+                    <h3>${ctx.escapeHtml(i.title)}</h3>
+                    ${sum ? `<p class="thread-snippet">${ctx.escapeHtml(sum)}${sum.length >= 160 ? "…" : ""}</p>` : ""}
+                    <div class="thread-card-tags">${(i.tags || []).map((t) => `<span class="badge badge-tag">${ctx.escapeHtml(t)}</span>`).join("")}</div>
+                  </article>`;
+                })
+                .join("")}
+            </div>`
+          : `<p class="empty-state">No items with this thread — add <code>threads[]</code> in the item manifest.</p>`
     }`;
 
-  document.getElementById("threadDiffApply")?.addEventListener("click", () => {
-    ctx.state.threadDiff = document.getElementById("threadDiffInput")?.value.trim() || "";
+  document.getElementById("threadDiffSelect")?.addEventListener("change", (e) => {
+    ctx.state.threadDiff = e.target.value.trim();
     renderThreadDiff(ctx);
   });
 }

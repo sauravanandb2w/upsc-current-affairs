@@ -309,35 +309,224 @@ code {
 }
 
 /* Topic lens */
-.topic-filters {
+.topic-filters,
+.filter-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.75rem 1rem;
   align-items: flex-end;
-  margin: 1rem 0;
+  margin: 1rem 0 0.5rem;
+  padding: 0.85rem 1rem;
+  background: #fff;
+  border: 1px solid rgba(28, 25, 23, 0.08);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
-.topic-filters label {
+.topic-filters label,
+.filter-field {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-muted);
+  min-width: 100px;
+}
+
+.filter-field--wide {
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+
+.filter-field span {
+  padding-left: 0.1rem;
+}
+
+.view-desc {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--ink-muted);
+  max-width: 42rem;
+  line-height: 1.45;
+}
+
+.filter-result {
+  margin: 0.65rem 0 0;
+  font-size: 0.85rem;
   color: var(--ink-muted);
 }
 
+.filter-result code {
+  font-size: 0.82rem;
+}
+
 .topic-filters input,
-.topic-filters select {
+.topic-filters select,
+.filter-field input,
+.filter-field select {
   font: inherit;
-  padding: 0.4rem 0.55rem;
-  border: 1px solid rgba(28, 25, 23, 0.15);
+  font-size: 0.9rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid rgba(28, 25, 23, 0.12);
   border-radius: 8px;
-  min-width: 140px;
+  min-width: 120px;
   background: var(--paper, #fff);
 }
 
-.topic-filters select {
+.topic-filters select,
+.filter-field select {
   cursor: pointer;
-  max-width: 220px;
+  max-width: 100%;
+}
+
+/* Today view */
+.today-hero {
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(28, 25, 23, 0.08);
+}
+
+.today-hero h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.today-subline {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+}
+
+.content-block {
+  margin-bottom: 1.5rem;
+}
+
+.content-block--quiet {
+  margin-bottom: 1rem;
+}
+
+.content-block-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-muted);
+}
+
+.count-pill {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--paper-deep);
+  color: var(--ink);
+}
+
+.timeline--compact .ca-card {
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.timeline--compact .ca-card-preview {
+  display: none;
+}
+
+.empty-state {
+  margin: 1.5rem 0;
+  padding: 1.25rem 1.5rem;
+  text-align: center;
+  background: #fff;
+  border: 1px dashed rgba(28, 25, 23, 0.15);
+  border-radius: var(--radius);
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+}
+
+.empty-state--hero {
+  margin-top: 0.5rem;
+}
+
+.empty-state-title {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.empty-state-desc {
+  margin: 0;
+}
+
+.empty-inline {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  font-size: 0.88rem;
+  color: var(--ink-muted);
+  background: var(--paper-deep);
+  border-radius: var(--radius);
+}
+
+/* Thread timeline cards */
+.thread-timeline {
+  display: grid;
+  gap: 0.75rem;
+  position: relative;
+  padding-left: 1rem;
+  border-left: 2px solid rgba(28, 25, 23, 0.1);
+}
+
+.thread-card {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.thread-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(28, 25, 23, 0.1);
+}
+
+.thread-card time {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 0.25rem;
+}
+
+.thread-card h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+}
+
+.thread-snippet {
+  margin: 0 0 0.5rem;
+  font-size: 0.88rem;
+  color: var(--ink-muted);
+  line-height: 1.45;
+}
+
+.thread-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
 }
 
 .topic-cli {

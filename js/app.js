@@ -257,35 +257,12 @@ function filterByTopic(items) {
   });
 }
 
-function collectAllTags(items) {
-  const counts = new Map();
-  for (const item of items) {
-    for (const raw of item.tags || []) {
-      const tag = String(raw).trim();
-      if (!tag) continue;
-      counts.set(tag, (counts.get(tag) || 0) + 1);
-    }
-  }
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .map(([tag]) => tag);
-}
-
-function renderTagSelectOptions(tags, selected) {
-  const parts = ['<option value="">All tags</option>'];
-  const known = new Set(tags);
-  if (selected && !known.has(selected)) {
-    parts.push(`<option value="${escapeHtml(selected)}" selected>${escapeHtml(selected)}</option>`);
-  }
-  for (const tag of tags) {
-    parts.push(
-      `<option value="${escapeHtml(tag)}"${tag === selected ? " selected" : ""}>${escapeHtml(tag)}</option>`
-    );
-  }
-  return parts.join("");
-}
-
-function deskStats(items) {
+import {
+  collectAllTags,
+  collectAllThreads,
+  renderTagSelectOptions,
+  renderThreadSelectOptions,
+} from "./filter-options.js";
   const weekAgo = isoDaysAgo(7);
   return {
     total: items.length,
@@ -620,28 +597,28 @@ async function renderRevise() {
 function renderTopicLens() {
   const allItems = mergedItems();
   const tagOptions = collectAllTags(allItems);
+  const threadOptions = collectAllThreads(allItems);
   const filtered = filterByTopic(allItems).sort((a, b) =>
     (a.date || "").localeCompare(b.date || "")
   );
   el.main.innerHTML = `
-    <section class="view-head topic-lens">
+    <section class="view-head">
       <h2>Topic lens</h2>
-      <p class="muted">Year-end view — e.g. all RBI monetary policy items in 2025</p>
-      <div class="topic-filters">
-        <label>Year <input type="number" id="topicYear" value="${state.topicYear}" min="2020" max="2035" /></label>
-        <label>Tag
-          <select id="topicTag" aria-label="Filter by tag">
-            ${renderTagSelectOptions(tagOptions, state.topicTag)}
-          </select>
+      <p class="view-desc">Filter by year, tag, or thread — e.g. all RBI MPC items in 2025.</p>
+      <div class="filter-bar">
+        <label class="filter-field"><span>Year</span>
+          <input type="number" id="topicYear" value="${state.topicYear}" min="2020" max="2035" />
         </label>
-        <label>Thread <input type="text" id="topicThread" placeholder="2025-rbi-monetary-policy" value="${escapeHtml(state.topicThread)}" /></label>
-        <button type="button" class="btn-primary btn-sm" id="topicApplyBtn">Apply</button>
+        <label class="filter-field"><span>Tag</span>
+          <select id="topicTag" aria-label="Filter by tag">${renderTagSelectOptions(tagOptions, state.topicTag)}</select>
+        </label>
+        <label class="filter-field filter-field--wide"><span>Thread</span>
+          <select id="topicThread" aria-label="Filter by thread">${renderThreadSelectOptions(threadOptions, state.topicThread, { emptyLabel: "All threads" })}</select>
+        </label>
       </div>
+      <p class="filter-result">${filtered.length} item${filtered.length === 1 ? "" : "s"}</p>
     </section>
-    <div class="topic-results">
-      <p><strong>${filtered.length}</strong> matching items${state.topicTag ? ` · tag <code>${escapeHtml(state.topicTag)}</code>` : ""}</p>
-      <div class="timeline">${filtered.map((i) => renderItemCard(i)).join("") || '<p class="muted">No matches — adjust filters or add tags</p>'}</div>
-    </div>`;
+    <div class="timeline">${filtered.map((i) => renderItemCard(i)).join("") || '<p class="empty-state">No matches — pick a tag or thread from the dropdowns.</p>'}</div>`;
 
   const applyTopicFilters = () => {
     state.topicYear = Number(document.getElementById("topicYear").value) || state.topicYear;
@@ -650,8 +627,9 @@ function renderTopicLens() {
     renderTopicLens();
   };
 
-  document.getElementById("topicApplyBtn")?.addEventListener("click", applyTopicFilters);
   document.getElementById("topicTag")?.addEventListener("change", applyTopicFilters);
+  document.getElementById("topicThread")?.addEventListener("change", applyTopicFilters);
+  document.getElementById("topicYear")?.addEventListener("change", applyTopicFilters);
 }
 
 function manifestJsonForUpload(item) {
