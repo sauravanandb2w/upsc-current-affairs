@@ -87,12 +87,30 @@ code {
 .header-inner {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 1rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+}
+
+.header-top {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 1rem;
   justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+.header-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem 0.85rem;
+}
+
+.header-toolbar > * {
+  flex-shrink: 0;
 }
 
 .brand {
@@ -122,13 +140,6 @@ code {
   margin: 0;
   font-size: 0.8rem;
   color: var(--ink-muted);
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
 }
 
 .sync-badge {
@@ -848,41 +859,50 @@ code {
 /* Search & header actions */
 .search-combobox {
   position: relative;
-  min-width: 180px;
-  max-width: 320px;
-  flex: 1 1 180px;
+  width: 100%;
+}
+
+.header-search {
+  max-width: none;
 }
 
 .search-wrap {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.5rem;
   background: #fff;
   border: 1px solid rgba(28, 25, 23, 0.12);
-  border-radius: 999px;
-  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  padding: 0.6rem 1rem;
   width: 100%;
+  min-height: 2.75rem;
 }
 
 .search-combobox:focus-within .search-wrap {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-soft);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .search-icon {
   color: var(--ink-muted);
-  font-size: 0.9rem;
+  font-size: 1.15rem;
   flex-shrink: 0;
+  line-height: 1;
 }
 
 .search-wrap input {
   border: none;
   background: transparent;
   font: inherit;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   width: 100%;
   outline: none;
   min-width: 0;
+}
+
+.search-wrap input::placeholder {
+  color: var(--ink-muted);
+  opacity: 0.85;
 }
 
 .search-suggestions {
@@ -1323,17 +1343,17 @@ code {
 }
 
 @media (max-width: 720px) {
-  .header-inner {
+  .header-top {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .header-actions {
-    flex-direction: column;
-    align-items: stretch;
+  .header-toolbar {
+    justify-content: flex-start;
+    gap: 0.55rem 0.75rem;
   }
 
-  .search-wrap {
+  .auth-user {
     max-width: none;
   }
 
@@ -1487,18 +1507,19 @@ code {
   border: 1px solid rgba(28, 25, 23, 0.15);
   background: transparent;
   border-radius: 999px;
-  width: 2rem;
-  height: 2rem;
+  width: 2.15rem;
+  height: 2.15rem;
   cursor: pointer;
+  margin-left: 0.15rem;
 }
 
 .note-size-control {
   display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
+  gap: 0.35rem;
   border: 1px solid rgba(28, 25, 23, 0.12);
   border-radius: 999px;
-  padding: 0.15rem 0.35rem;
+  padding: 0.2rem 0.45rem;
 }
 
 .note-size-label {
