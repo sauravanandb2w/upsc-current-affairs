@@ -268,3 +268,27 @@ export function pickNoteValue(_itemId, _fieldId, currentValue) {
 export function getAllCloudDataForExport() {
   return { cloudCache: { ...cloudCache }, metaCache: { ...metaCache } };
 }
+
+/** Remove Supabase-backed notes, meta, and browser cache for one item. */
+export async function removeItemFromCloud(itemId, userId) {
+  delete cloudCache[itemId];
+  delete metaCache[itemId];
+  localStorage.removeItem(LS_CLOUD_PREFIX + itemId);
+  localStorage.removeItem(LS_GIT_PREFIX + itemId);
+  localStorage.removeItem(LS_META_PREFIX + itemId);
+  const pending = saveTimers.get(itemId);
+  if (pending) {
+    clearTimeout(pending);
+    saveTimers.delete(itemId);
+  }
+  if (!userId || !isSupabaseConfigured()) return;
+  const sb = getSupabase();
+  const [notesRes, metaRes, flashRes] = await Promise.all([
+    sb.from("ca_item_notes").delete().eq("user_id", userId).eq("item_id", itemId),
+    sb.from("ca_item_meta").delete().eq("user_id", userId).eq("item_id", itemId),
+    sb.from("ca_flashcards").delete().eq("user_id", userId).eq("item_id", itemId),
+  ]);
+  if (notesRes.error) console.warn("ca_item_notes delete", notesRes.error);
+  if (metaRes.error) console.warn("ca_item_meta delete", metaRes.error);
+  if (flashRes.error) console.warn("ca_flashcards delete", flashRes.error);
+}

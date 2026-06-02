@@ -1265,6 +1265,48 @@ code {
   font-size: 0.85rem;
 }
 
+.draft-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.item-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.45rem;
+  font-family: inherit;
+  font-size: 1.15rem;
+  line-height: 1;
+  font-weight: 600;
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.item-delete-btn:hover:not(:disabled) {
+  background: #fee2e2;
+  border-color: #f87171;
+}
+
+.item-delete-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.item-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .draft-banner code {
   background: rgba(255, 255, 255, 0.6);
   font-size: 0.78rem;

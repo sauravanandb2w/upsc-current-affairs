@@ -23,6 +23,7 @@ import {
   unlockNoteField,
   pickNoteValue,
   getLockedSnapshot,
+  removeItemFromCloud,
 } from "./ca-store.js";
 import {
   initSupabase,
@@ -65,12 +66,17 @@ import {
 } from "./rich-notes.js?v=27";
 import { initTheme, bindThemeToggle, bindNoteSizeControl } from "./theme.js";
 import { bindExportButtons } from "./export-ca.js";
-import { loadFlashcards, loadFlashcardsLocal, generateFlashcardsFromItem } from "./flashcards.js";
+import { loadFlashcards, loadFlashcardsLocal, generateFlashcardsFromItem, removeFlashcardsForItem } from "./flashcards.js";
 import { commitNotesMdToGitHub, fetchNotesMdFromGitHub } from "./github-notes.js?v=27";
-import { publishDraftToGitHub, savePublishedItemToGitHub } from "./github-publish.js?v=27";
+import {
+  publishDraftToGitHub,
+  savePublishedItemToGitHub,
+  deletePublishedItemFromGitHub,
+} from "./github-publish.js?v=28";
 import {
   loadSearchIndex,
   setSearchIndexEntry,
+  removeSearchIndexEntry,
   matchesSearch as matchItemSearch,
   bindSearchAutocomplete,
 } from "./search.js";
@@ -776,7 +782,10 @@ async function renderItemDetail(itemId) {
       draft
         ? `<div class="draft-banner">
             <span>Draft — saved on this device only until published to GitHub.</span>
-            <button type="button" class="btn-primary btn-sm" id="publishDraftBtn">Publish to GitHub</button>
+            <div class="draft-banner-actions">
+              <button type="button" class="btn-primary btn-sm" id="publishDraftBtn">Publish to GitHub</button>
+              <button type="button" class="btn-ghost btn-sm item-delete-btn" id="deleteItemBtn" title="Delete draft">× Delete</button>
+            </div>
           </div>`
         : ""
     }
@@ -803,6 +812,11 @@ async function renderItemDetail(itemId) {
                 ).join("")}
               </select>
             </label>
+            ${
+              !draft
+                ? `<button type="button" class="btn-ghost btn-sm item-delete-btn" id="deleteItemBtn" title="Delete this CA item" aria-label="Delete this CA item">× Delete</button>`
+                : ""
+            }
           </div>
         </div>
         <div class="item-badges git-manifest-badges">${gsBadges(item.gsPapers)} ${tagBadges(item.tags)}</div>
@@ -892,6 +906,8 @@ async function renderItemDetail(itemId) {
   document.getElementById("backBtn")?.addEventListener("click", () => navigate(state.view === "item" ? "today" : state.view));
 
   document.getElementById("publishDraftBtn")?.addEventListener("click", () => handlePublishDraft(item));
+
+  document.getElementById("deleteItemBtn")?.addEventListener("click", () => handleDeleteItem(item, userId));
 
   document.getElementById("saveGitHubBtn")?.addEventListener("click", () => handleSaveToGitHub(item));
 
@@ -1207,6 +1223,47 @@ async function handlePublishDraft(item) {
     if (btn) {
       btn.disabled = false;
       btn.textContent = "Publish to GitHub";
+    }
+  }
+}
+
+async function handleDeleteItem(item, userId) {
+  const draft = isDraftItem(item);
+  const connected = isGitHubConnected();
+
+  if (!draft && !connected) {
+    alert("Connect GitHub in the header to delete published items. Otherwise they will reappear after refresh.");
+    return;
+  }
+
+  const message = draft
+    ? `Delete draft “${item.title}”?\n\nRemoves it from this device.`
+    : `Delete “${item.title}” permanently?\n\nRemoves from GitHub, Supabase, and this browser (including notes and flashcards).`;
+
+  if (!confirm(message)) return;
+
+  const btn = document.getElementById("deleteItemBtn");
+  if (btn) {
+    btn.disabled = true;
+    btn.setAttribute("aria-busy", "true");
+  }
+  try {
+    if (!draft) {
+      await deletePublishedItemFromGitHub(item.id, item.title);
+    }
+    removeDraft(item.id);
+    clearStatusOverride(item.id);
+    await removeItemFromCloud(item.id, userId);
+    await removeFlashcardsForItem(item.id, userId);
+    removeSearchIndexEntry(item.id);
+    state.items = state.items.filter((row) => row.id !== item.id);
+    alert(draft ? "Draft deleted." : "Deleted from GitHub, Supabase, and this device.");
+    navigate("today");
+  } catch (err) {
+    alert(err.message || String(err));
+    if (btn) {
+      btn.disabled = false;
+      btn.removeAttribute("aria-busy");
     }
   }
 }

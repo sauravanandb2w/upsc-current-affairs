@@ -3,7 +3,7 @@
  */
 
 import { isGitHubConnected, isGitHubUploadAllowed } from "./github-auth.js";
-import { getRepoFile, putRepoFile } from "./github-upload.js";
+import { getRepoFile, putRepoFile, deleteRepoFile } from "./github-upload.js";
 import { GIT_SECTIONS, serializeNotesMd, defaultNotesTemplate } from "./notes-md.js";
 import { getCloudEntry, getGitNotesFromLocal, gitVisibleNoteValue } from "./ca-store.js";
 import { noteHtmlToPlainText, noteHtmlForGitStorage } from "./rich-notes.js?v=27";
@@ -232,4 +232,112 @@ export async function savePublishedItemToGitHub(item) {
   const searchEntry = await syncSearchIndexForItem(itemId, manifest, item.title);
 
   return { itemId, manifest, searchEntry };
+}
+
+function itemFolderPath(itemId) {
+  return `study/items/${itemId}`;
+}
+
+function resolveItemFilePath(itemId, fileRef) {
+  if (!fileRef) return null;
+  const s = String(fileRef);
+  if (s.startsWith("study/")) return s;
+  return `${itemFolderPath(itemId)}/${s.replace(/^\.\//, "")}`;
+}
+
+async function removeIndexEntry(itemId, messageTitle) {
+  const indexFile = await getRepoFile(INDEX_PATH);
+  if (!indexFile?.text) return;
+  let indexData;
+  try {
+    indexData = JSON.parse(indexFile.text);
+  } catch {
+    return;
+  }
+  const items = (indexData.items || []).filter((row) => row.id !== itemId);
+  const payload = {
+    generatedAt: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
+    count: items.length,
+    items,
+  };
+  await putRepoFile(
+    INDEX_PATH,
+    textToBase64(`${JSON.stringify(payload, null, 2)}\n`),
+    `Remove from index: ${messageTitle || itemId}`,
+    indexFile.sha
+  );
+}
+
+async function removeSearchIndexEntryFromGitHub(itemId, itemTitle) {
+  const { file, data } = await readSearchIndexFile();
+  if (!file || !data.entries?.[itemId]) return;
+  delete data.entries[itemId];
+  data.generatedAt = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+  await putRepoFile(
+    SEARCH_INDEX_PATH,
+    textToBase64(`${JSON.stringify(data, null, 2)}\n`),
+    `Remove from search index: ${itemTitle || itemId}`,
+    file.sha
+  );
+}
+
+/**
+ * Delete a published CA item from git (manifest, notes, files, index, search).
+ * @param {string} itemId
+ * @param {string} itemTitle
+ */
+export async function deletePublishedItemFromGitHub(itemId, itemTitle) {
+  if (!isGitHubConnected()) {
+    throw new Error("Connect GitHub in the header first.");
+  }
+  if (!(await isGitHubUploadAllowed())) {
+    throw new Error("Deleting is restricted to the repo owner account.");
+  }
+
+  const prefix = itemFolderPath(itemId);
+  const manifestPath = `${prefix}/manifest.json`;
+  const notesPath = `${prefix}/notes.md`;
+  const manifestFile = await getRepoFile(manifestPath);
+  const notesFile = await getRepoFile(notesPath);
+
+  const pathShas = new Map();
+  if (manifestFile?.sha) pathShas.set(manifestPath, manifestFile.sha);
+  if (notesFile?.sha) pathShas.set(notesPath, notesFile.sha);
+
+  if (manifestFile?.text) {
+    try {
+      const manifest = JSON.parse(manifestFile.text);
+      for (const img of manifest.images || []) {
+        const ref = typeof img === "string" ? img : img?.file;
+        const path = resolveItemFilePath(itemId, ref);
+        if (path && !pathShas.has(path)) {
+          const file = await getRepoFile(path);
+          if (file?.sha) pathShas.set(path, file.sha);
+        }
+      }
+      for (const src of manifest.sources || []) {
+        if (src?.file?.storage !== "git") continue;
+        const path = resolveItemFilePath(itemId, src.file.path);
+        if (path && !pathShas.has(path)) {
+          const file = await getRepoFile(path);
+          if (file?.sha) pathShas.set(path, file.sha);
+        }
+      }
+    } catch {
+      /* delete manifest + notes even if parse fails */
+    }
+  }
+
+  if (!pathShas.size) {
+    throw new Error(`Not found in git: ${itemId}`);
+  }
+
+  const label = itemTitle || itemId;
+  for (const [path, sha] of pathShas) {
+    await deleteRepoFile(path, sha, `Delete CA item: ${label}`);
+  }
+
+  await removeIndexEntry(itemId, label);
+  await removeSearchIndexEntryFromGitHub(itemId, label);
+  return { itemId, deletedPaths: [...pathShas.keys()] };
 }

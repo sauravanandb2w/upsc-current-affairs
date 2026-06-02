@@ -211,3 +211,12 @@ export async function rateFlashcard(userId, cardId, quality) {
 export function getFlashcardsForItem(itemId) {
   return flashCache.filter((c) => c.itemId === itemId);
 }
+
+export async function removeFlashcardsForItem(itemId, userId) {
+  flashCache = flashCache.filter((c) => c.itemId !== itemId);
+  persistFlashLocal();
+  if (!userId || !isSupabaseConfigured()) return;
+  const sb = getSupabase();
+  const { error } = await sb.from("ca_flashcards").delete().eq("user_id", userId).eq("item_id", itemId);
+  if (error) console.warn("ca_flashcards delete", error);
+}

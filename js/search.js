@@ -23,6 +23,11 @@ export function setSearchIndexEntry(itemId, entry) {
   searchIndexEntries[itemId] = entry;
 }
 
+export function removeSearchIndexEntry(itemId) {
+  if (!itemId) return;
+  delete searchIndexEntries[itemId];
+}
+
 function fallbackHaystack(item, deps) {
   const cloud = deps.getCloudEntry(item.id);
   const localNotes = deps.getGitNotesFromLocal(item.id);
