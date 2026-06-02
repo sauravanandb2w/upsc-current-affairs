@@ -17,7 +17,31 @@ export function noteHtmlToPlainText(html) {
   if (!looksLikeNoteHtml(s)) return s;
   const div = document.createElement("div");
   div.innerHTML = sanitizeNoteHtml(s);
-  return (div.textContent || "").replace(/\u00a0/g, " ");
+
+  const BLOCK_TAGS = new Set(["p", "div", "li"]);
+
+  function nodeToPlain(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return (node.textContent || "").replace(/\u00a0/g, " ");
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return "";
+
+    const tag = node.tagName.toLowerCase();
+    if (tag === "br") return "\n";
+
+    let inner = "";
+    for (const child of node.childNodes) {
+      inner += nodeToPlain(child);
+    }
+    if (BLOCK_TAGS.has(tag)) return `${inner}\n`;
+    return inner;
+  }
+
+  let out = "";
+  for (const child of div.childNodes) {
+    out += nodeToPlain(child);
+  }
+  return out.replace(/\n{3,}/g, "\n\n").replace(/\n+$/g, "");
 }
 
 export function noteValueHasContent(value) {
