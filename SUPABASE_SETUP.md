@@ -13,6 +13,22 @@ Use a **new Supabase project** (not your PYQ project). Only **summary**, **links
 
 If the project already exists, also run `supabase/schema-migrate.sql` (adds locks, stars, git notes sync).
 
+### Troubleshooting: `git_notes_json` / schema cache
+
+If sync shows **Could not find the 'git_notes_json' column** (or `locked_fields`), your project was created before those columns existed. In **SQL Editor**, run:
+
+```sql
+alter table public.ca_item_notes
+  add column if not exists locked_fields jsonb not null default '{}'::jsonb;
+
+alter table public.ca_item_notes
+  add column if not exists git_notes_json jsonb not null default '{}'::jsonb;
+
+notify pgrst, 'reload schema';
+```
+
+Or paste all of `supabase/schema-migrate.sql` and **Run**. Then tap the **Sync** badge in the app again.
+
 ## 3. Auth
 
 - **Email** provider on (optional: disable confirm email for testing).

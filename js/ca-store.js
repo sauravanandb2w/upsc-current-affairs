@@ -60,6 +60,17 @@ export function getLastCloudSyncError() {
   return lastCloudSyncError;
 }
 
+function friendlySyncError(message) {
+  const msg = message || "";
+  if (/git_notes_json|locked_fields/i.test(msg) && /schema cache|could not find/i.test(msg)) {
+    return (
+      "Database is missing columns. In Supabase → SQL Editor, run supabase/schema-migrate.sql " +
+      "(or the two ALTER TABLE lines in SUPABASE_SETUP.md), then tap Sync again."
+    );
+  }
+  return msg;
+}
+
 function setCloudSyncError(message) {
   lastCloudSyncError = message || null;
 }
@@ -203,7 +214,7 @@ async function pushCloudEntry(itemId, userId, payload, { force = false } = {}) {
     .select("item_id");
 
   if (error) {
-    const msg = error.message || String(error);
+    const msg = friendlySyncError(error.message || String(error));
     console.warn("ca_item_notes save", itemId, msg);
     setCloudSyncError(msg);
     return { ok: false, error: msg };

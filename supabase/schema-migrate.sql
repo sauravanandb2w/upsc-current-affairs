@@ -40,3 +40,6 @@ create policy "ca_item_meta_update_own"
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "ca_item_meta_delete_own"
   on public.ca_item_meta for delete using (auth.uid() = user_id);
+
+-- Refresh PostgREST schema cache so sync sees new columns immediately
+notify pgrst, 'reload schema';
