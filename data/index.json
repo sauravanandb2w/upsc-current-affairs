@@ -1,7 +1,38 @@
 {
-  "generatedAt": "2026-06-02T15:55:46Z",
+  "generatedAt": "2026-06-02T16:08:16Z",
   "count": 4,
   "items": [
+    {
+      "id": "[object PointerEvent]-iip-base-year-revised-from-2011-12-2022-23",
+      "date": "2026-06-02",
+      "title": "IIP base year revised from 2011-12 → 2022-23.",
+      "status": "to-study",
+      "gsPapers": [
+        3
+      ],
+      "tags": [
+        "IIP",
+        "base year",
+        "GDP vs IIP"
+      ],
+      "threads": [
+        "base year economy"
+      ],
+      "images": [
+        "6122696861270347504.jpg",
+        "6122696861270347503.jpg"
+      ],
+      "sources": [],
+      "links": [
+        {
+          "label": "PIB link",
+          "url": "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2267531&reg=3&lang=1",
+          "kind": "pib",
+          "addedAt": "[object PointerEvent]"
+        }
+      ],
+      "_folder": "[object PointerEvent]-iip-base-year-revised-from-2011-12-2022-23"
+    },
     {
       "id": "2025-06-02-green-hydrogen",
       "date": "2025-06-02",
@@ -97,37 +128,6 @@
         }
       ],
       "_folder": "2025-02-08-rbi-mpc"
-    },
-    {
-      "id": "[object PointerEvent]-iip-base-year-revised-from-2011-12-2022-23",
-      "date": "[object PointerEvent]",
-      "title": "IIP base year revised from 2011-12 → 2022-23.",
-      "status": "to-study",
-      "gsPapers": [
-        3
-      ],
-      "tags": [
-        "IIP",
-        "base year",
-        "GDP vs IIP"
-      ],
-      "threads": [
-        "base year economy"
-      ],
-      "images": [
-        "6122696861270347504.jpg",
-        "6122696861270347503.jpg"
-      ],
-      "sources": [],
-      "links": [
-        {
-          "label": "PIB link",
-          "url": "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2267531&reg=3&lang=1",
-          "kind": "news",
-          "addedAt": "[object PointerEvent]"
-        }
-      ],
-      "_folder": "[object PointerEvent]-iip-base-year-revised-from-2011-12-2022-23"
     }
   ]
 }
