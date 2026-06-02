@@ -1,6 +1,6 @@
 import { getAllCloudDataForExport, getCloudEntry, getGitNotesFromLocal, getItemMeta } from "./ca-store.js";
 import { GIT_SECTIONS } from "./notes-md.js";
-import { noteHtmlToPlainText } from "./rich-notes.js";
+import { noteHtmlToPlainText } from "./rich-notes.js?v=27";
 import { getFlashcards } from "./flashcards.js";
 
 function downloadBlob(filename, content, mime) {

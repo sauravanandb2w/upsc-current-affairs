@@ -10,7 +10,7 @@ import {
   cardThemeIndex,
   rateFlashcard,
 } from "./flashcards.js";
-import { noteHtmlToPlainText } from "./rich-notes.js";
+import { noteHtmlToPlainText } from "./rich-notes.js?v=27";
 import { mountMonthPicker, formatDisplayDate, formatDisplayMonth } from "./date-picker.js";
 import { exportCaAsMarkdown } from "./export-ca.js";
 import { collectAllThreads, renderThreadSelectOptions } from "./filter-options.js";

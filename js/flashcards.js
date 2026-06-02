@@ -1,5 +1,5 @@
 import { getSupabase, isSupabaseConfigured } from "./supabase-client.js";
-import { noteHtmlToPlainText } from "./rich-notes.js";
+import { noteHtmlToPlainText } from "./rich-notes.js?v=27";
 
 /** Spaced revision buckets (days) */
 export const REVISION_BUCKETS = [7, 30, 90, 180, 365];

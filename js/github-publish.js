@@ -6,7 +6,7 @@ import { isGitHubConnected, isGitHubUploadAllowed } from "./github-auth.js";
 import { getRepoFile, putRepoFile } from "./github-upload.js";
 import { GIT_SECTIONS, serializeNotesMd, defaultNotesTemplate } from "./notes-md.js";
 import { getCloudEntry, getGitNotesFromLocal, gitVisibleNoteValue } from "./ca-store.js";
-import { noteHtmlToPlainText, noteHtmlForGitStorage } from "./rich-notes.js";
+import { noteHtmlToPlainText, noteHtmlForGitStorage } from "./rich-notes.js?v=27";
 import { fieldIdForSection } from "./field-locks.js";
 
 const INDEX_PATH = "data/index.json";
