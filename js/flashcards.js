@@ -252,6 +252,16 @@ export function getFlashcardsForItem(itemId) {
   return flashCache.filter((c) => c.itemId === itemId);
 }
 
+export async function removeFlashcard(cardId, userId) {
+  flashCache = flashCache.filter((c) => c.id !== cardId);
+  persistFlashLocal();
+  if (!userId || !isSupabaseConfigured()) return;
+  if (!cardId || String(cardId).startsWith("local-")) return;
+  const sb = getSupabase();
+  const { error } = await sb.from("ca_flashcards").delete().eq("user_id", userId).eq("id", cardId);
+  if (error) console.warn("ca_flashcards delete", error);
+}
+
 export async function removeFlashcardsForItem(itemId, userId) {
   flashCache = flashCache.filter((c) => c.itemId !== itemId);
   persistFlashLocal();

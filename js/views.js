@@ -9,6 +9,7 @@ import {
   formatNextReview,
   cardThemeIndex,
   rateFlashcard,
+  removeFlashcard,
 } from "./flashcards.js";
 import { noteHtmlToPlainText } from "./rich-notes.js?v=27";
 import { mountMonthPicker, formatDisplayDate, formatDisplayMonth, effectiveItemDate } from "./date-picker.js";
@@ -307,6 +308,7 @@ export function renderDrill(ctx) {
         tabindex="0"
         aria-label="Flashcard — tap to flip"
       >
+        <button type="button" class="flash-card-delete" id="flashCardDelete" title="Remove this card" aria-label="Remove this flashcard">×</button>
         <div class="flash-card-inner">
           <div class="flash-card-face flash-card-front">
             <span class="flash-card-label">Question</span>
@@ -344,16 +346,18 @@ export function renderDrill(ctx) {
             const chipDue = isCardDue(c);
             const ti = cardThemeIndex(c);
             const short = c.answer.slice(0, 42) + (c.answer.length > 42 ? "…" : "");
-            return `<button
+            return `<div class="drill-deck-chip-wrap" role="listitem">
+              <button
               type="button"
               class="drill-deck-chip drill-deck-chip--theme-${ti}${active ? " active" : ""}${chipDue ? " due" : ""}"
               data-drill-pick="${i}"
-              role="listitem"
               title="${ctx.escapeHtml(c.question)}"
             >
               <span class="drill-deck-chip-num">${i + 1}</span>
               <span class="drill-deck-chip-text">${ctx.escapeHtml(short)}</span>
-            </button>`;
+            </button>
+            <button type="button" class="drill-deck-chip-delete" data-drill-delete="${ctx.escapeHtml(c.id)}" title="Remove card" aria-label="Remove flashcard">×</button>
+            </div>`;
           })
           .join("")}
       </div>
@@ -371,8 +375,20 @@ export function renderDrill(ctx) {
 
   const toggleFlip = () => setFlipped(flashEl.dataset.flipped !== "true");
 
+  async function deleteFlashcardById(cardId) {
+    if (!confirm("Remove this flashcard from your deck?")) return;
+    await removeFlashcard(cardId, ctx.state.session?.user?.id);
+    const remaining = getDrillDeck();
+    if (!remaining.length) {
+      renderDrill(ctx);
+      return;
+    }
+    if (ctx.state.drillIndex >= remaining.length) ctx.state.drillIndex = 0;
+    renderDrill(ctx);
+  }
+
   flashEl?.addEventListener("click", (e) => {
-    if (e.target.closest(".flash-card-source")) return;
+    if (e.target.closest(".flash-card-source, .flash-card-delete")) return;
     toggleFlip();
   });
   flashEl?.addEventListener("keydown", (e) => {
@@ -380,6 +396,18 @@ export function renderDrill(ctx) {
       e.preventDefault();
       toggleFlip();
     }
+  });
+
+  document.getElementById("flashCardDelete")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    deleteFlashcardById(card.id);
+  });
+
+  ctx.el.main.querySelectorAll("[data-drill-delete]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteFlashcardById(btn.dataset.drillDelete);
+    });
   });
 
   ctx.el.main.querySelectorAll("[data-rate]").forEach((btn) => {

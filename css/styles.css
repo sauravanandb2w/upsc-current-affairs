@@ -2183,6 +2183,35 @@ code {
   background: transparent;
   padding: 0;
   text-align: left;
+  position: relative;
+}
+
+.flash-card-delete {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  font-family: inherit;
+  font-size: 1.2rem;
+  line-height: 1;
+  font-weight: 700;
+  color: #991b1b;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #fecaca;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(28, 25, 23, 0.12);
+}
+
+.flash-card-delete:hover {
+  background: #fee2e2;
+  border-color: #f87171;
 }
 
 .flash-card-inner {
@@ -2382,6 +2411,42 @@ code {
   overflow-x: auto;
   padding-bottom: 0.5rem;
   scroll-snap-type: x mandatory;
+}
+
+.drill-deck-chip-wrap {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: stretch;
+  scroll-snap-align: start;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(28, 25, 23, 0.08);
+}
+
+.drill-deck-chip-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  padding: 0;
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  font-weight: 700;
+  color: #991b1b;
+  background: #fef2f2;
+  border: none;
+  border-left: 1px solid rgba(28, 25, 23, 0.08);
+  cursor: pointer;
+}
+
+.drill-deck-chip-delete:hover {
+  background: #fee2e2;
+}
+
+.drill-deck-chip-wrap .drill-deck-chip {
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .drill-deck-chip {
