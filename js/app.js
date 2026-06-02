@@ -80,6 +80,12 @@ import {
   recordCaStatusActivity,
   recordCaStarActivity,
 } from "./activity-tracker.js";
+import {
+  collectAllTags,
+  collectAllThreads,
+  renderTagSelectOptions,
+  renderThreadSelectOptions,
+} from "./filter-options.js";
 
 const LINK_KINDS = [
   "news",
@@ -257,12 +263,7 @@ function filterByTopic(items) {
   });
 }
 
-import {
-  collectAllTags,
-  collectAllThreads,
-  renderTagSelectOptions,
-  renderThreadSelectOptions,
-} from "./filter-options.js";
+function deskStats(items) {
   const weekAgo = isoDaysAgo(7);
   return {
     total: items.length,
