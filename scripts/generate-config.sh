@@ -9,6 +9,7 @@ SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}"
 GH_ID="${GH_OAUTH_CLIENT_ID:-}"
 GH_OWNER="${GH_REPO_OWNER:-sauravanandb2w}"
 GH_NAME="${GH_REPO_NAME:-upsc-current-affairs}"
+GH_ALLOWED="${GH_UPLOAD_ALLOWED_USER:-sauravanandb2w}"
 GH_SCOPE="${GH_OAUTH_SCOPE:-public_repo}"
 
 if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_ANON_KEY" ]]; then
@@ -24,6 +25,7 @@ export const SUPABASE_ANON_KEY = "$SUPABASE_ANON_KEY";
 export const GITHUB_OAUTH_CLIENT_ID = "$GH_ID";
 export const GITHUB_REPO_OWNER = "$GH_OWNER";
 export const GITHUB_REPO_NAME = "$GH_NAME";
+export const GITHUB_UPLOAD_ALLOWED_USER = "$GH_ALLOWED";
 export const GITHUB_OAUTH_SCOPE = "$GH_SCOPE";
 EOF
 

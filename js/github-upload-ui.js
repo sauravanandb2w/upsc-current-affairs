@@ -53,9 +53,14 @@ export async function bindGitHubHeaderButton(btn, onChange) {
   if (!btn) return;
 
   async function refresh() {
+    btn.classList.remove("hidden");
     const configured = await isGitHubUploadConfigured();
-    btn.classList.toggle("hidden", !configured);
-    if (!configured) return;
+
+    if (!configured) {
+      btn.textContent = "Connect GitHub";
+      btn.title = "GitHub OAuth not configured — see GITHUB_UPLOAD_SETUP.md";
+      return;
+    }
 
     if (isGitHubConnected()) {
       const allowed = await isGitHubUploadAllowed();
@@ -72,6 +77,19 @@ export async function bindGitHubHeaderButton(btn, onChange) {
   await refresh();
 
   btn.addEventListener("click", async () => {
+    const configured = await isGitHubUploadConfigured();
+    if (!configured) {
+      window.alert(
+        "GitHub OAuth is not configured yet.\n\n" +
+          "1. Add GITHUB_OAUTH_CLIENT_ID to js/config.js (or GH_OAUTH_CLIENT_ID repo secret for Pages).\n" +
+          "2. Add this callback URL to your GitHub OAuth app:\n" +
+          "   …/upsc-current-affairs/oauth/github-callback.html\n" +
+          "3. Deploy github-oauth on your CA Supabase project.\n\n" +
+          "See GITHUB_UPLOAD_SETUP.md for steps."
+      );
+      return;
+    }
+
     if (isGitHubConnected()) {
       if (window.confirm("Disconnect GitHub on this device?")) {
         disconnectGitHub();
@@ -80,7 +98,12 @@ export async function bindGitHubHeaderButton(btn, onChange) {
       }
       return;
     }
-    await startGitHubLogin(location.pathname + location.search);
+
+    try {
+      await startGitHubLogin(location.pathname + location.search);
+    } catch (err) {
+      window.alert(err.message || String(err));
+    }
   });
 
   return refresh;
@@ -110,13 +133,17 @@ export function bindGitHubUploadControl(root, onDone) {
     if (!file) return;
 
     if (!(await initGitHubUploadConfig())) {
-      status.textContent = "GitHub OAuth not configured.";
+      status.textContent = "OAuth not set — click Connect GitHub in header.";
       return;
     }
 
     if (!isGitHubConnected()) {
-      status.textContent = "Connect GitHub first (header).";
-      await startGitHubLogin(location.pathname + location.search);
+      status.textContent = "Connecting GitHub…";
+      try {
+        await startGitHubLogin(location.pathname + location.search);
+      } catch (err) {
+        status.textContent = err.message || "Connect GitHub first (header).";
+      }
       return;
     }
 

@@ -219,11 +219,15 @@ export async function uploadCaItemImage(itemId, file, fallbackManifest) {
   return { path: filePath, name: destName };
 }
 
-/** Upload small PDF to git; large magazines → paste Drive link in sources instead */
+/** Small PDFs in git; large magazines → paste Drive link in sources instead */
+const PDF_MAX_BYTES = 25 * 1024 * 1024;
+
 export async function uploadCaItemPdf(itemId, file, fallbackManifest) {
   await assertUploadAllowed();
-  if (file.size > 8 * 1024 * 1024) {
-    throw new Error("PDF too large for git upload (max ~8 MB). Upload to Drive and paste the link.");
+  if (file.size > PDF_MAX_BYTES) {
+    throw new Error(
+      "PDF too large for in-app git upload (max 25 MB). Paste a Google Drive link in Sources instead — keeps the repo fast."
+    );
   }
 
   const ext = normalizePdfExt(file);

@@ -5,18 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="ca-github-repo" content="sauravanandb2w/upsc-current-affairs" />
     <meta name="ca-github-branch" content="main" />
-    <meta
-      name="description"
-      content="Personal UPSC Current Affairs desk — curated news, structured notes, topic lens, synced summary and links."
-    />
+    <meta name="description" content="Personal UPSC Current Affairs desk" />
     <title>UPSC Current Affairs | CA Desk</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600;6..72,700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="css/styles.css?v=3" />
+    <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600;6..72,700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/styles.css?v=6" />
   </head>
   <body>
     <header class="site-header">
@@ -25,91 +19,90 @@
           <span class="brand-mark" aria-hidden="true">CA</span>
           <div>
             <h1>UPSC Current Affairs</h1>
-            <p class="tagline">Capture · revise · topic lens</p>
+            <p class="tagline">Capture · revise · consolidate</p>
           </div>
         </div>
         <div class="header-actions">
-          <label class="search-wrap" aria-label="Search items">
+          <label class="search-wrap" aria-label="Search">
             <span class="search-icon" aria-hidden="true">⌕</span>
-            <input type="search" id="globalSearch" placeholder="Search title, tags, notes…" autocomplete="off" />
+            <input type="search" id="globalSearch" placeholder="Search…" autocomplete="off" />
           </label>
           <button type="button" class="btn-accent btn-sm" id="addItemBtn">+ Add CA</button>
-          <div class="sync-badge" id="syncBadge" aria-live="polite">Local only</div>
-          <button type="button" class="btn-ghost btn-sm hidden" id="githubConnectBtn">Connect GitHub</button>
+          <div class="sync-badge" id="syncBadge">Local only</div>
+          <button type="button" class="btn-ghost btn-sm" id="githubConnectBtn">Connect GitHub</button>
+          <div class="note-size-control" id="noteSizeControl" role="group" aria-label="Note box height">
+            <span class="note-size-label">Box</span>
+            <button type="button" class="note-size-btn" data-note-size="s">S</button>
+            <button type="button" class="note-size-btn" data-note-size="m">M</button>
+            <button type="button" class="note-size-btn" data-note-size="l">L</button>
+          </div>
+          <details class="export-menu">
+            <summary class="btn-ghost btn-sm">Export</summary>
+            <div class="export-menu-body">
+              <button type="button" class="btn-ghost btn-sm" id="exportJsonBtn">JSON</button>
+              <button type="button" class="btn-ghost btn-sm" id="exportMdBtn">Markdown</button>
+            </div>
+          </details>
           <div class="auth-area" id="authArea">
             <button type="button" class="btn-ghost btn-sm" id="signInBtn">Sign in</button>
           </div>
+          <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">◐</button>
         </div>
       </div>
-      <nav class="main-nav" id="mainNav" aria-label="Main">
-        <button type="button" class="nav-btn active" data-view="desk">Desk</button>
+      <nav class="main-nav" id="mainNav">
+        <button type="button" class="nav-btn active" data-view="today">Today</button>
         <button type="button" class="nav-btn" data-view="timeline">All items</button>
         <button type="button" class="nav-btn" data-view="revise">Revise</button>
-        <button type="button" class="nav-btn" data-view="topic">Topic lens</button>
+        <button type="button" class="nav-btn" data-view="drill">Drill</button>
+        <button type="button" class="nav-btn" data-view="calendar">Calendar</button>
+        <button type="button" class="nav-btn" data-view="monthly">Monthly</button>
+        <button type="button" class="nav-btn" data-view="topic">Topic</button>
+        <button type="button" class="nav-btn" data-view="thread">Thread</button>
+        <button type="button" class="nav-btn" data-view="tracker">Tracker</button>
+        <button type="button" class="nav-btn" data-view="desk">Status</button>
       </nav>
     </header>
 
-    <main id="main" aria-live="polite">
-      <p class="muted">Loading…</p>
-    </main>
+    <main id="main" aria-live="polite"><p class="muted">Loading…</p></main>
 
     <dialog class="auth-dialog" id="authDialog">
       <form class="auth-form" id="authForm" method="dialog">
         <h2>Sign in</h2>
-        <p class="muted small">Sync summary, links &amp; sources across devices.</p>
+        <p class="muted small">Sync notes, locks, flashcards across devices.</p>
         <div class="auth-tabs">
           <button type="button" class="auth-tab active" data-auth-tab="signin">Sign in</button>
           <button type="button" class="auth-tab" data-auth-tab="signup">Sign up</button>
         </div>
-        <label class="auth-field">
-          <span>Email</span>
-          <input type="email" id="authEmail" required autocomplete="email" />
-        </label>
-        <label class="auth-field">
-          <span>Password</span>
-          <input type="password" id="authPassword" required minlength="6" autocomplete="current-password" />
-        </label>
+        <label class="auth-field"><span>Email</span><input type="email" id="authEmail" required /></label>
+        <label class="auth-field"><span>Password</span><input type="password" id="authPassword" required minlength="6" /></label>
         <p class="auth-error hidden" id="authError"></p>
         <button type="submit" class="btn-primary auth-submit" id="authSubmitBtn">Sign in</button>
         <div class="auth-divider">or</div>
         <button type="button" class="btn-ghost auth-google" id="authGoogleBtn">Continue with Google</button>
-        <p class="auth-config-note hidden" id="authConfigNote">
-          Copy <code>js/config.example.js</code> → <code>js/config.js</code> — see SUPABASE_SETUP.md
-        </p>
+        <p class="auth-config-note hidden" id="authConfigNote">Set up js/config.js — SUPABASE_SETUP.md</p>
       </form>
     </dialog>
 
     <dialog class="add-dialog" id="addItemDialog">
       <form class="add-form" id="addItemForm" method="dialog">
         <h2>Add current affairs</h2>
-        <p class="muted small">Capture what you read today. Notes sync in browser; push to git from laptop for backup.</p>
-        <label class="auth-field">
-          <span>Title</span>
-          <input type="text" id="addTitle" required placeholder="RBI MPC April — repo unchanged" />
-        </label>
-        <label class="auth-field">
+        <p class="muted small">Quick capture — fill deep notes after opening the item.</p>
+        <label class="auth-field"><span>Title</span><input type="text" id="addTitle" required placeholder="RBI MPC April" /></label>
+        <div class="auth-field date-field">
           <span>Date</span>
-          <input type="date" id="addDate" required />
-        </label>
-        <label class="auth-field">
-          <span>Tags <span class="field-hint">comma-separated</span></span>
-          <input type="text" id="addTags" placeholder="rbi, monetary-policy, mpc" />
-        </label>
-        <label class="auth-field">
-          <span>Thread <span class="field-hint">optional, for topic lens</span></span>
-          <input type="text" id="addThread" placeholder="2025-rbi-monetary-policy" />
-        </label>
+          <input type="hidden" id="addDate" required />
+          <div id="addDatePicker" class="date-picker" aria-label="Pick date"></div>
+        </div>
+        <label class="auth-field"><span>Tags</span><input type="text" id="addTags" placeholder="rbi, monetary-policy" /></label>
+        <label class="auth-field"><span>Thread</span><input type="text" id="addThread" placeholder="2025-rbi-monetary-policy" /></label>
         <fieldset class="gs-fieldset">
           <legend>GS papers</legend>
+          <label class="gs-check"><input type="checkbox" value="3" checked /> GS III</label>
           <label class="gs-check"><input type="checkbox" value="1" /> GS I</label>
           <label class="gs-check"><input type="checkbox" value="2" /> GS II</label>
-          <label class="gs-check"><input type="checkbox" value="3" checked /> GS III</label>
           <label class="gs-check"><input type="checkbox" value="4" /> GS IV</label>
         </fieldset>
-        <label class="auth-field">
-          <span>First link <span class="field-hint">optional</span></span>
-          <input type="url" id="addLinkUrl" placeholder="https://pib.gov.in/…" />
-        </label>
+        <label class="auth-field"><span>Link (optional)</span><input type="url" id="addLinkUrl" placeholder="https://pib.gov.in/…" /></label>
         <p class="auth-error hidden" id="addItemError"></p>
         <div class="dialog-actions">
           <button type="button" class="btn-ghost" id="addItemCancel">Cancel</button>
@@ -120,18 +113,17 @@
 
     <dialog class="add-dialog" id="draftExportDialog">
       <div class="add-form">
-        <h2>Item saved on this device</h2>
-        <p class="muted small">Edit notes now. To sync across devices and back up in git, run on your laptop:</p>
+        <h2>Saved on this device</h2>
         <pre class="cli-block" id="draftCliBlock"></pre>
         <div class="dialog-actions wrap">
-          <button type="button" class="btn-ghost btn-sm" id="copyCliBtn">Copy command</button>
-          <button type="button" class="btn-ghost btn-sm" id="dlManifestBtn">Download manifest.json</button>
-          <button type="button" class="btn-ghost btn-sm" id="dlNotesBtn">Download notes.md</button>
+          <button type="button" class="btn-ghost btn-sm" id="copyCliBtn">Copy</button>
+          <button type="button" class="btn-ghost btn-sm" id="dlManifestBtn">manifest.json</button>
+          <button type="button" class="btn-ghost btn-sm" id="dlNotesBtn">notes.md</button>
           <button type="button" class="btn-primary btn-sm" id="draftExportClose">Open item</button>
         </div>
       </div>
     </dialog>
 
-    <script type="module" src="js/app.js?v=4"></script>
+    <script type="module" src="js/app.js?v=7"></script>
   </body>
 </html>

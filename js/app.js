@@ -13,6 +13,13 @@ import {
   updateCloudField,
   getGitNotesFromLocal,
   saveGitNotesToLocal,
+  getItemMeta,
+  toggleStar,
+  markRevised,
+  isFieldLocked,
+  lockNoteField,
+  unlockNoteField,
+  pickNoteValue,
 } from "./ca-store.js";
 import {
   initSupabase,
@@ -41,6 +48,38 @@ import {
   bindGitHubHeaderButton,
   bindAllMaterialsUploads,
 } from "./github-upload-ui.js";
+import { fieldIdForSection } from "./field-locks.js";
+import {
+  renderRichNoteEditorHtml,
+  bindRichNoteEditor,
+  writeNoteFieldValue,
+  readNoteFieldValue,
+  setRichNoteLocked,
+  noteHtmlToPlainText,
+} from "./rich-notes.js";
+import { initTheme, bindThemeToggle, bindNoteSizeControl } from "./theme.js";
+import { bindExportButtons } from "./export-ca.js";
+import { loadFlashcards, loadFlashcardsLocal, generateFlashcardsFromItem } from "./flashcards.js";
+import { commitNotesMdToGitHub } from "./github-notes.js";
+import {
+  renderToday,
+  renderCalendar,
+  renderThreadDiff,
+  renderDrill,
+  renderMonthly,
+  todayIso,
+  isoDaysAgo,
+  startOfMonthIso,
+} from "./views.js";
+import { mountDatePicker } from "./date-picker.js";
+import { renderActivityDashboard } from "./activity-dashboard.js";
+import {
+  recordCaNoteActivity,
+  recordCaAddActivity,
+  recordCaViewActivity,
+  recordCaStatusActivity,
+  recordCaStarActivity,
+} from "./activity-tracker.js";
 
 const LINK_KINDS = [
   "news",
@@ -62,7 +101,7 @@ const STATUS_OPTIONS = [
 const state = {
   items: [],
   session: null,
-  view: "desk",
+  view: "today",
   itemId: null,
   topicYear: new Date().getFullYear(),
   topicTag: "",
@@ -71,7 +110,9 @@ const state = {
   reviseFrom: isoDaysAgo(7),
   reviseTo: todayIso(),
   reviseTag: "",
-  reviseExpandAll: false,
+  calendarMonth: todayIso().slice(0, 7),
+  threadDiff: "2025-rbi-monetary-policy",
+  monthlyMonth: todayIso().slice(0, 7),
   pendingDraftId: null,
 };
 
@@ -96,21 +137,37 @@ const el = {
   authConfigNote: document.getElementById("authConfigNote"),
   authArea: document.getElementById("authArea"),
   githubConnectBtn: document.getElementById("githubConnectBtn"),
+  themeToggle: document.getElementById("themeToggle"),
+  noteSizeControl: document.getElementById("noteSizeControl"),
+  exportJsonBtn: document.getElementById("exportJsonBtn"),
+  exportMdBtn: document.getElementById("exportMdBtn"),
 };
 
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+const LOCK_ICON_OPEN = `<svg class="note-lock-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M15 11V5a4 4 0 0 1 3 0"/></svg>`;
+const LOCK_ICON_CLOSED = `<svg class="note-lock-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+
+function viewCtx() {
+  return {
+    state,
+    el,
+    escapeHtml,
+    mergedItems,
+    matchesSearch,
+    deskStats,
+    renderItemCard,
+    openAddDialog,
+    getGitSections,
+    bindReviseTodayClicks,
+  };
 }
 
-function isoDaysAgo(n) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
-}
-
-function startOfMonthIso() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+function bindReviseTodayClicks() {
+  document.querySelectorAll(".revise-today-link").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (btn.dataset.reviseType === "card") navigate("drill");
+      else navigate("item", btn.dataset.id || btn.dataset.itemId);
+    });
+  });
 }
 
 function escapeHtml(s) {
@@ -200,6 +257,34 @@ function filterByTopic(items) {
   });
 }
 
+function collectAllTags(items) {
+  const counts = new Map();
+  for (const item of items) {
+    for (const raw of item.tags || []) {
+      const tag = String(raw).trim();
+      if (!tag) continue;
+      counts.set(tag, (counts.get(tag) || 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([tag]) => tag);
+}
+
+function renderTagSelectOptions(tags, selected) {
+  const parts = ['<option value="">All tags</option>'];
+  const known = new Set(tags);
+  if (selected && !known.has(selected)) {
+    parts.push(`<option value="${escapeHtml(selected)}" selected>${escapeHtml(selected)}</option>`);
+  }
+  for (const tag of tags) {
+    parts.push(
+      `<option value="${escapeHtml(tag)}"${tag === selected ? " selected" : ""}>${escapeHtml(tag)}</option>`
+    );
+  }
+  return parts.join("");
+}
+
 function deskStats(items) {
   const weekAgo = isoDaysAgo(7);
   return {
@@ -235,12 +320,14 @@ function renderItemCard(item, { showSummary = true, compact = false } = {}) {
   const draftBadge = isDraftItem(item)
     ? `<span class="badge badge-draft" title="Saved on this device — push to git from laptop">Draft</span>`
     : "";
+  const starred = getItemMeta(item.id).starred;
   return `
     <article class="ca-card ${statusClass(item.status)}" data-open-item="${escapeHtml(item.id)}">
       <div class="ca-card-meta">
         <time>${escapeHtml(item.date || "")}</time>
         ${gsBadges(item.gsPapers)}
         ${draftBadge}
+        ${starred ? '<span class="star-badge" title="Starred">★</span>' : ""}
         <span class="status-pill ${statusClass(item.status)}">${escapeHtml(statusLabel(item.status))}</span>
         <span class="link-count" title="Links">${linkCount} link${linkCount === 1 ? "" : "s"}</span>
       </div>
@@ -271,6 +358,57 @@ function getGitSections(itemId, mdText) {
   return emptyGitSections();
 }
 
+function renderNoteLabelRow(label, itemId, fieldId, userId) {
+  const locked = isFieldLocked(itemId, fieldId);
+  const lockBtn = `<span class="note-lock-wrap" title="Lock freezes this field — your text stays local until you unlock">
+        <button
+          type="button"
+          class="note-lock-btn${locked ? " note-lock-btn--locked" : ""}"
+          data-lock-field="${fieldId}"
+          data-item-id="${escapeHtml(itemId)}"
+          aria-pressed="${locked ? "true" : "false"}"
+          aria-label="${locked ? "Unlock field" : "Lock field — stop cloud sync on this text"}"
+        >${locked ? LOCK_ICON_CLOSED : LOCK_ICON_OPEN}</button>
+      </span>`;
+  return `<div class="note-label-row"><span class="note-label">${escapeHtml(label)}</span>${lockBtn}</div>`;
+}
+
+function syncNoteLockUi(btn, itemId, fieldId) {
+  const field = btn.closest(".note-field");
+  const locked = isFieldLocked(itemId, fieldId);
+  const editor = field?.querySelector(".rich-note-editor");
+  setRichNoteLocked(editor, locked);
+  btn.innerHTML = locked ? LOCK_ICON_CLOSED : LOCK_ICON_OPEN;
+  btn.classList.toggle("note-lock-btn--locked", locked);
+  btn.setAttribute("aria-pressed", locked ? "true" : "false");
+  btn.setAttribute(
+    "aria-label",
+    locked ? "Unlock field" : "Lock field — stop cloud sync on this text"
+  );
+}
+
+function bindNoteLocks(root, itemId, userId) {
+  root.querySelectorAll(".note-lock-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const fieldId = btn.dataset.lockField;
+      const field = btn.closest(".note-field");
+      const locked = isFieldLocked(itemId, fieldId);
+      btn.disabled = true;
+      try {
+        if (locked) {
+          await unlockNoteField(itemId, fieldId, userId);
+        } else {
+          const val = readNoteFieldValue(field);
+          await lockNoteField(itemId, fieldId, val, userId);
+        }
+        syncNoteLockUi(btn, itemId, fieldId);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
 function renderDesk() {
   const q = state.searchQuery.trim();
   let items = mergedItems().filter((i) => matchesSearch(i, q));
@@ -284,9 +422,8 @@ function renderDesk() {
       <div class="hero-row">
         <div>
           <h2>Your CA desk</h2>
-          <p class="muted">Add what you read · revise by date range · deep notes in git.</p>
+          <p class="muted">Workflow by status — not “today only”. Use <strong>All items</strong> for the full dated list.</p>
         </div>
-        <button type="button" class="btn-accent" id="deskAddBtn">+ Add CA</button>
       </div>
       <div class="stats-row">
         <div class="stat-chip"><strong>${stats.total}</strong> total</div>
@@ -311,7 +448,6 @@ function renderDesk() {
       </div>
     </div>`;
 
-  document.getElementById("deskAddBtn")?.addEventListener("click", openAddDialog);
   document.querySelector("[data-open-add]")?.addEventListener("click", openAddDialog);
   document.getElementById("goReviseBtn")?.addEventListener("click", () => navigate("revise"));
 }
@@ -482,7 +618,9 @@ async function renderRevise() {
 }
 
 function renderTopicLens() {
-  const filtered = filterByTopic(mergedItems()).sort((a, b) =>
+  const allItems = mergedItems();
+  const tagOptions = collectAllTags(allItems);
+  const filtered = filterByTopic(allItems).sort((a, b) =>
     (a.date || "").localeCompare(b.date || "")
   );
   el.main.innerHTML = `
@@ -491,22 +629,29 @@ function renderTopicLens() {
       <p class="muted">Year-end view — e.g. all RBI monetary policy items in 2025</p>
       <div class="topic-filters">
         <label>Year <input type="number" id="topicYear" value="${state.topicYear}" min="2020" max="2035" /></label>
-        <label>Tag <input type="text" id="topicTag" placeholder="monetary-policy" value="${escapeHtml(state.topicTag)}" /></label>
+        <label>Tag
+          <select id="topicTag" aria-label="Filter by tag">
+            ${renderTagSelectOptions(tagOptions, state.topicTag)}
+          </select>
+        </label>
         <label>Thread <input type="text" id="topicThread" placeholder="2025-rbi-monetary-policy" value="${escapeHtml(state.topicThread)}" /></label>
         <button type="button" class="btn-primary btn-sm" id="topicApplyBtn">Apply</button>
       </div>
     </section>
     <div class="topic-results">
-      <p><strong>${filtered.length}</strong> matching items</p>
+      <p><strong>${filtered.length}</strong> matching items${state.topicTag ? ` · tag <code>${escapeHtml(state.topicTag)}</code>` : ""}</p>
       <div class="timeline">${filtered.map((i) => renderItemCard(i)).join("") || '<p class="muted">No matches — adjust filters or add tags</p>'}</div>
     </div>`;
 
-  document.getElementById("topicApplyBtn")?.addEventListener("click", () => {
+  const applyTopicFilters = () => {
     state.topicYear = Number(document.getElementById("topicYear").value) || state.topicYear;
     state.topicTag = document.getElementById("topicTag").value.trim();
     state.topicThread = document.getElementById("topicThread").value.trim();
     renderTopicLens();
-  });
+  };
+
+  document.getElementById("topicApplyBtn")?.addEventListener("click", applyTopicFilters);
+  document.getElementById("topicTag")?.addEventListener("change", applyTopicFilters);
 }
 
 function manifestJsonForUpload(item) {
@@ -571,6 +716,7 @@ function renderPdfList(itemId, pdfs) {
 }
 
 async function renderItemDetail(itemId) {
+  recordCaViewActivity(itemId);
   const item = itemById(itemId);
   if (!item) {
     el.main.innerHTML = `<p class="muted">Item not found.</p>`;
@@ -601,15 +747,18 @@ async function renderItemDetail(itemId) {
             <time>${escapeHtml(item.date)}</time>
             <h2>${escapeHtml(item.title)}</h2>
           </div>
-          <label class="status-select-wrap">
-            <span class="small muted">Status</span>
-            <select id="statusSelect" class="status-select">
-              ${STATUS_OPTIONS.map(
-                (s) =>
-                  `<option value="${s.value}" ${item.status === s.value ? "selected" : ""}>${s.label}</option>`
-              ).join("")}
-            </select>
-          </label>
+          <div class="item-actions-row">
+            <button type="button" class="btn-ghost btn-sm star-btn ${getItemMeta(itemId).starred ? "star-on" : ""}" id="starBtn" title="Star for revision">${getItemMeta(itemId).starred ? "★" : "☆"}</button>
+            <label class="status-select-wrap">
+              <span class="small muted">Status</span>
+              <select id="statusSelect" class="status-select">
+                ${STATUS_OPTIONS.map(
+                  (s) =>
+                    `<option value="${s.value}" ${item.status === s.value ? "selected" : ""}>${s.label}</option>`
+                ).join("")}
+              </select>
+            </label>
+          </div>
         </div>
         <div class="item-badges">${gsBadges(item.gsPapers)} ${tagBadges(item.tags)}</div>
       </header>
@@ -642,8 +791,8 @@ async function renderItemDetail(itemId) {
         </div>
 
         <div class="materials-block materials-uploads">
-          <h4 class="materials-subhead">PDF in git <span class="sync-tag git-tag">Git · max ~8 MB</span></h4>
-          <p class="muted small">Small magazine PDFs only. Larger files → Google Drive URL in Sources above.</p>
+          <h4 class="materials-subhead">Small PDF in git <span class="sync-tag git-tag">Git · up to 25 MB</span></h4>
+          <p class="muted small">Short reports only. Full magazines → paste a Google Drive URL in Sources (keeps repo &amp; Pages fast).</p>
           <div class="materials-pdfs">${renderPdfList(itemId, pdfs)}</div>
           <div class="upload-row">
             ${renderGitHubUploadButton("ca-pdf", { "item-id": itemId, "item-manifest": manifestJson })}
@@ -652,31 +801,92 @@ async function renderItemDetail(itemId) {
       </section>
 
       <section class="notes-panel item-notes-panel">
-        <h3 class="section-label">Summary <span class="sync-tag">Supabase</span></h3>
-        <textarea class="note-box" id="summaryField" rows="4" placeholder="What happened — story angle">${escapeHtml(cloud.summary || item.summary || "")}</textarea>
-        ${!userId ? `<p class="muted small">Sign in to sync summary across devices.</p>` : ""}
+        <p class="note-locks-help muted small">Toolbar: <strong>bold</strong>, lists. Padlock = freeze field on sync. Box height: <strong>S/M/L</strong> in header.</p>
+        <div class="note-field" data-field="summary">
+          ${renderNoteLabelRow("Summary", itemId, "summary", userId)}
+          ${renderRichNoteEditorHtml({ "data-field-id": "summary" }, { placeholder: "What happened — story angle", rows: 4 })}
+        </div>
 
-        <h3 class="section-label">Deep notes <span class="sync-tag git-tag">Browser · git later</span></h3>
-        <p class="muted small">Facts, static, exam angle — saved in this browser.</p>
-        ${GIT_SECTIONS.map(
-          (sec) => `
-          <label class="note-label">${escapeHtml(sec)}</label>
-          <textarea class="note-box git-note" data-section="${escapeHtml(sec)}" rows="4">${escapeHtml(sections[sec] || "")}</textarea>`
-        ).join("")}
+        ${GIT_SECTIONS.map((sec) => {
+          const fid = fieldIdForSection(sec);
+          return `<div class="note-field" data-field="${fid}">
+            ${renderNoteLabelRow(sec, itemId, fid, userId)}
+            ${renderRichNoteEditorHtml({ "data-field-id": fid, "data-section": sec }, { placeholder: sec, rows: 5 })}
+          </div>`;
+        }).join("")}
+
+        <div class="item-tool-row">
+          <button type="button" class="btn-ghost btn-sm" id="genFlashBtn">Generate flashcards</button>
+          <button type="button" class="btn-ghost btn-sm" id="markRevisedBtn">Mark revised today</button>
+          <button type="button" class="btn-ghost btn-sm" id="commitNotesBtn">Commit notes.md → GitHub</button>
+        </div>
       </section>
     </article>`;
 
-  document.getElementById("backBtn")?.addEventListener("click", () => navigate(state.view === "item" ? "desk" : state.view));
+  document.getElementById("backBtn")?.addEventListener("click", () => navigate(state.view === "item" ? "today" : state.view));
 
-  document.getElementById("statusSelect")?.addEventListener("change", (e) => {
-    setStatusOverride(itemId, e.target.value);
+  document.getElementById("starBtn")?.addEventListener("click", () => {
+    toggleStar(itemId, userId);
+    recordCaStarActivity(itemId);
     navigate("item", itemId);
   });
 
-  const summaryEl = document.getElementById("summaryField");
-  summaryEl?.addEventListener("input", () => {
-    if (userId) updateCloudField(itemId, userId, "summary", summaryEl.value);
-    else updateCloudField(itemId, null, "summary", summaryEl.value);
+  document.getElementById("statusSelect")?.addEventListener("change", (e) => {
+    setStatusOverride(itemId, e.target.value);
+    recordCaStatusActivity(itemId);
+    navigate("item", itemId);
+  });
+
+  const summaryVal = pickNoteValue(itemId, "summary", cloud.summary || item.summary || "");
+  writeNoteFieldValue(document.querySelector('[data-field-id="summary"]')?.closest(".note-field"), summaryVal);
+  bindRichNoteEditor(document.querySelector('[data-field-id="summary"]'), {
+    onInput: (val) => {
+      updateCloudField(itemId, userId, "summary", val);
+      recordCaNoteActivity(itemId, "summary", noteHtmlToPlainText(val));
+    },
+  });
+  if (isFieldLocked(itemId, "summary")) {
+    setRichNoteLocked(document.querySelector('[data-field-id="summary"]'), true);
+  }
+
+  const gitSections = { ...sections };
+  document.querySelectorAll(".note-field[data-field]").forEach((fieldEl) => {
+    const editor = fieldEl.querySelector(".rich-note-editor");
+    const fid = editor?.dataset.fieldId;
+    const sec = editor?.dataset.section;
+    if (!fid) return;
+    if (fid === "summary") return;
+    const raw = pickNoteValue(itemId, fid, gitSections[sec] || "");
+    writeNoteFieldValue(fieldEl, raw);
+    if (isFieldLocked(itemId, fid)) setRichNoteLocked(editor, true);
+    bindRichNoteEditor(editor, {
+      onInput: (val) => {
+        gitSections[sec] = val;
+        saveGitNotesToLocal(itemId, gitSections, userId);
+        recordCaNoteActivity(itemId, fid, noteHtmlToPlainText(val));
+      },
+    });
+  });
+
+  bindNoteLocks(el.main, itemId, userId);
+
+  document.getElementById("genFlashBtn")?.addEventListener("click", async () => {
+    const n = await generateFlashcardsFromItem(userId, item, gitSections);
+    alert(`Created ${n.length} flashcards. Open Drill tab to revise.`);
+  });
+
+  document.getElementById("markRevisedBtn")?.addEventListener("click", () => {
+    markRevised(itemId, userId);
+    alert("Marked revised today.");
+  });
+
+  document.getElementById("commitNotesBtn")?.addEventListener("click", async () => {
+    try {
+      const path = await commitNotesMdToGitHub(itemId, item.title);
+      alert(`Committed ${path} — live after deploy + build-index.py`);
+    } catch (err) {
+      alert(err.message || String(err));
+    }
   });
 
   mountLinksEditor(itemId, userId, draft, [...(merged.links || [])]);
@@ -695,16 +905,6 @@ async function renderItemDetail(itemId) {
   });
   bindAllMaterialsUploads(materialsPanel, itemId, manifestJsonForUpload(item), () => {
     setTimeout(() => renderItemDetail(itemId), 1500);
-  });
-
-  document.querySelectorAll(".git-note").forEach((ta) => {
-    ta.addEventListener("input", () => {
-      const next = { ...sections };
-      document.querySelectorAll(".git-note").forEach((elTa) => {
-        next[elTa.dataset.section] = elTa.value;
-      });
-      saveGitNotesToLocal(itemId, next);
-    });
   });
 }
 
@@ -812,12 +1012,36 @@ function mountSourcesEditor(itemId, userId, draft, sources) {
   });
 }
 
-function openAddDialog() {
+let addDatePickerApi = null;
+
+function ensureAddDatePicker() {
+  const container = document.getElementById("addDatePicker");
+  const hidden = document.getElementById("addDate");
+  if (!container || !hidden) return null;
+  if (!addDatePickerApi) {
+    addDatePickerApi = mountDatePicker(container, {
+      value: todayIso(),
+      maxDate: todayIso(),
+      onChange(iso) {
+        hidden.value = iso;
+      },
+    });
+  }
+  return addDatePickerApi;
+}
+
+function openAddDialog(presetDate) {
   el.addItemError?.classList.add("hidden");
-  const dateInput = document.getElementById("addDate");
-  if (dateInput) dateInput.value = todayIso();
+  const hidden = document.getElementById("addDate");
+  const iso = presetDate || todayIso();
+  if (hidden) hidden.value = iso;
+  ensureAddDatePicker()?.setValue(iso);
   document.getElementById("addTitle")?.focus();
   el.addItemDialog?.showModal();
+}
+
+function renderTracker() {
+  renderActivityDashboard(el.main);
 }
 
 function showDraftExport(item) {
@@ -883,10 +1107,13 @@ function bindAddItem() {
         : [];
 
       const item = addDraftItem({ title, date, tags, threads, gsPapers, links });
+      recordCaAddActivity(item.id);
       el.addItemDialog?.close();
       el.addItemForm?.reset();
+      ensureAddDatePicker()?.setValue(todayIso());
+      if (document.getElementById("addDate")) document.getElementById("addDate").value = todayIso();
       showDraftExport(item);
-      navigate("desk");
+      navigate("today");
     } catch (err) {
       el.addItemError.textContent = err.message || "Could not add item";
       el.addItemError.classList.remove("hidden");
@@ -909,10 +1136,16 @@ function navigate(view, itemId = null) {
     btn.classList.toggle("active", btn.dataset.view === view);
   });
 
-  if (view === "desk") renderDesk();
+  if (view === "today") renderToday(viewCtx());
+  else if (view === "desk") renderDesk();
   else if (view === "timeline") renderTimeline();
   else if (view === "revise") renderRevise();
   else if (view === "topic") renderTopicLens();
+  else if (view === "calendar") renderCalendar(viewCtx());
+  else if (view === "thread") renderThreadDiff(viewCtx());
+  else if (view === "drill") renderDrill(viewCtx());
+  else if (view === "monthly") renderMonthly(viewCtx());
+  else if (view === "tracker") renderTracker();
   else if (view === "item" && itemId) renderItemDetail(itemId);
 }
 
@@ -1012,6 +1245,10 @@ function bindAuth() {
 }
 
 async function init() {
+  initTheme();
+  bindThemeToggle(el.themeToggle);
+  bindNoteSizeControl(el.noteSizeControl);
+  bindExportButtons(el.exportJsonBtn, el.exportMdBtn, () => mergedItems());
   loadLocalMeta();
   hydrateCloudFromLocal();
   await initSupabase();
@@ -1020,12 +1257,16 @@ async function init() {
   state.session = await getSession();
   if (state.session?.user?.id) {
     await loadAllCloudNotes(state.session.user.id);
+    await loadFlashcards(state.session.user.id);
+  } else {
+    loadFlashcardsLocal();
   }
   onAuthStateChange(async (session) => {
     state.session = session;
     updateAuthUi();
     if (session?.user?.id) {
       await loadAllCloudNotes(session.user.id);
+      await loadFlashcards(session.user.id);
     }
     if (state.view === "item" && state.itemId) renderItemDetail(state.itemId);
     else navigate(state.view);
@@ -1039,7 +1280,7 @@ async function init() {
 
   try {
     await loadIndex();
-    navigate("desk");
+    navigate("today");
   } catch (err) {
     el.main.innerHTML = `<p class="error">Could not load data/index.json — run <code>python3 scripts/build-index.py</code> and use a local server.<br>${escapeHtml(err.message)}</p>`;
   }

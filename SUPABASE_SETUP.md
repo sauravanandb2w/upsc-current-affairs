@@ -11,6 +11,8 @@ Use a **new Supabase project** (not your PYQ project). Only **summary**, **links
 
 **SQL Editor** → paste all of `supabase/schema.sql` → **Run**.
 
+If the project already exists, also run `supabase/schema-migrate.sql` (adds locks, stars, git notes sync).
+
 ## 3. Auth
 
 - **Email** provider on (optional: disable confirm email for testing).
@@ -46,8 +48,12 @@ Repository → **Settings** → **Secrets** → **Actions**:
 
 | Field | Supabase |
 |-------|----------|
-| Summary | Yes |
+| Summary | Yes (+ field locks) |
 | Links | `links_json` |
 | Sources | `sources_json` |
-| Facts, static, GS fit, exam angle, misc | **Git only** (`notes.md`) |
+| Deep notes (Facts, etc.) | `git_notes_json` when signed in |
+| Field locks | `locked_fields` |
+| Stars / last revised | `ca_item_meta` |
+| Flashcards | `ca_flashcards` |
 | Tags, threads | **Git** (`manifest.json`) |
+| Cuttings / PDF files | **Git** (GitHub upload) |

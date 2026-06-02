@@ -80,7 +80,7 @@ export const GITHUB_OAUTH_SCOPE = "public_repo";
    - **+ Add link** — PIB, news, govt URLs (Supabase)
    - **+ Add source** / **+ Paste PDF / Drive link** — newspaper, magazine, Drive URL
    - **Upload cutting / photo** — JPG/PNG to git
-   - **Upload PDF to git** — max ~8 MB; larger → Drive URL in Sources
+   - **Upload PDF to git** — up to 25 MB; full magazines → Drive URL in Sources
 
 After upload, site updates in **~1–2 min**. New items: run `python3 scripts/build-index.py` and push so they appear in the desk list.
 
