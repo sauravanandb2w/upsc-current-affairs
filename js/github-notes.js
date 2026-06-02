@@ -6,7 +6,7 @@ import { getGitHubToken, getGitHubRepo, isGitHubUploadAllowed } from "./github-a
 import { getRepoFile, putRepoFile } from "./github-upload.js";
 import { serializeNotesMd, GIT_SECTIONS } from "./notes-md.js";
 import { getCloudEntry, getGitNotesFromLocal, gitVisibleNoteValue } from "./ca-store.js";
-import { noteHtmlToPlainText } from "./rich-notes.js";
+import { noteHtmlForGitStorage } from "./rich-notes.js";
 import { fieldIdForSection } from "./field-locks.js";
 import { manifestFromItem, syncSearchIndexForItem } from "./github-publish.js";
 
@@ -18,12 +18,12 @@ function sectionsForCommit(itemId, liveSections = null) {
     const live = liveSections
       ? (liveSections[sec] ?? liveSections[fid] ?? git[sec] ?? git[fid] ?? "")
       : (git[sec] ?? git[fid] ?? "");
-    out[sec] = noteHtmlToPlainText(gitVisibleNoteValue(itemId, fid, live));
+    out[sec] = noteHtmlForGitStorage(gitVisibleNoteValue(itemId, fid, live));
   }
   const summaryLive = liveSections
     ? (liveSections.summary ?? liveSections["Summary / story"] ?? getCloudEntry(itemId).summary ?? "")
     : (getCloudEntry(itemId).summary || "");
-  const summary = noteHtmlToPlainText(gitVisibleNoteValue(itemId, "summary", summaryLive));
+  const summary = noteHtmlForGitStorage(gitVisibleNoteValue(itemId, "summary", summaryLive));
   if (summary.trim()) out["Summary / story"] = summary;
   return out;
 }

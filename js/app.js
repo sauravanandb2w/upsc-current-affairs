@@ -61,7 +61,7 @@ import {
   readNoteFieldValue,
   setRichNoteLocked,
   noteHtmlToPlainText,
-  plainTextToNoteHtml,
+  noteStorageToEditorHtml,
 } from "./rich-notes.js";
 import { initTheme, bindThemeToggle, bindNoteSizeControl } from "./theme.js";
 import { bindExportButtons } from "./export-ca.js";
@@ -345,8 +345,7 @@ async function fetchNotesMd(itemId) {
 function parsedNotesToHtmlSections(parsed) {
   const out = {};
   for (const sec of GIT_SECTIONS) {
-    const raw = parsed[sec] || "";
-    out[sec] = raw ? plainTextToNoteHtml(raw) : "";
+    out[sec] = noteStorageToEditorHtml(parsed[sec] || "");
   }
   return out;
 }
@@ -361,7 +360,7 @@ function mergePulledGitWithLocal(parsed, local, itemId) {
     const localVal = local[sec] ?? local[fid] ?? "";
     const localPlain = noteHtmlToPlainText(localVal);
     if (itemId && isFieldLocked(itemId, fid)) {
-      htmlSections[sec] = localPlain.trim() ? localVal : plainTextToNoteHtml(getLockedSnapshot(itemId, fid));
+      htmlSections[sec] = localPlain.trim() ? localVal : noteStorageToEditorHtml(getLockedSnapshot(itemId, fid));
       continue;
     }
     if (!gitPlain.trim() && localPlain.trim()) htmlSections[sec] = localVal;
@@ -997,7 +996,7 @@ async function renderItemDetail(itemId) {
       const localBefore = getGitNotesFromLocal(itemId);
       saveGitNotesToLocal(itemId, mergePulledGitWithLocal(fromGit, localBefore, itemId), userId);
       if (fromGit[SUMMARY_SECTION]?.trim()) {
-        const summaryHtml = plainTextToNoteHtml(fromGit[SUMMARY_SECTION]);
+        const summaryHtml = noteStorageToEditorHtml(fromGit[SUMMARY_SECTION]);
         if (!isFieldLocked(itemId, "summary")) {
           updateCloudField(itemId, userId, "summary", summaryHtml);
         }

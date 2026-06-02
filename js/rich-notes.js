@@ -91,6 +91,22 @@ export function plainTextToNoteHtml(text) {
     .join("");
 }
 
+/** Normalize stored note (plain or HTML) for the rich editor. */
+export function noteStorageToEditorHtml(raw) {
+  const s = String(raw ?? "");
+  if (!s.trim()) return "";
+  if (looksLikeNoteHtml(s)) return sanitizeNoteHtml(s);
+  return plainTextToNoteHtml(s);
+}
+
+/** Sanitized HTML for notes.md — keeps bold/italic/lists through git round-trip. */
+export function noteHtmlForGitStorage(html) {
+  const s = String(html ?? "").trim();
+  if (!s) return "";
+  if (looksLikeNoteHtml(s)) return sanitizeNoteHtml(s);
+  return plainTextToNoteHtml(s);
+}
+
 export function setRichNoteContent(editor, raw) {
   if (!editor) return;
   const s = String(raw ?? "");
@@ -98,7 +114,7 @@ export function setRichNoteContent(editor, raw) {
     editor.innerHTML = "";
     return;
   }
-  editor.innerHTML = looksLikeNoteHtml(s) ? sanitizeNoteHtml(s) : plainTextToNoteHtml(s);
+  editor.innerHTML = noteStorageToEditorHtml(s);
 }
 
 export function getRichNoteContent(editor) {

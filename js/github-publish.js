@@ -6,7 +6,7 @@ import { isGitHubConnected, isGitHubUploadAllowed } from "./github-auth.js";
 import { getRepoFile, putRepoFile } from "./github-upload.js";
 import { GIT_SECTIONS, serializeNotesMd, defaultNotesTemplate } from "./notes-md.js";
 import { getCloudEntry, getGitNotesFromLocal, gitVisibleNoteValue } from "./ca-store.js";
-import { noteHtmlToPlainText } from "./rich-notes.js";
+import { noteHtmlToPlainText, noteHtmlForGitStorage } from "./rich-notes.js";
 import { fieldIdForSection } from "./field-locks.js";
 
 const INDEX_PATH = "data/index.json";
@@ -81,9 +81,9 @@ function notesBodyForItem(itemId) {
   const sections = {};
   for (const sec of GIT_SECTIONS) {
     const fid = fieldIdForSection(sec);
-    sections[sec] = noteHtmlToPlainText(gitVisibleNoteValue(itemId, fid, git[sec] ?? git[fid] ?? ""));
+    sections[sec] = noteHtmlForGitStorage(gitVisibleNoteValue(itemId, fid, git[sec] ?? git[fid] ?? ""));
   }
-  const summary = noteHtmlToPlainText(
+  const summary = noteHtmlForGitStorage(
     gitVisibleNoteValue(itemId, "summary", getCloudEntry(itemId).summary || "")
   );
   const hasGit = Object.values(sections).some((v) => String(v).trim());
