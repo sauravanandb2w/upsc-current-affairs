@@ -29,6 +29,7 @@ import {
   syncNotesToCloud,
   getLastCloudSyncError,
   clearGitNotesDraftAfterCommit,
+  markGitNotesDraftDirty,
 } from "./ca-store.js";
 import {
   initSupabase,
@@ -1005,6 +1006,7 @@ async function renderItemDetail(itemId) {
     if (isFieldLocked(itemId, fid)) setRichNoteLocked(editor, true);
     bindRichNoteEditor(editor, {
       onInput: (val) => {
+        markGitNotesDraftDirty(itemId);
         gitSections[sec] = val;
         saveGitNotesToLocal(itemId, gitSections, userId);
         recordCaNoteActivity(itemId, fid, noteHtmlToPlainText(val));
@@ -1047,7 +1049,13 @@ async function renderItemDetail(itemId) {
       const liveSections = readGitSectionsFromEditors();
       const { path, searchEntry } = await commitNotesMdToGitHub(itemId, merged, liveSections);
       if (searchEntry) setSearchIndexEntry(itemId, searchEntry);
-      await clearGitNotesDraftAfterCommit(itemId, userId);
+      const clearResult = await clearGitNotesDraftAfterCommit(itemId, userId);
+      if (!clearResult.ok) {
+        alert(
+          `Committed ${path} to GitHub.\n\nSupabase clear failed: ${clearResult.error}\n\nStay signed in and tap Commit again (or Sync) to empty git_notes_json.`
+        );
+        return;
+      }
       alert(
         `Committed ${path} to GitHub.\n\nDeep notes cleared from Supabase (Git is the archive). This screen still shows your text. On another device use “Refresh notes from GitHub”. New edits here become Supabase drafts again until the next commit.`
       );

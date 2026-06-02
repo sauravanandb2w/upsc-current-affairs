@@ -4,6 +4,7 @@ import { GIT_SECTIONS, sectionPlainLength } from "./notes-md.js";
 
 const LS_CLOUD_PREFIX = "ca-cloud:";
 const LS_GIT_PREFIX = "ca-git-notes:";
+const LS_GIT_ARCHIVED_PREFIX = "ca-git-archived:";
 const LS_META_PREFIX = "ca-meta:";
 const DEBOUNCE_MS = 700;
 
@@ -139,10 +140,18 @@ function cloudEntryFromRow(row) {
 
 function mergeCloudEntryWithLocal(itemId, local, remote, hasPendingSave) {
   const localEntry = local || readLocalCloudEntry(itemId) || emptyCloudEntry();
-  const localGit = localEntry.gitNotes && Object.keys(localEntry.gitNotes).length
-    ? localEntry.gitNotes
-    : readLocalGitNotes(itemId);
+  const localGit =
+    !isGitNotesArchivedToGit(itemId) &&
+    localEntry.gitNotes &&
+    Object.keys(localEntry.gitNotes).length
+      ? localEntry.gitNotes
+      : isGitNotesArchivedToGit(itemId)
+        ? null
+        : readLocalGitNotes(itemId);
   const remoteEntry = remote || emptyCloudEntry();
+  const gitNotes = isGitNotesArchivedToGit(itemId)
+    ? {}
+    : mergeGitNotesLocalRemote(localGit, remoteEntry.gitNotes);
 
   if (hasPendingSave) {
     return {
@@ -150,7 +159,7 @@ function mergeCloudEntryWithLocal(itemId, local, remote, hasPendingSave) {
       summary: coalesceNoteText(localEntry.summary, remoteEntry.summary),
       links: localEntry.links?.length ? localEntry.links : remoteEntry.links,
       sources: localEntry.sources?.length ? localEntry.sources : remoteEntry.sources,
-      gitNotes: mergeGitNotesLocalRemote(localGit, remoteEntry.gitNotes),
+      gitNotes,
       __locks: { ...remoteEntry.__locks },
     };
   }
@@ -159,9 +168,24 @@ function mergeCloudEntryWithLocal(itemId, local, remote, hasPendingSave) {
     summary: coalesceNoteText(localEntry.summary, remoteEntry.summary),
     links: localEntry.links?.length ? localEntry.links : remoteEntry.links,
     sources: localEntry.sources?.length ? localEntry.sources : remoteEntry.sources,
-    gitNotes: mergeGitNotesLocalRemote(localGit, remoteEntry.gitNotes),
+    gitNotes,
     __locks: { ...remoteEntry.__locks },
   };
+}
+
+export function isGitNotesArchivedToGit(itemId) {
+  return Boolean(itemId && localStorage.getItem(LS_GIT_ARCHIVED_PREFIX + itemId));
+}
+
+export function markGitNotesArchivedToGit(itemId) {
+  if (!itemId) return;
+  localStorage.setItem(LS_GIT_ARCHIVED_PREFIX + itemId, new Date().toISOString());
+}
+
+/** User edited deep notes again — resume Supabase draft sync. */
+export function markGitNotesDraftDirty(itemId) {
+  if (!itemId) return;
+  localStorage.removeItem(LS_GIT_ARCHIVED_PREFIX + itemId);
 }
 
 function cancelPendingCloudSave(itemId) {
@@ -194,9 +218,13 @@ export async function clearGitNotesDraftAfterCommit(itemId, userId) {
   persistCloudEntry(itemId, entry);
 
   const uid = resolveUserId(userId);
-  if (!isSupabaseConfigured() || !uid) return { ok: true };
+  if (!isSupabaseConfigured() || !uid) {
+    return { ok: false, error: "Sign in to clear Supabase drafts" };
+  }
 
-  return pushCloudEntry(itemId, uid, entry, { force: true });
+  const result = await pushCloudEntry(itemId, uid, entry, { force: true });
+  if (result.ok) markGitNotesArchivedToGit(itemId);
+  return result;
 }
 
 async function pushCloudEntry(itemId, userId, payload, { force = false } = {}) {
@@ -219,10 +247,12 @@ async function pushCloudEntry(itemId, userId, payload, { force = false } = {}) {
   }
 
   const gitNotes = {};
-  for (const sec of GIT_SECTIONS) {
-    const fid = fieldIdForSection(sec);
-    if (live.gitNotes?.[sec] !== undefined) gitNotes[sec] = live.gitNotes[sec];
-    else if (live.gitNotes?.[fid] !== undefined) gitNotes[sec] = live.gitNotes[fid];
+  if (!isGitNotesArchivedToGit(itemId)) {
+    for (const sec of GIT_SECTIONS) {
+      const fid = fieldIdForSection(sec);
+      if (live.gitNotes?.[sec] !== undefined) gitNotes[sec] = live.gitNotes[sec];
+      else if (live.gitNotes?.[fid] !== undefined) gitNotes[sec] = live.gitNotes[fid];
+    }
   }
   const { data, error } = await sb
     .from("ca_item_notes")
@@ -269,7 +299,7 @@ export async function syncNotesToCloud(userId, extraItemIds = []) {
   for (const itemId of itemIds) {
     const entry = getCloudEntry(itemId);
     const gitLocal = readLocalGitNotes(itemId);
-    if (gitLocal && Object.keys(gitLocal).length) {
+    if (gitLocal && Object.keys(gitLocal).length && !isGitNotesArchivedToGit(itemId)) {
       entry.gitNotes = mergeGitNotesLocalRemote(gitLocal, entry.gitNotes);
       cloudCache[itemId] = entry;
     }
@@ -374,6 +404,10 @@ export function getGitNotesFromLocal(itemId) {
 export function saveGitNotesToLocal(itemId, sections, userId = null) {
   const entry = getCloudEntry(itemId);
   entry.gitNotes = { ...sections };
+  cloudCache[itemId] = entry;
+  if (isGitNotesArchivedToGit(itemId)) {
+    return;
+  }
   localStorage.setItem(LS_GIT_PREFIX + itemId, JSON.stringify(sections));
   scheduleCloudSave(itemId, userId, entry);
 }
@@ -561,6 +595,7 @@ export async function removeItemFromCloud(itemId, userId) {
   delete metaCache[itemId];
   localStorage.removeItem(LS_CLOUD_PREFIX + itemId);
   localStorage.removeItem(LS_GIT_PREFIX + itemId);
+  localStorage.removeItem(LS_GIT_ARCHIVED_PREFIX + itemId);
   localStorage.removeItem(LS_META_PREFIX + itemId);
   cancelPendingCloudSave(itemId);
   if (!userId || !isSupabaseConfigured()) return;
