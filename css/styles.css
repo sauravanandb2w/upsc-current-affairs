@@ -152,11 +152,21 @@ code {
   border-radius: 999px;
   background: var(--paper-deep);
   color: var(--ink-muted);
+  border: 1px solid transparent;
+  cursor: default;
 }
 
 .sync-badge.sync-on {
   background: #d1fae5;
   color: #065f46;
+  cursor: pointer;
+}
+
+.sync-badge.sync-error {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+  cursor: pointer;
 }
 
 /* Nav */

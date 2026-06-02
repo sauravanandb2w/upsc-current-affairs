@@ -26,7 +26,8 @@ import {
   removeItemFromCloud,
   flushPendingCloudSavesNow,
   setCloudSyncUserId,
-  pushAllLocalNotesToCloud,
+  syncNotesToCloud,
+  getLastCloudSyncError,
 } from "./ca-store.js";
 import {
   initSupabase,
@@ -1522,10 +1523,39 @@ function renderAuthArea() {
 function updateAuthUi() {
   const configured = isSupabaseConfigured();
   const signedIn = Boolean(state.session);
-  el.syncBadge.textContent = signedIn ? "Cloud sync on" : configured ? "Sign in to sync" : "Local only";
-  el.syncBadge.classList.toggle("sync-on", signedIn);
+  const syncErr = getLastCloudSyncError();
+  if (signedIn) {
+    el.syncBadge.textContent = syncErr ? "Sync error — tap to retry" : "Cloud sync on — tap to sync";
+    el.syncBadge.title = syncErr || "Tap to push notes to Supabase now";
+  } else {
+    el.syncBadge.textContent = configured ? "Sign in to sync" : "Local only";
+    el.syncBadge.title = configured
+      ? "Sign in to sync notes across devices"
+      : "Add Supabase keys (see SUPABASE_SETUP.md)";
+  }
+  el.syncBadge.classList.toggle("sync-on", signedIn && !syncErr);
+  el.syncBadge.classList.toggle("sync-error", Boolean(signedIn && syncErr));
   el.authConfigNote?.classList.toggle("hidden", configured);
   renderAuthArea();
+}
+
+async function runCloudSync(showAlert = false) {
+  if (!state.session?.user?.id) {
+    if (showAlert) alert("Sign in first — notes sync to Supabase only when signed in.");
+    return;
+  }
+  if (state.view === "item" && state.itemId) flushItemNoteEditorsFromDom();
+  el.syncBadge.textContent = "Syncing…";
+  const result = await syncNotesToCloud(
+    state.session.user.id,
+    mergedItems().map((i) => i.id)
+  );
+  updateAuthUi();
+  if (showAlert) {
+    if (result.error && !result.pushed) alert(`Sync failed: ${result.error}`);
+    else if (result.pushed) alert(`Synced ${result.pushed} item(s) to Supabase ca_item_notes.`);
+    else alert(result.error || "Nothing to sync yet — type notes in a CA item first.");
+  }
 }
 
 async function loadIndex() {
@@ -1615,7 +1645,7 @@ async function initAuthBackground() {
     if (state.session?.user?.id) {
       if (state.view === "item" && state.itemId) flushItemNoteEditorsFromDom();
       await flushPendingCloudSavesNow();
-      await pushAllLocalNotesToCloud(state.session.user.id);
+      await syncNotesToCloud(state.session.user.id, state.items.map((i) => i.id));
       await withTimeout(loadAllCloudNotes(state.session.user.id), 12000, undefined);
       await withTimeout(loadFlashcards(state.session.user.id), 8000, undefined);
     }
@@ -1628,7 +1658,7 @@ async function initAuthBackground() {
       }
       await flushPendingCloudSavesNow();
       if (session?.user?.id) {
-        await pushAllLocalNotesToCloud(session.user.id);
+        await syncNotesToCloud(session.user.id, state.items.map((i) => i.id));
         await loadAllCloudNotes(session.user.id);
         await loadFlashcards(session.user.id);
       }
@@ -1656,6 +1686,7 @@ async function init() {
     bindAddItem();
     bindSearch();
     bindGlobalClicks();
+    el.syncBadge?.addEventListener("click", () => runCloudSync(true));
     updateAuthUi();
 
     await loadIndex();

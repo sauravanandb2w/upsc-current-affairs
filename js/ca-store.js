@@ -23,12 +23,45 @@ function resolveUserId(userId) {
 
 function entryHasCloudContent(entry) {
   if (!entry) return false;
-  if (String(entry.summary || "").trim()) return true;
+  if (sectionPlainLength(entry.summary) > 0) return true;
   if (entry.links?.length) return true;
   if (entry.sources?.length) return true;
-  if (entry.gitNotes && Object.keys(entry.gitNotes).length) return true;
+  for (const sec of GIT_SECTIONS) {
+    const fid = fieldIdForSection(sec);
+    const val = entry.gitNotes?.[sec] ?? entry.gitNotes?.[fid];
+    if (sectionPlainLength(val) > 0) return true;
+  }
   if (entry.__locks && Object.keys(entry.__locks).length) return true;
   return false;
+}
+
+function itemHasLocalTouch(itemId) {
+  return Boolean(
+    localStorage.getItem(LS_CLOUD_PREFIX + itemId) || localStorage.getItem(LS_GIT_PREFIX + itemId)
+  );
+}
+
+function collectAllNoteItemIds(extraIds = []) {
+  const itemIds = new Set(Object.keys(cloudCache));
+  for (const id of extraIds || []) {
+    if (id) itemIds.add(id);
+  }
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key?.startsWith(LS_CLOUD_PREFIX)) itemIds.add(key.slice(LS_CLOUD_PREFIX.length));
+    if (key?.startsWith(LS_GIT_PREFIX)) itemIds.add(key.slice(LS_GIT_PREFIX.length));
+  }
+  return [...itemIds];
+}
+
+let lastCloudSyncError = null;
+
+export function getLastCloudSyncError() {
+  return lastCloudSyncError;
+}
+
+function setCloudSyncError(message) {
+  lastCloudSyncError = message || null;
 }
 
 /** @type {Record<string, object>} */
@@ -128,58 +161,98 @@ function persistCloudEntry(itemId, entry) {
   }
 }
 
-async function pushCloudEntry(itemId, userId, payload) {
+async function pushCloudEntry(itemId, userId, payload, { force = false } = {}) {
   const uid = resolveUserId(userId);
-  if (!isSupabaseConfigured() || !uid) return false;
-  const live = payload || getCloudEntry(itemId);
-  if (!entryHasCloudContent(live)) return false;
+  if (!isSupabaseConfigured() || !uid) {
+    return { ok: false, error: "Not signed in" };
+  }
   const sb = getSupabase();
+  const { data: sessionWrap, error: sessionError } = await sb.auth.getSession();
+  if (sessionError) {
+    return { ok: false, error: sessionError.message || "Session error" };
+  }
+  if (!sessionWrap.session?.access_token) {
+    return { ok: false, error: "No active session — sign in again" };
+  }
+
+  const live = payload || getCloudEntry(itemId);
+  if (!force && !entryHasCloudContent(live)) {
+    return { ok: false, error: "empty" };
+  }
+
   const gitNotes = {};
   for (const sec of GIT_SECTIONS) {
     const fid = fieldIdForSection(sec);
     if (live.gitNotes?.[sec] !== undefined) gitNotes[sec] = live.gitNotes[sec];
     else if (live.gitNotes?.[fid] !== undefined) gitNotes[sec] = live.gitNotes[fid];
   }
-  const { error } = await sb.from("ca_item_notes").upsert(
-    {
-      user_id: uid,
-      item_id: itemId,
-      summary: live.summary || "",
-      links_json: live.links || [],
-      sources_json: live.sources || [],
-      locked_fields: serializeLocks(live.__locks),
-      git_notes_json: gitNotes,
-    },
-    { onConflict: "user_id,item_id" }
-  );
+  const { data, error } = await sb
+    .from("ca_item_notes")
+    .upsert(
+      {
+        user_id: uid,
+        item_id: itemId,
+        summary: live.summary || "",
+        links_json: live.links || [],
+        sources_json: live.sources || [],
+        locked_fields: serializeLocks(live.__locks),
+        git_notes_json: gitNotes,
+      },
+      { onConflict: "user_id,item_id" }
+    )
+    .select("item_id");
+
   if (error) {
-    console.warn("ca_item_notes save", itemId, error.message || error);
-    return false;
+    const msg = error.message || String(error);
+    console.warn("ca_item_notes save", itemId, msg);
+    setCloudSyncError(msg);
+    return { ok: false, error: msg };
   }
-  return true;
+  if (!data?.length) {
+    const msg = "Upsert returned no rows — check RLS policies and schema migration";
+    setCloudSyncError(msg);
+    return { ok: false, error: msg };
+  }
+  return { ok: true };
 }
 
-/** Push every local note row to Supabase (after sign-in or manual sync). */
-export async function pushAllLocalNotesToCloud(userId) {
+/** Push local notes to Supabase; returns count and any error message. */
+export async function syncNotesToCloud(userId, extraItemIds = []) {
+  await flushPendingCloudSavesNow();
   const uid = resolveUserId(userId);
-  if (!isSupabaseConfigured() || !uid) return 0;
-
-  const itemIds = new Set(Object.keys(cloudCache));
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key?.startsWith(LS_CLOUD_PREFIX)) itemIds.add(key.slice(LS_CLOUD_PREFIX.length));
-    if (key?.startsWith(LS_GIT_PREFIX)) itemIds.add(key.slice(LS_GIT_PREFIX.length));
+  if (!isSupabaseConfigured() || !uid) {
+    return { pushed: 0, error: "Sign in to sync notes" };
   }
 
+  const itemIds = collectAllNoteItemIds(extraItemIds);
   let pushed = 0;
+  let lastError = null;
+
   for (const itemId of itemIds) {
     const entry = getCloudEntry(itemId);
     const gitLocal = readLocalGitNotes(itemId);
     if (gitLocal && Object.keys(gitLocal).length) {
       entry.gitNotes = mergeGitNotesLocalRemote(gitLocal, entry.gitNotes);
+      cloudCache[itemId] = entry;
     }
-    if (await pushCloudEntry(itemId, uid, entry)) pushed += 1;
+    const force = entryHasCloudContent(entry) || itemHasLocalTouch(itemId);
+    if (!force) continue;
+    const result = await pushCloudEntry(itemId, uid, entry, { force: true });
+    if (result.ok) pushed += 1;
+    else if (result.error && result.error !== "empty") lastError = result.error;
   }
+
+  if (pushed > 0 && !lastError) setCloudSyncError(null);
+  else if (lastError) setCloudSyncError(lastError);
+  else if (!itemIds.length) {
+    return { pushed: 0, error: "No notes on this device yet — open a CA item and type first" };
+  }
+  return { pushed, error: lastError };
+}
+
+/** @deprecated Use syncNotesToCloud */
+export async function pushAllLocalNotesToCloud(userId) {
+  const { pushed } = await syncNotesToCloud(userId);
   return pushed;
 }
 
@@ -216,7 +289,17 @@ function serializeLocks(locks) {
 }
 
 export function getCloudEntry(itemId) {
-  return cloudCache[itemId] || emptyCloudEntry();
+  if (!cloudCache[itemId]) {
+    const fromLocal = readLocalCloudEntry(itemId);
+    cloudCache[itemId] = fromLocal || emptyCloudEntry();
+    if (!fromLocal) {
+      const gitLocal = readLocalGitNotes(itemId);
+      if (gitLocal && typeof gitLocal === "object") {
+        cloudCache[itemId].gitNotes = { ...gitLocal };
+      }
+    }
+  }
+  return cloudCache[itemId];
 }
 
 export function getItemMeta(itemId) {
