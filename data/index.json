@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-06-02T13:16:45Z",
-  "count": 4,
+  "generatedAt": "2026-06-02T13:35:59Z",
+  "count": 5,
   "items": [
     {
       "id": "2026-06-02-test-test",
@@ -21,6 +21,25 @@
       "sources": [],
       "links": [],
       "_folder": "2026-06-02-test-test"
+    },
+    {
+      "id": "2026-06-02-test",
+      "date": "2026-06-02",
+      "title": "test",
+      "status": "to-study",
+      "gsPapers": [
+        3
+      ],
+      "tags": [
+        "test"
+      ],
+      "threads": [
+        "test"
+      ],
+      "images": [],
+      "sources": [],
+      "links": [],
+      "_folder": "2026-06-02-test"
     },
     {
       "id": "2025-06-02-green-hydrogen",
