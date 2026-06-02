@@ -726,6 +726,11 @@ async function renderItemDetail(itemId) {
         : ""
     }
     <article class="item-spread">
+      <section class="git-zone git-zone--manifest item-meta-zone">
+        <div class="git-zone-head">
+          <span class="git-zone-badge git-zone-badge--manifest">Save to GitHub</span>
+          <span class="git-zone-hint muted small">Status, tags, links, sources, files → manifest.json</span>
+        </div>
       <header class="item-header">
         <div class="item-header-row">
           <div>
@@ -734,9 +739,9 @@ async function renderItemDetail(itemId) {
           </div>
           <div class="item-actions-row">
             <button type="button" class="btn-ghost btn-sm star-btn ${getItemMeta(itemId).starred ? "star-on" : ""}" id="starBtn" title="Star for revision">${getItemMeta(itemId).starred ? "★" : "☆"}</button>
-            <label class="status-select-wrap">
-              <span class="small muted">Status</span>
-              <select id="statusSelect" class="status-select">
+            <label class="status-select-wrap git-manifest-control">
+              <span class="small">Status</span>
+              <select id="statusSelect" class="status-select git-manifest-control">
                 ${STATUS_OPTIONS.map(
                   (s) =>
                     `<option value="${s.value}" ${item.status === s.value ? "selected" : ""}>${s.label}</option>`
@@ -745,22 +750,23 @@ async function renderItemDetail(itemId) {
             </label>
           </div>
         </div>
-        <div class="item-badges">${gsBadges(item.gsPapers)} ${tagBadges(item.tags)}</div>
+        <div class="item-badges git-manifest-badges">${gsBadges(item.gsPapers)} ${tagBadges(item.tags)}</div>
       </header>
+      </section>
 
-      <section class="materials-panel" id="materialsPanel">
-        <h3 class="section-label">Materials — links, cuttings, PDFs</h3>
+      <section class="materials-panel git-zone git-zone--manifest" id="materialsPanel">
+        <h3 class="section-label git-zone-section-label">Materials — links, cuttings, PDFs</h3>
         ${renderGitHubConnectHint()}
 
         <div class="materials-block">
-          <h4 class="materials-subhead">Quick links <span class="sync-tag">${userId ? "Supabase sync" : "Saved in browser"}</span></h4>
+          <h4 class="materials-subhead">Quick links <span class="git-zone-badge git-zone-badge--manifest git-zone-badge--inline">Save to GitHub</span></h4>
           <div class="link-ribbon" id="linkRibbon">${renderLinkRibbon(merged.links)}</div>
           <div id="linksEditor" class="links-editor"></div>
           <button type="button" class="btn-ghost btn-sm" id="addLinkBtn">+ Add link</button>
         </div>
 
         <div class="materials-block">
-          <h4 class="materials-subhead">Sources &amp; PDF links <span class="sync-tag">${userId ? "Supabase sync" : "Saved in browser"}</span></h4>
+          <h4 class="materials-subhead">Sources &amp; PDF links <span class="git-zone-badge git-zone-badge--manifest git-zone-badge--inline">Save to GitHub</span></h4>
           <p class="muted small">Newspaper, PIB, magazine. For large PDFs on Drive — paste URL here (type: magazine/report).</p>
           <div id="sourcesList" class="sources-list"></div>
           <button type="button" class="btn-ghost btn-sm" id="addSourceBtn">+ Add source</button>
@@ -768,7 +774,7 @@ async function renderItemDetail(itemId) {
         </div>
 
         <div class="materials-block materials-uploads">
-          <h4 class="materials-subhead">Cuttings &amp; photos <span class="sync-tag git-tag">Git</span></h4>
+          <h4 class="materials-subhead">Cuttings &amp; photos <span class="git-zone-badge git-zone-badge--manifest git-zone-badge--inline">Git upload</span></h4>
           <div class="materials-gallery gallery">${renderGalleryImages(itemId, item.images)}</div>
           <div class="upload-row">
             ${renderGitHubUploadButton("ca-image", { "item-id": itemId, "item-manifest": manifestJson })}
@@ -776,45 +782,55 @@ async function renderItemDetail(itemId) {
         </div>
 
         <div class="materials-block materials-uploads">
-          <h4 class="materials-subhead">Small PDF in git <span class="sync-tag git-tag">Git · up to 25 MB</span></h4>
+          <h4 class="materials-subhead">Small PDF in git <span class="git-zone-badge git-zone-badge--manifest git-zone-badge--inline">Git upload</span></h4>
           <p class="muted small">Short reports only. Full magazines → paste a Google Drive URL in Sources (keeps repo &amp; Pages fast).</p>
           <div class="materials-pdfs">${renderPdfList(itemId, pdfs)}</div>
           <div class="upload-row">
             ${renderGitHubUploadButton("ca-pdf", { "item-id": itemId, "item-manifest": manifestJson })}
           </div>
         </div>
+        ${
+          !draft
+            ? `<div class="git-zone-actions git-zone-actions--manifest">
+                <button type="button" class="btn-primary btn-sm" id="saveGitHubBtn" title="Status, tags, links, sources → manifest + index">Save to GitHub</button>
+              </div>`
+            : ""
+        }
       </section>
 
-      <section class="notes-panel item-notes-panel">
-        <p class="note-locks-help muted small">Toolbar: <strong>bold</strong>, lists. Padlock = freeze field on sync. Box height: <strong>S/M/L</strong> in header.</p>
-        <div class="note-field" data-field="summary">
+      <section class="notes-panel item-notes-panel git-zone git-zone--notes">
+        <div class="git-zone-head">
+          <span class="git-zone-badge git-zone-badge--notes">Commit notes.md → GitHub</span>
+          <span class="git-zone-hint muted small">Summary, Facts, Exam angle, etc. → notes.md</span>
+        </div>
+        <p class="note-locks-help muted small">Toolbar: <strong>bold</strong>, lists. Padlock = freeze field. Box height: <strong>S/M/L</strong> in header. ${userId ? "Supabase syncs as you type." : "Saved in browser until commit."}</p>
+        <div class="note-field git-notes-field" data-field="summary">
           ${renderNoteLabelRow("Summary", itemId, "summary", userId)}
           ${renderRichNoteEditorHtml({ "data-field-id": "summary" }, { placeholder: "What happened — story angle", rows: 4 })}
         </div>
 
         ${GIT_SECTIONS.map((sec) => {
           const fid = fieldIdForSection(sec);
-          return `<div class="note-field" data-field="${fid}">
+          return `<div class="note-field git-notes-field" data-field="${fid}">
             ${renderNoteLabelRow(sec, itemId, fid, userId)}
             ${renderRichNoteEditorHtml({ "data-field-id": fid, "data-section": sec }, { placeholder: sec, rows: 5 })}
           </div>`;
         }).join("")}
 
-        <div class="item-tool-row">
+        <div class="item-tool-row item-tool-row--neutral">
           <button type="button" class="btn-ghost btn-sm" id="genFlashBtn" title="From Facts &amp; Exam angle — one bullet per line">Generate flashcards</button>
           <button type="button" class="btn-ghost btn-sm" id="markRevisedBtn">Mark revised today</button>
-          ${
-            !draft
-              ? `<button type="button" class="btn-primary btn-sm" id="saveGitHubBtn" title="Status, tags, links, sources → manifest + index">Save to GitHub</button>`
-              : ""
-          }
-          <button type="button" class="btn-ghost btn-sm" id="commitNotesBtn" ${draft ? 'disabled title="Publish first"' : ""}>Commit notes.md → GitHub</button>
-          ${
-            !draft
-              ? `<button type="button" class="btn-ghost btn-sm" id="pullNotesBtn" title="Load notes.md from GitHub into this browser">Refresh notes from GitHub</button>`
-              : ""
-          }
         </div>
+        ${
+          !draft
+            ? `<div class="git-zone-actions git-zone-actions--notes">
+                <button type="button" class="btn-git-notes btn-sm" id="commitNotesBtn">Commit notes.md → GitHub</button>
+                <button type="button" class="btn-git-notes btn-sm btn-git-notes--soft" id="pullNotesBtn" title="Load notes.md from GitHub into this browser">Refresh notes from GitHub</button>
+              </div>`
+            : `<div class="git-zone-actions git-zone-actions--notes">
+                <button type="button" class="btn-git-notes btn-sm" id="commitNotesBtn" disabled title="Publish first">Commit notes.md → GitHub</button>
+              </div>`
+        }
       </section>
     </article>`;
 
