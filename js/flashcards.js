@@ -7,7 +7,7 @@ export const REVISION_BUCKETS = [7, 30, 90, 180, 365];
 const LS_FLASH = "ca-flashcards:v1";
 let flashCache = [];
 
-export export function loadFlashcardsLocal() {
+export function loadFlashcardsLocal() {
   try {
     flashCache = JSON.parse(localStorage.getItem(LS_FLASH) || "[]");
     if (!Array.isArray(flashCache)) flashCache = [];

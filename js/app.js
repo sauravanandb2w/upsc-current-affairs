@@ -1245,44 +1245,47 @@ function bindAuth() {
 }
 
 async function init() {
-  initTheme();
-  bindThemeToggle(el.themeToggle);
-  bindNoteSizeControl(el.noteSizeControl);
-  bindExportButtons(el.exportJsonBtn, el.exportMdBtn, () => mergedItems());
-  loadLocalMeta();
-  hydrateCloudFromLocal();
-  await initSupabase();
-  await initGitHubUploadConfig();
-  bindGitHubHeaderButton(el.githubConnectBtn);
-  state.session = await getSession();
-  if (state.session?.user?.id) {
-    await loadAllCloudNotes(state.session.user.id);
-    await loadFlashcards(state.session.user.id);
-  } else {
-    loadFlashcardsLocal();
-  }
-  onAuthStateChange(async (session) => {
-    state.session = session;
-    updateAuthUi();
-    if (session?.user?.id) {
-      await loadAllCloudNotes(session.user.id);
-      await loadFlashcards(session.user.id);
-    }
-    if (state.view === "item" && state.itemId) renderItemDetail(state.itemId);
-    else navigate(state.view);
-  });
-
-  bindAuth();
-  bindAddItem();
-  bindSearch();
-  bindGlobalClicks();
-  updateAuthUi();
-
   try {
+    initTheme();
+    bindThemeToggle(el.themeToggle);
+    bindNoteSizeControl(el.noteSizeControl);
+    bindExportButtons(el.exportJsonBtn, el.exportMdBtn, () => mergedItems());
+    loadLocalMeta();
+    hydrateCloudFromLocal();
+    await initSupabase();
+    await initGitHubUploadConfig();
+    bindGitHubHeaderButton(el.githubConnectBtn);
+    state.session = await getSession();
+    if (state.session?.user?.id) {
+      await loadAllCloudNotes(state.session.user.id);
+      await loadFlashcards(state.session.user.id);
+    } else {
+      loadFlashcardsLocal();
+    }
+    onAuthStateChange(async (session) => {
+      state.session = session;
+      updateAuthUi();
+      if (session?.user?.id) {
+        await loadAllCloudNotes(session.user.id);
+        await loadFlashcards(session.user.id);
+      }
+      if (state.view === "item" && state.itemId) renderItemDetail(state.itemId);
+      else navigate(state.view);
+    });
+
+    bindAuth();
+    bindAddItem();
+    bindSearch();
+    bindGlobalClicks();
+    updateAuthUi();
+
     await loadIndex();
     navigate("today");
   } catch (err) {
-    el.main.innerHTML = `<p class="error">Could not load data/index.json — run <code>python3 scripts/build-index.py</code> and use a local server.<br>${escapeHtml(err.message)}</p>`;
+    console.error("CA desk init failed", err);
+    if (el.main) {
+      el.main.innerHTML = `<p class="error">Could not start the app — ${escapeHtml(err.message || String(err))}</p>`;
+    }
   }
 }
 
