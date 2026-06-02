@@ -1,6 +1,6 @@
 {
   "id": "[object PointerEvent]-iip-base-year-revised-from-2011-12-2022-23",
-  "date": "[object PointerEvent]",
+  "date": "2026-06-02",
   "title": "IIP base year revised from 2011-12 → 2022-23.",
   "status": "to-study",
   "gsPapers": [
@@ -23,7 +23,7 @@
     {
       "label": "PIB link",
       "url": "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2267531&reg=3&lang=1",
-      "kind": "news",
+      "kind": "pib",
       "addedAt": "[object PointerEvent]"
     }
   ]
