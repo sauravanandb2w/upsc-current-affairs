@@ -37,11 +37,12 @@ import {
   addDraftItem,
   isDraftItem,
   setStatusOverride,
+  removeDraft,
   updateDraftItem,
   draftCliCommand,
   downloadTextFile,
 } from "./local-meta.js";
-import { initGitHubUploadConfig } from "./github-auth.js";
+import { initGitHubUploadConfig, isGitHubConnected } from "./github-auth.js";
 import {
   renderGitHubConnectHint,
   renderGitHubUploadButton,
@@ -61,6 +62,7 @@ import { initTheme, bindThemeToggle, bindNoteSizeControl } from "./theme.js";
 import { bindExportButtons } from "./export-ca.js";
 import { loadFlashcards, loadFlashcardsLocal, generateFlashcardsFromItem } from "./flashcards.js";
 import { commitNotesMdToGitHub } from "./github-notes.js";
+import { publishDraftToGitHub } from "./github-publish.js";
 import {
   renderToday,
   renderCalendar,
@@ -716,7 +718,10 @@ async function renderItemDetail(itemId) {
     <button type="button" class="btn-ghost back-btn" id="backBtn">← Back</button>
     ${
       draft
-        ? `<div class="draft-banner">Draft on this device — run <code>${escapeHtml(draftCliCommand(item))}</code> on laptop, then <code>build-index.py</code> + git push.</div>`
+        ? `<div class="draft-banner">
+            <span>Draft — saved on this device only until published to GitHub.</span>
+            <button type="button" class="btn-primary btn-sm" id="publishDraftBtn">Publish to GitHub</button>
+          </div>`
         : ""
     }
     <article class="item-spread">
@@ -803,6 +808,8 @@ async function renderItemDetail(itemId) {
     </article>`;
 
   document.getElementById("backBtn")?.addEventListener("click", () => navigate(state.view === "item" ? "today" : state.view));
+
+  document.getElementById("publishDraftBtn")?.addEventListener("click", () => handlePublishDraft(item));
 
   document.getElementById("starBtn")?.addEventListener("click", () => {
     toggleStar(itemId, userId);
@@ -1041,14 +1048,59 @@ function renderTracker() {
   renderActivityDashboard(el.main);
 }
 
+async function handlePublishDraft(item) {
+  const btn = document.getElementById("publishDraftBtn") || document.getElementById("publishGitHubBtn");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Publishing…";
+  }
+  try {
+    if (!isGitHubConnected()) {
+      throw new Error("Connect GitHub in the header first.");
+    }
+    await publishDraftToGitHub(item);
+    const published = { ...item, _folder: item.id };
+    delete published._draft;
+    removeDraft(item.id);
+    await loadIndex();
+    if (!state.items.some((row) => row.id === item.id)) {
+      state.items.push(published);
+    }
+    el.draftExportDialog?.close();
+    alert(`Published ${item.title} to git. Live on site in ~1–2 min after GitHub Pages deploys.`);
+    navigate("item", item.id);
+  } catch (err) {
+    alert(err.message || String(err));
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Publish to GitHub";
+    }
+  }
+}
+
 function showDraftExport(item) {
   state.pendingDraftId = item.id;
   const cli = draftCliCommand(item);
-  document.getElementById("draftCliBlock").textContent = `${cli}\npython3 scripts/build-index.py\ngit add study/ data/index.json && git commit -m "Add CA: ${item.title}" && git push`;
+  const cliBlock = document.getElementById("draftCliBlock");
+  const hint = document.getElementById("draftExportHint");
+  if (hint) {
+    hint.textContent = isGitHubConnected()
+      ? "Publish to GitHub — no terminal needed. Or open the item and publish later."
+      : "Connect GitHub in the header to publish from the app. Terminal commands below are optional.";
+  }
+  if (cliBlock) {
+    cliBlock.textContent = `${cli}\npython3 scripts/build-index.py\ngit add study/ data/index.json && git commit -m "Add CA: ${item.title}" && git push`;
+  }
+
+  document.getElementById("publishGitHubBtn")?.replaceWith(document.getElementById("publishGitHubBtn").cloneNode(true));
+  const pubBtn = document.getElementById("publishGitHubBtn");
+  pubBtn?.addEventListener("click", () => handlePublishDraft(item));
+  if (pubBtn) pubBtn.classList.toggle("hidden", !isGitHubConnected());
 
   document.getElementById("copyCliBtn")?.replaceWith(document.getElementById("copyCliBtn").cloneNode(true));
+  const fullCli = cliBlock?.textContent || cli;
   document.getElementById("copyCliBtn")?.addEventListener("click", async () => {
-    await navigator.clipboard.writeText(cli);
+    await navigator.clipboard.writeText(fullCli);
   });
 
   document.getElementById("dlManifestBtn")?.replaceWith(document.getElementById("dlManifestBtn").cloneNode(true));

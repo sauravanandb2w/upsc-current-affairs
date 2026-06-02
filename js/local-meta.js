@@ -129,11 +129,17 @@ export function updateDraftItem(itemId, patch) {
   return drafts[idx];
 }
 
+function shellQuote(value) {
+  const s = String(value);
+  if (!/[\s"'\\]/.test(s)) return s;
+  return `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
 export function draftCliCommand(item) {
-  const tags = (item.tags || []).map((t) => ` --tag ${t}`).join("");
-  const threads = (item.threads || []).map((t) => ` --thread ${t}`).join("");
-  const gs = (item.gsPapers || []).map((g) => ` --gs ${g}`).join("");
-  const title = item.title.includes(" ") ? `"${item.title.replace(/"/g, '\\"')}"` : item.title;
+  const tags = (item.tags || []).map((t) => ` --tag ${shellQuote(t)}`).join("");
+  const threads = (item.threads || []).map((t) => ` --thread ${shellQuote(t)}`).join("");
+  const gs = (item.gsPapers || []).map((g) => ` --gs ${shellQuote(g)}`).join("");
+  const title = shellQuote(item.title);
   return `python3 scripts/add-item.py ${title} --date ${item.date}${tags}${threads}${gs}`;
 }
 

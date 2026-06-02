@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600;6..72,700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="css/styles.css?v=10" />
+    <link rel="stylesheet" href="css/styles.css?v=11" />
   </head>
   <body>
     <header class="site-header">
@@ -116,13 +116,20 @@
 
     <dialog class="add-dialog" id="draftExportDialog">
       <div class="add-form">
-        <h2>Saved on this device</h2>
-        <pre class="cli-block" id="draftCliBlock"></pre>
-        <div class="dialog-actions wrap">
-          <button type="button" class="btn-ghost btn-sm" id="copyCliBtn">Copy</button>
-          <button type="button" class="btn-ghost btn-sm" id="dlManifestBtn">manifest.json</button>
-          <button type="button" class="btn-ghost btn-sm" id="dlNotesBtn">notes.md</button>
-          <button type="button" class="btn-primary btn-sm" id="draftExportClose">Open item</button>
+        <h2>Added to your desk</h2>
+        <p class="muted small" id="draftExportHint">Publish to GitHub to save permanently — no terminal needed.</p>
+        <button type="button" class="btn-primary" id="publishGitHubBtn">Publish to GitHub</button>
+        <details class="draft-cli-details">
+          <summary>Terminal on laptop (optional)</summary>
+          <pre class="cli-block" id="draftCliBlock"></pre>
+          <div class="dialog-actions wrap">
+            <button type="button" class="btn-ghost btn-sm" id="copyCliBtn">Copy commands</button>
+            <button type="button" class="btn-ghost btn-sm" id="dlManifestBtn">manifest.json</button>
+            <button type="button" class="btn-ghost btn-sm" id="dlNotesBtn">notes.md</button>
+          </div>
+        </details>
+        <div class="dialog-actions">
+          <button type="button" class="btn-ghost btn-sm" id="draftExportClose">Open item</button>
         </div>
       </div>
     </dialog>
@@ -153,6 +160,6 @@
         );
       })();
     </script>
-    <script type="module" src="js/app.js?v=13"></script>
+    <script type="module" src="js/app.js?v=14"></script>
   </body>
 </html>

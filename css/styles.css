@@ -1134,6 +1134,11 @@ code {
 }
 
 .draft-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
   background: #ede9fe;
   color: #4c1d95;
   padding: 0.65rem 1rem;
@@ -1145,6 +1150,20 @@ code {
 .draft-banner code {
   background: rgba(255, 255, 255, 0.6);
   font-size: 0.78rem;
+}
+
+.draft-cli-details {
+  margin: 0.75rem 0;
+  font-size: 0.85rem;
+}
+
+.draft-cli-details summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.draft-cli-details .cli-block {
+  margin-top: 0.5rem;
 }
 
 /* Add item dialog */
