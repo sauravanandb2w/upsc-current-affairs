@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-06-02T11:08:13.981178Z",
-  "count": 2,
+  "generatedAt": "2026-06-02T11:30:30.793489Z",
+  "count": 3,
   "items": [
     {
       "id": "2025-06-02-green-hydrogen",
@@ -35,6 +35,26 @@
         }
       ],
       "_folder": "2025-06-02-green-hydrogen"
+    },
+    {
+      "id": "2025-04-01-rbi-mpc-april",
+      "date": "2025-04-01",
+      "title": "RBI MPC April",
+      "status": "to-study",
+      "gsPapers": [
+        3
+      ],
+      "tags": [
+        "rbi",
+        "monetary-policy"
+      ],
+      "threads": [
+        "2025-rbi-monetary-policy"
+      ],
+      "images": [],
+      "sources": [],
+      "links": [],
+      "_folder": "2025-04-01-rbi-mpc-april"
     },
     {
       "id": "2025-02-08-rbi-mpc",
