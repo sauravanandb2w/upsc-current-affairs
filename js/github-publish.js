@@ -8,6 +8,7 @@ import { GIT_SECTIONS, serializeNotesMd, defaultNotesTemplate } from "./notes-md
 import { getCloudEntry, getGitNotesFromLocal, gitVisibleNoteValue } from "./ca-store.js";
 import { noteHtmlToPlainText, noteHtmlForGitStorage } from "./rich-notes.js?v=27";
 import { fieldIdForSection } from "./field-locks.js";
+import { effectiveItemDate } from "./date-picker.js";
 
 const INDEX_PATH = "data/index.json";
 const SEARCH_INDEX_PATH = "data/search-index.json";
@@ -17,9 +18,13 @@ function textToBase64(text) {
 }
 
 export function manifestFromItem(item) {
+  const date = effectiveItemDate(item);
+  if (!date) {
+    throw new Error("Set a valid date on this item before saving to GitHub.");
+  }
   return {
     id: item.id,
-    date: item.date,
+    date,
     title: item.title,
     status: item.status || "to-study",
     gsPapers: [...(item.gsPapers || [])].sort(),
@@ -55,7 +60,7 @@ export function buildSearchTextForItem(itemId, item = {}) {
 function searchIndexEntryForItem(itemId, item) {
   return {
     title: item.title || "",
-    date: item.date || "",
+    date: effectiveItemDate(item) || "",
     tags: item.tags || [],
     threads: item.threads || [],
     text: buildSearchTextForItem(itemId, item),

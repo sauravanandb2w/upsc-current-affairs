@@ -11,7 +11,7 @@ import {
   rateFlashcard,
 } from "./flashcards.js";
 import { noteHtmlToPlainText } from "./rich-notes.js?v=27";
-import { mountMonthPicker, formatDisplayDate, formatDisplayMonth } from "./date-picker.js";
+import { mountMonthPicker, formatDisplayDate, formatDisplayMonth, effectiveItemDate } from "./date-picker.js";
 import { exportCaAsMarkdown } from "./export-ca.js";
 import { collectAllThreads, renderThreadSelectOptions } from "./filter-options.js";
 
@@ -74,10 +74,13 @@ export function renderToday(ctx) {
   const today = todayIso();
   const q = ctx.state.searchQuery.trim();
   const items = ctx.mergedItems().filter((i) => ctx.matchesSearch(i, q));
-  const todayItems = items.filter((i) => i.date === today);
+  const todayItems = items.filter((i) => effectiveItemDate(i) === today);
   const weekItems = items
-    .filter((i) => (i.date || "") >= isoDaysAgo(7) && i.date !== today)
-    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+    .filter((i) => {
+      const d = effectiveItemDate(i);
+      return d >= isoDaysAgo(7) && d !== today;
+    })
+    .sort((a, b) => effectiveItemDate(b).localeCompare(effectiveItemDate(a)));
   const stats = ctx.deskStats(items);
   const dueCards = getDueFlashcards().length;
   const heading = formatTodayHeading(today);
@@ -144,7 +147,7 @@ export function renderCalendar(ctx) {
   const items = ctx.mergedItems();
   const byDate = new Map();
   for (const item of items) {
-    const d = item.date;
+    const d = effectiveItemDate(item);
     if (!d?.startsWith(month)) continue;
     if (!byDate.has(d)) byDate.set(d, []);
     byDate.get(d).push(item);

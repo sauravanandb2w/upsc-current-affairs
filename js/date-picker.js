@@ -34,9 +34,20 @@ export function todayIso() {
   return toIso(new Date());
 }
 
+export function isValidIsoDate(iso) {
+  return typeof iso === "string" && /^\d{4}-\d{2}-\d{2}$/.test(iso);
+}
+
+/** Best date for an item — manifest date, or YYYY-MM-DD prefix from item id. */
+export function effectiveItemDate(item) {
+  if (isValidIsoDate(item?.date)) return item.date;
+  const m = String(item?.id || "").match(/^(\d{4}-\d{2}-\d{2})-/);
+  return m ? m[1] : "";
+}
+
 /** Uniform display: 2 Jun 2026 */
 export function formatDisplayDate(iso) {
-  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(String(iso))) return "Pick date";
+  if (!isValidIsoDate(iso)) return "Date not set";
   return parseIso(iso).toLocaleDateString("en-IN", {
     day: "numeric",
     month: "short",

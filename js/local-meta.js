@@ -1,13 +1,19 @@
 /** Browser-only drafts and status overrides (until git push / GitHub OAuth). */
 
+import { isValidIsoDate } from "./date-picker.js";
+
 const LS_DRAFTS = "ca-drafts:v1";
 const LS_STATUS = "ca-status:v1";
+const LS_DATE = "ca-date:v1";
 
 /** @type {object[]} */
 let drafts = [];
 
 /** @type {Record<string, string>} */
 let statusOverrides = {};
+
+/** @type {Record<string, string>} */
+let dateOverrides = {};
 
 export function loadLocalMeta() {
   try {
@@ -22,6 +28,16 @@ export function loadLocalMeta() {
   } catch {
     statusOverrides = {};
   }
+  try {
+    dateOverrides = JSON.parse(localStorage.getItem(LS_DATE) || "{}");
+    if (!dateOverrides || typeof dateOverrides !== "object") dateOverrides = {};
+  } catch {
+    dateOverrides = {};
+  }
+}
+
+function persistDateOverrides() {
+  localStorage.setItem(LS_DATE, JSON.stringify(dateOverrides));
 }
 
 function persistDrafts() {
@@ -75,14 +91,40 @@ export function applyStatus(item) {
   return item;
 }
 
+export function getDateOverride(itemId) {
+  return dateOverrides[itemId] || null;
+}
+
+export function setDateOverride(itemId, date) {
+  if (!itemId || !isValidIsoDate(date)) return;
+  dateOverrides[itemId] = date;
+  persistDateOverrides();
+}
+
+export function clearDateOverride(itemId) {
+  if (!itemId || !(itemId in dateOverrides)) return;
+  delete dateOverrides[itemId];
+  persistDateOverrides();
+}
+
+function applyDate(item) {
+  const override = dateOverrides[item.id];
+  if (isValidIsoDate(override)) return { ...item, date: override };
+  return item;
+}
+
+function applyLocalMeta(item) {
+  return applyDate(applyStatus(item));
+}
+
 export function mergeWithDrafts(indexItems) {
   const byId = new Map();
   for (const item of indexItems || []) {
-    byId.set(item.id, applyStatus({ ...item }));
+    byId.set(item.id, applyLocalMeta({ ...item }));
   }
   for (const draft of drafts) {
     if (!byId.has(draft.id)) {
-      byId.set(draft.id, applyStatus({ ...draft }));
+      byId.set(draft.id, applyLocalMeta({ ...draft }));
     }
   }
   return [...byId.values()].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
@@ -95,6 +137,7 @@ export function addDraftItem(input) {
   const title = String(input.title || "").trim();
   const date = String(input.date || "").trim();
   if (!title || !date) throw new Error("Title and date are required");
+  if (!isValidIsoDate(date)) throw new Error("Pick a valid date from the calendar");
 
   const id = makeItemId(date, title);
   if (drafts.some((d) => d.id === id)) {

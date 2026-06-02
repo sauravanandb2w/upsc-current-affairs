@@ -47,6 +47,7 @@ import {
   updateDraftItem,
   draftCliCommand,
   downloadTextFile,
+  setDateOverride,
 } from "./local-meta.js";
 import { initGitHubUploadConfig, isGitHubConnected } from "./github-auth.js";
 import {
@@ -91,7 +92,7 @@ import {
   isoDaysAgo,
   startOfMonthIso,
 } from "./views.js";
-import { mountDatePicker, mountDateField, formatDisplayDate } from "./date-picker.js";
+import { mountDatePicker, mountDateField, formatDisplayDate, effectiveItemDate, isValidIsoDate } from "./date-picker.js";
 import { renderActivityDashboard } from "./activity-dashboard.js";
 import {
   recordCaNoteActivity,
@@ -301,7 +302,7 @@ function deskStats(items) {
   const weekAgo = isoDaysAgo(7);
   return {
     total: items.length,
-    thisWeek: items.filter((i) => (i.date || "") >= weekAgo).length,
+    thisWeek: items.filter((i) => (effectiveItemDate(i) || "") >= weekAgo).length,
     todo: items.filter((i) => i.status === "to-study").length,
     revise: items.filter((i) => i.status === "revise").length,
   };
@@ -324,6 +325,7 @@ function renderLinkRibbon(links) {
 function renderItemCard(item, { showSummary = true, compact = false } = {}) {
   const cloud = getCloudEntry(item.id);
   const summary = cloud.summary || item.summary || "";
+  const itemDate = effectiveItemDate(item);
   const preview =
     showSummary && summary && !compact
       ? escapeHtml(summary.slice(0, 140)) + (summary.length > 140 ? "…" : "")
@@ -336,7 +338,7 @@ function renderItemCard(item, { showSummary = true, compact = false } = {}) {
   return `
     <article class="ca-card ${statusClass(item.status)}" data-open-item="${escapeHtml(item.id)}">
       <div class="ca-card-meta">
-        <time datetime="${escapeHtml(item.date || "")}">${escapeHtml(item.date ? formatDisplayDate(item.date) : "")}</time>
+        <time class="ca-card-date" datetime="${escapeHtml(itemDate)}">${escapeHtml(itemDate ? formatDisplayDate(itemDate) : "Date not set")}</time>
         ${gsBadges(item.gsPapers)}
         ${draftBadge}
         ${starred ? '<span class="star-badge" title="Starred">★</span>' : ""}
@@ -494,15 +496,15 @@ function renderDesk() {
       </div>
     </div>`;
 
-  document.querySelector("[data-open-add]")?.addEventListener("click", openAddDialog);
+  document.querySelector("[data-open-add]")?.addEventListener("click", () => openAddDialog());
   document.getElementById("goReviseBtn")?.addEventListener("click", () => navigate("revise"));
 }
 
 function groupByMonth(items) {
   const groups = new Map();
   for (const item of items) {
-    const d = item.date || "Unknown";
-    const key = d.slice(0, 7);
+    const d = effectiveItemDate(item) || "Unknown";
+    const key = d === "Unknown" ? "Unknown" : d.slice(0, 7);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(item);
   }
@@ -548,7 +550,7 @@ function renderTimeline() {
       }
     </div>`;
 
-  document.querySelector("[data-open-add]")?.addEventListener("click", openAddDialog);
+  document.querySelector("[data-open-add]")?.addEventListener("click", () => openAddDialog());
   document.querySelectorAll("[data-tag-filter]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const tag = btn.dataset.tagFilter;
@@ -797,6 +799,8 @@ async function renderItemDetail(itemId) {
   const sections = getGitSections(itemId, mdText);
   const userId = state.session?.user?.id || null;
   const draft = isDraftItem(item);
+  const itemDate = effectiveItemDate(merged);
+  const dateNeedsFix = !isValidIsoDate(itemDate);
   const canEditCloud = true;
   const manifestJson = JSON.stringify(manifestJsonForUpload(item)).replace(/"/g, "&quot;");
   const pdfs = gitPdfEntries(item);
@@ -823,8 +827,17 @@ async function renderItemDetail(itemId) {
       <header class="item-header">
         <div class="item-header-row">
           <div>
-            <time datetime="${escapeHtml(item.date)}">${escapeHtml(formatDisplayDate(item.date))}</time>
+            <time class="item-header-date" datetime="${escapeHtml(itemDate)}">${escapeHtml(itemDate ? formatDisplayDate(itemDate) : "Date not set")}</time>
             <h2>${escapeHtml(item.title)}</h2>
+            ${
+              dateNeedsFix
+                ? `<div class="date-repair-row">
+                    <label class="small">Set CA date</label>
+                    <div id="itemDateField" class="date-field-slot"></div>
+                    <p class="muted small">Needed for calendar and sorting. Save to GitHub after fixing.</p>
+                  </div>`
+                : ""
+            }
           </div>
           <div class="item-actions-row">
             <button type="button" class="btn-ghost btn-sm star-btn ${getItemMeta(itemId).starred ? "star-on" : ""}" id="starBtn" title="Star for revision">${getItemMeta(itemId).starred ? "★" : "☆"}</button>
@@ -947,6 +960,21 @@ async function renderItemDetail(itemId) {
     recordCaStatusActivity(itemId);
     navigate("item", itemId);
   });
+
+  if (dateNeedsFix) {
+    mountDateField(document.getElementById("itemDateField"), {
+      value: todayIso(),
+      maxDate: todayIso(),
+      popover: true,
+      onChange(iso) {
+        if (!isValidIsoDate(iso)) return;
+        setDateOverride(itemId, iso);
+        if (draft) updateDraftItem(itemId, { date: iso });
+        state.calendarMonth = iso.slice(0, 7);
+        navigate("item", itemId);
+      },
+    });
+  }
 
   const summaryVal = pickNoteValue(itemId, "summary", cloud.summary || item.summary || "");
   writeNoteFieldValue(document.querySelector('[data-field-id="summary"]')?.closest(".note-field"), summaryVal);
@@ -1210,7 +1238,7 @@ function ensureAddDatePicker() {
 function openAddDialog(presetDate) {
   el.addItemError?.classList.add("hidden");
   const hidden = document.getElementById("addDate");
-  const iso = presetDate || todayIso();
+  const iso = isValidIsoDate(presetDate) ? presetDate : todayIso();
   if (hidden) hidden.value = iso;
   ensureAddDatePicker()?.setValue(iso);
   document.getElementById("addTitle")?.focus();
@@ -1382,7 +1410,7 @@ function showDraftExport(item) {
 }
 
 function bindAddItem() {
-  el.addItemBtn?.addEventListener("click", openAddDialog);
+  el.addItemBtn?.addEventListener("click", () => openAddDialog());
   el.addItemCancel?.addEventListener("click", () => el.addItemDialog?.close());
 
   el.addItemForm?.addEventListener("submit", (e) => {
@@ -1390,7 +1418,11 @@ function bindAddItem() {
     el.addItemError?.classList.add("hidden");
     try {
       const title = document.getElementById("addTitle")?.value || "";
-      const date = document.getElementById("addDate")?.value || "";
+      const date =
+        ensureAddDatePicker()?.getValue() ||
+        document.getElementById("addDate")?.value ||
+        todayIso();
+      if (!isValidIsoDate(date)) throw new Error("Pick a valid date from the calendar");
       const tags = splitCsv(document.getElementById("addTags")?.value);
       const thread = document.getElementById("addThread")?.value.trim();
       const threads = thread ? [thread] : [];
@@ -1404,6 +1436,7 @@ function bindAddItem() {
 
       const item = addDraftItem({ title, date, tags, threads, gsPapers, links });
       recordCaAddActivity(item.id);
+      state.calendarMonth = date.slice(0, 7);
       el.addItemDialog?.close();
       el.addItemForm?.reset();
       ensureAddDatePicker()?.setValue(todayIso());

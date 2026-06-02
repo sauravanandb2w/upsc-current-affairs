@@ -1,5 +1,6 @@
 import { getSupabase, isSupabaseConfigured } from "./supabase-client.js";
 import { noteHtmlToPlainText } from "./rich-notes.js?v=27";
+import { effectiveItemDate } from "./date-picker.js";
 
 /** Spaced revision buckets (days) */
 export const REVISION_BUCKETS = [7, 30, 90, 180, 365];
@@ -121,6 +122,41 @@ export function cardThemeIndex(card) {
   return h;
 }
 
+/** Front = prompt; back = full fact (never identical unless line is empty). */
+export function makeFlashcardPair(factLine) {
+  const answer = String(factLine || "").trim().replace(/\?+\s*$/, "").trim();
+  if (!answer) return { question: "", answer: "" };
+
+  const colonIdx = answer.indexOf(":");
+  if (colonIdx > 6 && colonIdx < 72) {
+    return {
+      question: `${answer.slice(0, colonIdx + 1)} …?`,
+      answer,
+    };
+  }
+
+  const words = answer.split(/\s+/);
+  if (words.length > 4) {
+    const n = Math.max(2, Math.floor(words.length * 0.35));
+    return {
+      question: `${words.slice(0, n).join(" ")} … — complete this fact.`,
+      answer,
+    };
+  }
+
+  if (/^(who|what|when|where|why|how|which)\b/i.test(answer)) {
+    return {
+      question: answer.endsWith("?") ? answer : `${answer}?`,
+      answer: `Answer:\n${answer.replace(/\?+\s*$/, "")}`,
+    };
+  }
+
+  return {
+    question: `What do you recall about “${words.slice(0, 3).join(" ")}…”?`,
+    answer,
+  };
+}
+
 export function splitFactsToCards(text) {
   const plain = noteHtmlToPlainText(text).trim();
   if (!plain) return [];
@@ -159,15 +195,19 @@ export async function generateFlashcardsFromItem(userId, item, sections) {
   }
 
   const unique = [...new Set(lines)].slice(0, 12);
-  const month = (item.date || "").slice(0, 7);
+  const month = (effectiveItemDate(item) || "").slice(0, 7);
   const created = [];
   for (const line of unique) {
-    const q = line.includes("?") ? line : `What do you know: ${line.slice(0, 80)}?`;
+    let { question, answer } = makeFlashcardPair(line);
+    if (!question || !answer) continue;
+    if (question === answer) {
+      question = `${line.slice(0, Math.min(48, line.length))}… — recall the full fact.`;
+    }
     const card = {
       id: `local-${crypto.randomUUID()}`,
       itemId: item.id,
-      question: q,
-      answer: line,
+      question,
+      answer,
       month,
       tags: item.tags || [],
       nextReviewAt: new Date().toISOString(),

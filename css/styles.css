@@ -280,6 +280,22 @@ code {
   margin-bottom: 0.35rem;
 }
 
+.ca-card-date,
+.item-header-date {
+  font-weight: 700;
+  color: var(--ink);
+  font-size: 0.82rem;
+}
+
+.date-repair-row {
+  margin-top: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  max-width: 20rem;
+}
+
 .ca-card-title {
   margin: 0 0 0.35rem;
   font-size: 1.05rem;
