@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-03T03:43:14Z",
+  "generatedAt": "2026-06-03T03:44:30Z",
   "count": 4,
   "items": [
     {
@@ -18,7 +18,9 @@
       "threads": [
         "base year economy"
       ],
-      "images": [],
+      "images": [
+        "6124948661084032843.jpg"
+      ],
       "sources": [],
       "links": [],
       "_folder": "2026-06-03-wholesale-price-index-base-year-revised-from-201"
