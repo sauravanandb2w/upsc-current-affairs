@@ -9,8 +9,6 @@ import {
   noteToPlainText as noteMarkdownToPlainText,
   noteMarkdownForStorage,
   noteMarkdownFromEditorHtml,
-  prependMissingPlainLines,
-  notePlainLen,
 } from "./note-markdown.js";
 
 const ALLOWED_TAGS = new Set([
@@ -163,12 +161,8 @@ export function readEditorMarkdown(editor) {
   const plain = String(editor.innerText || "").replace(/\u00a0/g, " ").trim();
   if (!plain) return "";
   const sanitized = sanitizeNoteHtml(html);
-  let md = noteMarkdownFromEditorHtml(sanitized).trim();
-  if (!md) return plain;
-  if (notePlainLen(plain) > notePlainLen(md) + 2) {
-    md = prependMissingPlainLines(plain, md);
-  }
-  return md;
+  const md = noteMarkdownFromEditorHtml(sanitized).trim();
+  return md || plain;
 }
 
 export function renderRichNoteToolbar() {

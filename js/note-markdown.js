@@ -32,13 +32,47 @@ function hasMarkdownSyntax(s) {
   );
 }
 
+/** Split editor HTML into prose blocks (before) and list/table blocks (after). */
+function splitEditorHtmlAtBlocklist(html) {
+  const root = document.createElement("div");
+  root.innerHTML = String(html ?? "");
+  const lead = document.createElement("div");
+  const rest = document.createElement("div");
+  let pastBlock = false;
+  for (const child of [...root.childNodes]) {
+    const isBlock =
+      child.nodeType === Node.ELEMENT_NODE &&
+      /^(ul|ol|table)$/i.test(child.tagName);
+    if (isBlock || pastBlock) {
+      pastBlock = true;
+      rest.appendChild(child.cloneNode(true));
+    } else {
+      lead.appendChild(child.cloneNode(true));
+    }
+  }
+  return { leadHtml: lead.innerHTML, listHtml: rest.innerHTML };
+}
+
+/** Convert editor HTML → Markdown; keep prose (with bold) separate from lists. */
+export function mergeEditorHtmlToMarkdown(html) {
+  const s = String(html ?? "").trim();
+  if (!s) return "";
+  if (!looksLikeNoteHtml(s)) return convertEmbeddedHtmlToMarkdown(s);
+  const { leadHtml, listHtml } = splitEditorHtmlAtBlocklist(s);
+  const parts = [];
+  if (leadHtml.trim()) parts.push(htmlToMarkdown(leadHtml).trim());
+  if (listHtml.trim()) parts.push(htmlToMarkdown(listHtml).trim());
+  if (parts.length) return parts.filter(Boolean).join("\n\n");
+  return htmlToMarkdown(s).trim();
+}
+
 /** Normalize any stored note body to Markdown (never plain text or HTML). */
 export function noteValueToMarkdown(value) {
   const s = String(value ?? "").trim();
   if (!s) return "";
   if (looksLikeNoteHtml(s)) {
-    if (hasMarkdownSyntax(s) && /<(table|ul|ol|p|div|h[1-6]|li|tr|td|th)\b/i.test(s)) {
-      return convertEmbeddedHtmlToMarkdown(s);
+    if (/<(table|ul|ol|p|div|h[1-6]|li|tr|td|th)\b/i.test(s)) {
+      return mergeEditorHtmlToMarkdown(s);
     }
     if (!hasMarkdownSyntax(s)) return htmlToMarkdown(s);
   }
@@ -333,9 +367,7 @@ function blockPlainFromDiv(div) {
 
 /** Editor read path — convert HTML to Markdown without dedupe (runs once at git save). */
 export function noteMarkdownFromEditorHtml(html) {
-  const md = noteValueToMarkdown(String(html ?? "")).trim();
-  if (!md) return "";
-  return convertEmbeddedHtmlToMarkdown(md);
+  return mergeEditorHtmlToMarkdown(String(html ?? "")).trim();
 }
 
 export function notePlainLen(value) {
@@ -346,22 +378,14 @@ export function notePlainLen(value) {
     .trim().length;
 }
 
-/** Prepend plain lines visible in innerText but missing from converted markdown. */
-export function prependMissingPlainLines(plain, md) {
-  const plainLines = String(plain ?? "")
-    .split(/\n/)
-    .map((l) => l.trim())
-    .filter(Boolean);
-  if (!plainLines.length) return md;
-  const mdNorm = String(md ?? "").replace(/\s+/g, " ");
-  const prefix = [];
-  for (const line of plainLines) {
-    const norm = line.replace(/\s+/g, " ");
-    if (mdNorm.includes(norm)) break;
-    prefix.push(line);
-  }
-  if (!prefix.length) return md;
-  return `${prefix.join("\n\n")}${md ? `\n\n${md}` : ""}`;
+function normalizeLineForMatch(line) {
+  return String(line ?? "")
+    .replace(/^#{1,6}\s+/, "")
+    .replace(/^[-*+]\s+/, "")
+    .replace(/\*\*/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 /** Markdown-only storage for notes.md and Supabase (no HTML). */
@@ -381,6 +405,7 @@ export function canonicalizeSectionMarkdown(md) {
   out = promotePlainHeadings(out);
   out = promoteSubheadingLines(out);
   out = collapseInSectionHeadings(out);
+  out = stripFalseHeadingsBeforeBullets(out);
   out = dedupeSectionMarkdown(out);
   out = stripPlainHeadingDuplicates(out);
   out = dedupeConsecutiveLines(out);
@@ -413,12 +438,38 @@ function isSubheadingLine(text) {
     return false;
   }
   if (t.endsWith(".") && t.length > 55) return false;
+  // Bullet-style fact lines (e.g. "WPI basket expanded:  - 697 → 957 items") are not subheadings.
+  if (/:\s*-\s/.test(t)) return false;
+  if (/\d+\s*[→-]\s*\d+/.test(t)) return false;
   if (/^GS-\d+$/i.test(t)) return true;
   if (/^Prelims$/i.test(t)) return true;
   if (/^Q\d+\./.test(t)) return true;
   // Real subheadings use title case — not casual notes like "test test test"
   if (/^[A-Z][a-zA-Z0-9'→–—&/-]*(\s+[A-Za-z0-9][a-zA-Z0-9'→–—&/-]*)+/.test(t) && /[A-Z]/.test(t)) return true;
   return false;
+}
+
+/** Drop ### lines that duplicate the next bullet (false promotion). */
+function stripFalseHeadingsBeforeBullets(md) {
+  const lines = md.split(/\r?\n/);
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const hm = lines[i].trim().match(/^###\s+(.+)$/);
+    if (hm) {
+      let j = i + 1;
+      while (j < lines.length && !lines[j].trim()) j++;
+      const next = lines[j]?.trim() || "";
+      if (next.startsWith("-")) {
+        const headNorm = normalizeLineForMatch(hm[1]);
+        const bulletNorm = normalizeLineForMatch(next);
+        if (headNorm === bulletNorm || bulletNorm.includes(headNorm) || headNorm.includes(bulletNorm)) {
+          continue;
+        }
+      }
+    }
+    out.push(lines[i]);
+  }
+  return out.join("\n");
 }
 
 /** Plain title line before bullets/table → ### heading. */
