@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-03T03:44:31Z",
+  "generatedAt": "2026-06-03T03:48:21Z",
   "entries": {
     "[object PointerEvent]-iip-base-year-revised-from-2011-12-2022-23": {
       "title": "IIP base year revised from 2011-12 → 2022-23.",
@@ -25,7 +25,7 @@
       "threads": [
         "base year economy"
       ],
-      "text": "Wholesale Price Index base year revised from 2011–12 → 2022–23. 2026-06-03-wholesale-price-index-base-year-revised-from-201 gs3 WPI base year base year economy"
+      "text": "Wholesale Price Index base year revised from 2011–12 → 2022–23. 2026-06-03-wholesale-price-index-base-year-revised-from-201 gs3 WPI base year base year economy India is revising the WPI base year from 2011–12 to 2022–23 and gradually transitioning toward Producer Price Index (PPI) to modernize inflation measurement and align with global standards. WPI basket expanded: 697 → 957 items Weight structure broadly unchanged: Manufactured products still have highest weight (~63%). Government will experimentally introduce: Producer Price Index (PPI) After around 5 years, WPI may be replaced by PPI. Services PPI will also be introduced for: banking, telecom, insurance, railways etc. WPI is released monthly. Reserve Bank of India mainly uses CPI for inflation targeting. Inflation Indices in IndiaCPI → Consumer inflation WPI → Wholesale inflation PPI → Producer inflation Difference between WPI & PPI WPIPPIWholesale pricesProducer pricesIncludes taxes/trade distortionsCleaner producer costMainly goodsGoods + servicesOlder methodologyInternational standard Why shift to PPI?Better GDP deflator More accurate inflation measurement Globally accepted methodology Better reflects producer costs"
     }
   }
 }
