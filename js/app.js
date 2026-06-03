@@ -93,6 +93,18 @@ import {
   deletePublishedItemFromGitHub,
 } from "./github-publish.js?v=29";
 import {
+  loadThemesIndex,
+  renderThemesHub,
+  renderThemeDetail,
+  themeById,
+} from "./views-themes.js";
+import {
+  hydrateThemesFromLocal,
+  loadAllThemeNotes,
+  flushThemeSavesNow,
+  setThemeSyncUserId,
+} from "./theme-store.js";
+import {
   loadSearchIndex,
   setSearchIndexEntry,
   removeSearchIndexEntry,
@@ -160,6 +172,8 @@ const state = {
   monthlyMode: "last30",
   pendingDraftId: null,
   drillIndex: 0,
+  themePaper: "1",
+  themeId: null,
 };
 
 let itemDetailRenderSeq = 0;
@@ -1529,13 +1543,25 @@ function bindSearch() {
   });
 }
 
-function navigate(view, itemId = null) {
+function navigate(view, itemId = null, themePaper = null) {
   if (state.view === "item" && state.itemId) {
     flushItemNoteEditorsFromDom();
+  }
+  if (state.view === "theme" && state.themeId) {
+    void flushThemeSavesNow();
   }
 
   state.view = view;
   state.itemId = itemId;
+  if (themePaper != null) state.themePaper = themePaper;
+  if (view === "theme" && itemId) {
+    state.themeId = itemId;
+    const t = themeById(itemId);
+    if (t?.paperKey) state.themePaper = t.paperKey;
+  } else if (view !== "theme") {
+    state.themeId = null;
+  }
+
   document.querySelectorAll(".nav-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.view === view);
   });
@@ -1550,7 +1576,22 @@ function navigate(view, itemId = null) {
   else if (view === "drill") renderDrill(viewCtx());
   else if (view === "monthly") renderMonthly(viewCtx());
   else if (view === "tracker") renderTracker();
+  else if (view === "themes") renderThemesHub(themeViewCtx());
+  else if (view === "theme" && state.themeId) renderThemeDetail(themeViewCtx());
   else if (view === "item" && itemId) renderItemDetail(itemId);
+}
+
+function themeViewCtx() {
+  return {
+    paperKey: state.themePaper,
+    themeId: state.themeId,
+    navigate,
+    escapeHtml,
+    main: el.main,
+    userId: state.session?.user?.id || null,
+    stateView: state.view,
+    stateThemeId: state.themeId,
+  };
 }
 
 function userDisplayName(user) {
@@ -1698,29 +1739,36 @@ async function initAuthBackground() {
     bindGitHubHeaderButton(el.githubConnectBtn);
     state.session = await withTimeout(getSession(), 8000, null);
     setCloudSyncUserId(state.session?.user?.id || null);
+    setThemeSyncUserId(state.session?.user?.id || null);
     if (state.session?.user?.id) {
       if (state.view === "item" && state.itemId) flushItemNoteEditorsFromDom();
       await flushPendingCloudSavesNow();
+      await flushThemeSavesNow();
       await syncNotesToCloud(state.session.user.id, state.items.map((i) => i.id));
       await withTimeout(loadAllCloudNotes(state.session.user.id), 12000, undefined);
+      await withTimeout(loadAllThemeNotes(state.session.user.id), 12000, undefined);
       await withTimeout(loadFlashcards(state.session.user.id), 8000, undefined);
     }
     onAuthStateChange(async (session) => {
       const prevUserId = state.session?.user?.id || null;
       state.session = session;
       setCloudSyncUserId(session?.user?.id || null);
+      setThemeSyncUserId(session?.user?.id || null);
       updateAuthUi();
       const userId = session?.user?.id || null;
       if (userId) {
         if (state.view === "item" && state.itemId) flushItemNoteEditorsFromDom();
         await flushPendingCloudSavesNow();
+        await flushThemeSavesNow();
         await syncNotesToCloud(userId, state.items.map((i) => i.id));
         await loadAllCloudNotes(userId);
+        await loadAllThemeNotes(userId);
         await loadFlashcards(userId);
       }
       const signInChanged = Boolean(prevUserId) !== Boolean(userId);
       if (signInChanged) {
         if (state.view === "item" && state.itemId) renderItemDetail(state.itemId);
+        else if (state.view === "theme" && state.themeId) renderThemeDetail(themeViewCtx());
         else navigate(state.view);
       }
     });
@@ -1751,11 +1799,18 @@ async function init() {
 
     await loadIndex();
     await loadSearchIndex(assetUrl("data/search-index.json"));
+    try {
+      await loadThemesIndex(assetUrl("data/themes-index.json"));
+      hydrateThemesFromLocal();
+    } catch (err) {
+      console.warn("themes-index load", err);
+    }
     navigate("today");
 
     const flushNotesOnHide = () => {
       flushItemNoteEditorsFromDom();
       flushPendingCloudSavesNow().catch((err) => console.warn("Notes flush on hide", err));
+      flushThemeSavesNow().catch((err) => console.warn("Theme notes flush on hide", err));
     };
     window.addEventListener("pagehide", flushNotesOnHide);
     document.addEventListener("visibilitychange", () => {

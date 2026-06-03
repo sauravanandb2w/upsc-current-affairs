@@ -3131,3 +3131,103 @@ code {
   margin-top: 0.5rem;
   font-size: 0.8rem;
 }
+
+/* ——— Mains Themes ——— */
+.themes-hero h2 {
+  margin: 0 0 0.35rem;
+}
+
+.themes-paper-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 1rem 0 0.5rem;
+}
+
+.paper-tab {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border, rgba(28, 25, 23, 0.12));
+  border-radius: 999px;
+  background: var(--paper, #fff);
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.paper-tab:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.paper-tab.active {
+  background: color-mix(in srgb, var(--accent) 14%, var(--paper));
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.themes-paper-desc {
+  margin-bottom: 1rem;
+}
+
+.themes-group {
+  margin-bottom: 1.5rem;
+}
+
+.themes-group-title {
+  font-size: 0.95rem;
+  margin: 0 0 0.5rem;
+  color: var(--ink-muted);
+}
+
+.themes-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 0.5rem;
+}
+
+.theme-card {
+  text-align: left;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--border, rgba(28, 25, 23, 0.12));
+  border-radius: 8px;
+  background: var(--paper, #fff);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.theme-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.theme-card-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.theme-note-input {
+  width: 100%;
+  min-height: 6rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--border, rgba(28, 25, 23, 0.12));
+  border-radius: 8px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  resize: vertical;
+  background: var(--paper, #fff);
+  color: var(--ink);
+}
+
+.theme-note-input:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  outline-offset: 1px;
+}
+
+.theme-notes-panel .note-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+}

@@ -290,3 +290,125 @@ export async function deleteCaItemPdf(itemId, fileName, fallbackManifest) {
   await saveManifest(manifest.path, manifest.sha, manifest.data, `Update manifest ${itemId}`);
   return { name: cleanName };
 }
+
+// ——— Mains themes: study/themes/<themeId>/ ———
+
+async function loadThemeManifest(themeId, fallbackManifest) {
+  const folder = `study/themes/${themeId}`;
+  const manifestPath = `${folder}/manifest.json`;
+  const file = await getRepoFile(manifestPath);
+  if (!file) {
+    return {
+      path: manifestPath,
+      sha: null,
+      data: fallbackManifest
+        ? { ...fallbackManifest }
+        : { id: themeId, images: [], sources: [], links: [] },
+    };
+  }
+  try {
+    return { path: manifestPath, sha: file.sha, data: JSON.parse(file.text) };
+  } catch {
+    return { path: manifestPath, sha: file.sha, data: { id: themeId, images: [], sources: [], links: [] } };
+  }
+}
+
+export async function uploadThemeImage(themeId, file, fallbackManifest) {
+  await assertUploadAllowed();
+  const ext = normalizeImageExt(file);
+  const destName = `${slugify(file.name)}${ext}`;
+  const folder = `study/themes/${themeId}`;
+  const filePath = `${folder}/${destName}`;
+
+  const manifest = await loadThemeManifest(themeId, fallbackManifest || {});
+  manifest.data.id = manifest.data.id || themeId;
+  const images = manifest.data.images || [];
+  const listed = images.map((i) => (typeof i === "string" ? i : i?.file)).filter(Boolean);
+  if (!listed.includes(destName)) manifest.data.images = [...images, destName];
+
+  const b64 = await bufferToBase64(file);
+  await putRepoFile(filePath, b64, `Add theme cutting ${themeId}/${destName}`);
+  await saveManifest(manifest.path, manifest.sha, manifest.data, `Update theme manifest ${themeId}`);
+
+  return { path: filePath, name: destName };
+}
+
+export async function uploadThemePdf(themeId, file, fallbackManifest) {
+  await assertUploadAllowed();
+  if (file.size > PDF_MAX_BYTES) {
+    throw new Error(
+      "PDF too large for in-app git upload (max 25 MB). Paste a Google Drive link in Sources instead."
+    );
+  }
+
+  const ext = normalizePdfExt(file);
+  const destName = `${slugify(file.name)}${ext}`;
+  const folder = `study/themes/${themeId}`;
+  const filePath = `${folder}/${destName}`;
+
+  const manifest = await loadThemeManifest(themeId, fallbackManifest || {});
+  manifest.data.id = manifest.data.id || themeId;
+  manifest.data.sources = manifest.data.sources || [];
+
+  const exists = manifest.data.sources.some((s) => s?.file?.path === destName);
+  if (!exists) {
+    manifest.data.sources.push({
+      type: "magazine",
+      name: file.name.replace(/\.[^.]+$/, ""),
+      date: new Date().toISOString().slice(0, 10),
+      url: "",
+      file: { storage: "git", path: destName },
+    });
+  }
+
+  const b64 = await bufferToBase64(file);
+  await putRepoFile(filePath, b64, `Add theme PDF ${themeId}/${destName}`);
+  await saveManifest(manifest.path, manifest.sha, manifest.data, `Update theme manifest ${themeId}`);
+
+  return { path: filePath, name: destName };
+}
+
+export async function deleteThemeImage(themeId, fileName, fallbackManifest) {
+  await assertUploadAllowed();
+  const cleanName = basename(fileName);
+  const folder = `study/themes/${themeId}`;
+  const filePath = `${folder}/${cleanName}`;
+
+  const fileSha = await getRepoFileSha(filePath);
+  if (!fileSha) throw new Error("Image not found in repo.");
+
+  const manifest = await loadThemeManifest(themeId, fallbackManifest || {});
+  manifest.data.images = removeImageEntry(manifest.data.images, cleanName);
+
+  await deleteRepoFile(filePath, fileSha, `Remove theme cutting ${themeId}/${cleanName}`);
+  await saveManifest(manifest.path, manifest.sha, manifest.data, `Update theme manifest ${themeId}`);
+  return { name: cleanName };
+}
+
+export async function deleteThemePdf(themeId, fileName, fallbackManifest) {
+  await assertUploadAllowed();
+  const cleanName = basename(fileName);
+  const folder = `study/themes/${themeId}`;
+  const filePath = `${folder}/${cleanName}`;
+
+  const fileSha = await getRepoFileSha(filePath);
+  if (!fileSha) throw new Error("PDF not found in repo.");
+
+  const manifest = await loadThemeManifest(themeId, fallbackManifest || {});
+  manifest.data.sources = removeSourceByPath(manifest.data.sources, cleanName);
+
+  await deleteRepoFile(filePath, fileSha, `Remove theme PDF ${themeId}/${cleanName}`);
+  await saveManifest(manifest.path, manifest.sha, manifest.data, `Update theme manifest ${themeId}`);
+  return { name: cleanName };
+}
+
+export async function fetchThemeManifestFromGitHub(themeId) {
+  const path = `study/themes/${themeId}/manifest.json`;
+  const file = await getRepoFile(path);
+  if (!file?.text) return null;
+  try {
+    return JSON.parse(file.text);
+  } catch {
+    return null;
+  }
+}

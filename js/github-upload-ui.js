@@ -16,6 +16,10 @@ import {
   uploadCaItemPdf,
   deleteCaItemImage,
   deleteCaItemPdf,
+  uploadThemeImage,
+  uploadThemePdf,
+  deleteThemeImage,
+  deleteThemePdf,
 } from "./github-upload.js";
 
 export function renderGitHubConnectHint() {
@@ -27,10 +31,14 @@ export function renderGitHubConnectHint() {
 
 export function renderGitHubUploadButton(kind, attrs = {}) {
   const label =
-    kind === "ca-pdf" ? "Upload PDF to git" : kind === "ca-image" ? "Upload cutting / photo" : "Upload file";
+    kind === "ca-pdf" || kind === "theme-pdf"
+      ? "Upload PDF to git"
+      : kind === "ca-image" || kind === "theme-image"
+        ? "Upload cutting / photo"
+        : "Upload file";
 
-  const accept = kind === "ca-pdf" ? "application/pdf,.pdf" : "image/*";
-  const capture = kind === "ca-image" ? ' capture="environment"' : "";
+  const accept = kind === "ca-pdf" || kind === "theme-pdf" ? "application/pdf,.pdf" : "image/*";
+  const capture = kind === "ca-image" || kind === "theme-image" ? ' capture="environment"' : "";
 
   const dataAttrs = Object.entries(attrs)
     .map(([k, v]) => ` data-${k}="${String(v).replace(/"/g, "&quot;")}"`)
@@ -108,7 +116,8 @@ export async function bindGitHubHeaderButton(btn, onChange) {
 
 function parseManifestFallback(control) {
   try {
-    return JSON.parse(control.dataset.itemManifest || "{}");
+    const raw = control.dataset.itemManifest || control.dataset.themeManifest || "{}";
+    return JSON.parse(raw);
   } catch {
     return {};
   }
@@ -150,17 +159,22 @@ export function bindGitHubUploadControl(root, onDone) {
     }
 
     const itemId = control.dataset.itemId;
+    const themeId = control.dataset.themeId;
     const kind = control.dataset.uploadKind;
     const fallback = parseManifestFallback(control);
     status.textContent = "Uploading…";
 
     try {
-      if (kind === "ca-pdf") {
+      if (kind === "theme-pdf") {
+        await uploadThemePdf(themeId, file, fallback);
+      } else if (kind === "theme-image") {
+        await uploadThemeImage(themeId, file, fallback);
+      } else if (kind === "ca-pdf") {
         await uploadCaItemPdf(itemId, file, fallback);
       } else {
         await uploadCaItemImage(itemId, file, fallback);
       }
-      status.textContent = "Uploaded! Visible in ~1–2 min after deploy. Run build-index.py if new item.";
+      status.textContent = "Uploaded! Visible in ~1–2 min after Pages deploy.";
       onDone?.();
     } catch (err) {
       status.textContent = err.message || String(err);
@@ -205,4 +219,37 @@ export function bindAllMaterialsUploads(root, itemId, fallbackManifest, onDone) 
   });
   bindCaGalleryDeletes(root.querySelector(".materials-gallery"), itemId, fallbackManifest, onDone);
   bindCaGalleryDeletes(root.querySelector(".materials-pdfs"), itemId, fallbackManifest, onDone);
+}
+
+export function bindThemeGalleryDeletes(container, themeId, fallbackManifest, onDone) {
+  if (!container) return;
+  container.querySelectorAll(".github-delete-btn").forEach((btn) => {
+    isGitHubUploadAllowed().then((allowed) => {
+      btn.classList.toggle("hidden", !isGitHubConnected() || !allowed);
+    });
+    if (btn.dataset.boundDelete) return;
+    btn.dataset.boundDelete = "1";
+    btn.addEventListener("click", async () => {
+      const file = btn.dataset.file;
+      const kind = btn.dataset.fileKind || "image";
+      if (!file || !window.confirm(`Delete from git?\n\n${file}`)) return;
+      btn.disabled = true;
+      try {
+        if (kind === "pdf") await deleteThemePdf(themeId, file, fallbackManifest);
+        else await deleteThemeImage(themeId, file, fallbackManifest);
+        onDone?.();
+      } catch (err) {
+        window.alert(err.message || String(err));
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+export function bindThemeMaterialsUploads(root, themeId, fallbackManifest, onDone) {
+  root.querySelectorAll(".github-upload-control").forEach((el) => {
+    bindGitHubUploadControl(el, onDone);
+  });
+  bindThemeGalleryDeletes(root.querySelector(".materials-gallery"), themeId, fallbackManifest, onDone);
+  bindThemeGalleryDeletes(root.querySelector(".materials-pdfs"), themeId, fallbackManifest, onDone);
 }
