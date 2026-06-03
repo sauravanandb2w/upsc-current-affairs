@@ -32,12 +32,17 @@ function hasMarkdownSyntax(s) {
   );
 }
 
-/** Normalize any stored note body to Markdown (never plain text). */
+/** Normalize any stored note body to Markdown (never plain text or HTML). */
 export function noteValueToMarkdown(value) {
   const s = String(value ?? "").trim();
   if (!s) return "";
-  if (looksLikeNoteHtml(s) && !hasMarkdownSyntax(s)) return htmlToMarkdown(s);
-  return s;
+  if (looksLikeNoteHtml(s)) {
+    if (hasMarkdownSyntax(s) && /<(table|ul|ol|p|div|h[1-6]|li|tr|td|th)\b/i.test(s)) {
+      return convertEmbeddedHtmlToMarkdown(s);
+    }
+    if (!hasMarkdownSyntax(s)) return htmlToMarkdown(s);
+  }
+  return convertEmbeddedHtmlToMarkdown(s);
 }
 
 /** Markdown (or legacy HTML) → HTML for the rich editor (caller sanitizes). */
@@ -140,7 +145,7 @@ function htmlToMarkdown(html) {
 
     if (tag === "u") {
       const inner = walkChildren(node).trim();
-      return inner ? `<u>${inner}</u>` : "";
+      return inner || "";
     }
 
     if (tag === "span") {
@@ -205,7 +210,6 @@ function spanToMarkdown(node) {
   if (!inner) return "";
   if (isBold) inner = `**${inner}**`;
   if (isItalic) inner = `*${inner}*`;
-  if (isUnderline) inner = `<u>${inner}</u>`;
   return inner;
 }
 
@@ -225,7 +229,7 @@ function walkInline(node) {
   }
   if (tag === "u") {
     const inner = walkInlineChildren(node).trim();
-    return inner ? `<u>${inner}</u>` : "";
+    return inner || "";
   }
   if (tag === "span") return spanToMarkdown(node);
   if (tag === "br") return "\n";
@@ -239,11 +243,6 @@ function walkInlineChildren(node) {
 }
 
 function tableToMarkdown(table) {
-  const hasStyle = Boolean(table.querySelector("[style]"));
-  if (hasStyle) {
-    return `\n\n${table.outerHTML}\n\n`;
-  }
-
   const rows = [...table.querySelectorAll("tr")];
   if (!rows.length) return "";
 
@@ -258,6 +257,24 @@ function tableToMarkdown(table) {
   });
 
   return lines.length ? `${lines.join("\n")}\n\n` : "";
+}
+
+/** Replace embedded HTML blocks inside a Markdown string with Markdown equivalents. */
+function convertEmbeddedHtmlToMarkdown(md) {
+  let out = String(md ?? "");
+  out = out.replace(/<table[\s\S]*?<\/table>/gi, (html) => {
+    const wrap = document.createElement("div");
+    wrap.innerHTML = html;
+    const table = wrap.querySelector("table");
+    return table ? tableToMarkdown(table).trim() : "";
+  });
+  out = out.replace(/<ul[\s\S]*?<\/ul>/gi, (html) => htmlToMarkdown(html).trim());
+  out = out.replace(/<ol[\s\S]*?<\/ol>/gi, (html) => htmlToMarkdown(html).trim());
+  if (looksLikeNoteHtml(out)) {
+    const wrapped = /^<[a-z]/i.test(out.trim()) ? out : `<div>${out}</div>`;
+    out = htmlToMarkdown(wrapped);
+  }
+  return out.replace(/\n{3,}/g, "\n\n").trim();
 }
 
 function cellMarkdownInline(cell) {
@@ -312,9 +329,10 @@ function blockPlainFromDiv(div) {
   return out.replace(/\n{3,}/g, "\n\n").replace(/\n+$/g, "").trim();
 }
 
-/** Markdown for notes.md / Supabase (never HTML). */
+/** Markdown-only storage for notes.md and Supabase (no HTML). */
 export function noteMarkdownForStorage(value) {
-  return normalizeGitSectionMarkdown(noteValueToMarkdown(value));
+  const md = normalizeGitSectionMarkdown(noteValueToMarkdown(value));
+  return convertEmbeddedHtmlToMarkdown(md);
 }
 
 /**
@@ -338,7 +356,6 @@ export function normalizeGitSectionMarkdown(body) {
           continue;
         }
         if (rest.startsWith("<")) {
-          out.push(rest);
           continue;
         }
         if (!rest) continue;
@@ -351,7 +368,6 @@ export function normalizeGitSectionMarkdown(body) {
           continue;
         }
         if (rest.startsWith("<")) {
-          out.push(rest);
           continue;
         }
         if (!rest) continue;

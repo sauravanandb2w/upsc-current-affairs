@@ -129,9 +129,9 @@ export function noteStorageToEditorHtml(raw) {
   return markdownToEditorHtml(raw, sanitizeNoteHtml);
 }
 
-/** Markdown for notes.md and Supabase — keeps formatting on round-trip. */
-export function noteHtmlForGitStorage(html) {
-  return noteMarkdownForStorage(html);
+/** Markdown-only storage for notes.md and Supabase (no HTML). */
+export function noteHtmlForGitStorage(value) {
+  return noteMarkdownForStorage(value);
 }
 
 export { noteMarkdownForStorage, noteValueToMarkdown };

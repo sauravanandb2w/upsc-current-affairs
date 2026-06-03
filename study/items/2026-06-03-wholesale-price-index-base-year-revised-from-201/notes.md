@@ -22,7 +22,12 @@ India is revising the WPI base year from 2011–12 to 2022–23 and gradually tr
 
 ### Difference between WPI & PPI
 
-<table><thead><tr><th style="color: rgb(17, 24, 39); background: rgba(248, 250, 252, 0.9)">WPI</th><th style="color: rgb(17, 24, 39); background: rgba(248, 250, 252, 0.9)">PPI</th></tr></thead><tbody><tr><td>Wholesale prices</td><td>Producer prices</td></tr><tr><td>Includes taxes/trade distortions</td><td>Cleaner producer cost</td></tr><tr><td>Mainly goods</td><td>Goods + services</td></tr><tr><td>Older methodology</td><td>International standard</td></tr></tbody></table>
+| WPI | PPI |
+| --- | --- |
+| Wholesale prices | Producer prices |
+| Includes taxes/trade distortions | Cleaner producer cost |
+| Mainly goods | Goods + services |
+| Older methodology | International standard |
 
 ### Why shift to PPI?
 
@@ -141,7 +146,11 @@ Consumer Price Index (CPI).
 
 **Answer:**
 
-<table><thead><tr><th style="color: rgb(17, 24, 39); background: rgba(248, 250, 252, 0.9)">WPI</th><th style="color: rgb(17, 24, 39); background: rgba(248, 250, 252, 0.9)">PPI</th></tr></thead><tbody><tr><td>Wholesale prices</td><td>Producer prices</td></tr><tr><td>Older method</td><td>International standard</td></tr><tr><td>Mainly goods</td><td>Goods + services</td></tr></tbody></table>
+| WPI | PPI |
+| --- | --- |
+| Wholesale prices | Producer prices |
+| Older method | International standard |
+| Mainly goods | Goods + services |
 
 Q11. Why is this news important for UPSC?
 ### Q11. Why is this news important for UPSC?

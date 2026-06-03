@@ -1,7 +1,7 @@
 /** Parse and serialize study/items/<id>/notes.md (git-only sections). */
 
 import { fieldIdForSection } from "./field-locks.js";
-import { normalizeGitSectionMarkdown } from "./note-markdown.js";
+import { noteMarkdownForStorage } from "./note-markdown.js";
 
 export const GIT_SECTIONS = [
   "Facts",
@@ -34,14 +34,14 @@ function coalesceNoteText(...candidates) {
 export function mergeGitSectionsWithLocal(fromGit, local) {
   const merged = emptyGitSections();
   for (const sec of GIT_SECTIONS) {
-    merged[sec] = normalizeGitSectionMarkdown(fromGit?.[sec] || "");
+    merged[sec] = noteMarkdownForStorage(fromGit?.[sec] || "");
   }
   if (!local || typeof local !== "object") return merged;
   for (const sec of GIT_SECTIONS) {
     const fid = fieldIdForSection(sec);
     const val = local[sec] ?? local[fid];
     if (val != null && sectionPlainLength(val) > 0) {
-      merged[sec] = normalizeGitSectionMarkdown(coalesceNoteText(val, merged[sec]));
+      merged[sec] = noteMarkdownForStorage(coalesceNoteText(val, merged[sec]));
     }
   }
   return merged;
@@ -82,7 +82,7 @@ export function normalizeParsedGitSections(sections) {
   if (!sections || typeof sections !== "object") return { ...emptyGitSections(), [SUMMARY_SECTION]: "" };
   const out = { ...sections };
   for (const key of [SUMMARY_SECTION, ...GIT_SECTIONS]) {
-    if (out[key]) out[key] = normalizeGitSectionMarkdown(out[key]);
+    if (out[key]) out[key] = noteMarkdownForStorage(out[key]);
   }
   return out;
 }
@@ -95,7 +95,7 @@ export function serializeNotesMd(sections, { includeSummary = false } = {}) {
   const order = includeSummary ? [SUMMARY_SECTION, ...GIT_SECTIONS] : GIT_SECTIONS;
   const parts = [];
   for (const key of order) {
-    const body = normalizeGitSectionMarkdown(sections[key] || "");
+    const body = noteMarkdownForStorage(sections[key] || "");
     parts.push(`## ${key}`, "", body || "", "");
   }
   return parts.join("\n").trimEnd() + "\n";
