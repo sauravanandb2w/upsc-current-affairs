@@ -82,11 +82,11 @@ import {
   setRichNoteLocked,
   noteHtmlToPlainText,
   noteStorageToEditorHtml,
-} from "./rich-notes.js?v=31";
+} from "./rich-notes.js?v=32";
 import { initTheme, bindThemeToggle, bindNoteSizeControl } from "./theme.js";
 import { bindExportButtons } from "./export-ca.js";
 import { loadFlashcards, loadFlashcardsLocal, generateFlashcardsFromItem, removeFlashcardsForItem } from "./flashcards.js";
-import { commitNotesMdToGitHub, fetchNotesMdFromGitHub } from "./github-notes.js?v=30";
+import { commitNotesMdToGitHub, fetchNotesMdFromGitHub } from "./github-notes.js?v=31";
 import {
   publishDraftToGitHub,
   savePublishedItemToGitHub,
@@ -1062,6 +1062,7 @@ async function renderItemDetail(itemId) {
 
   document.getElementById("commitNotesBtn")?.addEventListener("click", async () => {
     try {
+      flushItemNoteEditorsFromDom();
       const liveSections = readGitSectionsFromEditors();
       const summaryField = document.querySelector('[data-field-id="summary"]')?.closest(".note-field");
       const summaryLive = summaryField ? readNoteFieldValue(summaryField) : cloud.summary || "";

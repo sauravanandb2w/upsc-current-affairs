@@ -380,7 +380,12 @@ function isSubheadingLine(text) {
     return false;
   }
   if (t.endsWith(".") && t.length > 55) return false;
-  return true;
+  if (/^GS-\d+$/i.test(t)) return true;
+  if (/^Prelims$/i.test(t)) return true;
+  if (/^Q\d+\./.test(t)) return true;
+  // Real subheadings use title case — not casual notes like "test test test"
+  if (/^[A-Z][a-zA-Z0-9'→–—&/-]*(\s+[A-Za-z0-9][a-zA-Z0-9'→–—&/-]*)+/.test(t) && /[A-Z]/.test(t)) return true;
+  return false;
 }
 
 /** Plain title line before bullets/table → ### heading. */

@@ -143,8 +143,8 @@ export function setRichNoteContent(editor, raw) {
     editor.innerHTML = "";
     return;
   }
-  const md = noteMarkdownForStorage(s);
-  editor.innerHTML = markdownToEditorHtml(md, sanitizeNoteHtml);
+  // Display Git/Supabase markdown as-is; canonicalize only on save (getRichNoteContent).
+  editor.innerHTML = markdownToEditorHtml(s, sanitizeNoteHtml);
 }
 
 export function getRichNoteContent(editor) {
@@ -154,7 +154,11 @@ export function getRichNoteContent(editor) {
   const sanitized = sanitizeNoteHtml(html);
   const visible = sanitized.replace(/<[^>]*>/g, "").replace(/\u00a0/g, " ").trim();
   if (!visible) return "";
-  return noteMarkdownForStorage(sanitized);
+  const md = noteMarkdownForStorage(sanitized);
+  if (md.trim()) return md;
+  const soft = noteValueToMarkdown(sanitized).trim();
+  if (soft) return soft;
+  return visible;
 }
 
 export function renderRichNoteToolbar() {
@@ -281,7 +285,12 @@ export function syncRichNoteLockState(fieldEl, locked) {
 }
 
 export function readNoteFieldValue(fieldEl) {
-  return getRichNoteContent(fieldEl?.querySelector(".rich-note-editor"));
+  const editor = fieldEl?.querySelector(".rich-note-editor");
+  if (!editor) return "";
+  const md = getRichNoteContent(editor);
+  if (md.trim()) return md;
+  const plain = String(editor.innerText || "").replace(/\u00a0/g, " ").trim();
+  return plain;
 }
 
 export function writeNoteFieldValue(fieldEl, value) {
