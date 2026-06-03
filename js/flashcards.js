@@ -1,5 +1,5 @@
 import { getSupabase, isSupabaseConfigured } from "./supabase-client.js";
-import { noteHtmlToPlainText } from "./rich-notes.js?v=28";
+import { noteHtmlToPlainText } from "./rich-notes.js?v=29";
 import { effectiveItemDate } from "./date-picker.js";
 
 /** Spaced revision buckets (days) */

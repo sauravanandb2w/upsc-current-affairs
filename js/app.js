@@ -75,16 +75,16 @@ import {
   setRichNoteLocked,
   noteHtmlToPlainText,
   noteStorageToEditorHtml,
-} from "./rich-notes.js?v=28";
+} from "./rich-notes.js?v=29";
 import { initTheme, bindThemeToggle, bindNoteSizeControl } from "./theme.js";
 import { bindExportButtons } from "./export-ca.js";
 import { loadFlashcards, loadFlashcardsLocal, generateFlashcardsFromItem, removeFlashcardsForItem } from "./flashcards.js";
-import { commitNotesMdToGitHub, fetchNotesMdFromGitHub } from "./github-notes.js?v=28";
+import { commitNotesMdToGitHub, fetchNotesMdFromGitHub } from "./github-notes.js?v=29";
 import {
   publishDraftToGitHub,
   savePublishedItemToGitHub,
   deletePublishedItemFromGitHub,
-} from "./github-publish.js?v=28";
+} from "./github-publish.js?v=29";
 import {
   loadSearchIndex,
   setSearchIndexEntry,

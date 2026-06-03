@@ -5,7 +5,7 @@ import {
   setNoteEditorSize,
   initNoteEditorSize,
   NOTE_EDITOR_SIZES,
-} from "./rich-notes.js?v=28";
+} from "./rich-notes.js?v=29";
 
 const THEME_KEY = "upsc-ca-theme";
 

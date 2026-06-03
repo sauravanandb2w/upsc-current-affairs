@@ -1,6 +1,6 @@
 import { getAllCloudDataForExport, getCloudEntry, getGitNotesFromLocal, getItemMeta } from "./ca-store.js";
 import { GIT_SECTIONS } from "./notes-md.js";
-import { noteHtmlToPlainText } from "./rich-notes.js?v=28";
+import { noteHtmlToPlainText } from "./rich-notes.js?v=29";
 import { getFlashcards } from "./flashcards.js";
 import { effectiveItemDate, isValidIsoDate } from "./date-picker.js";
 
