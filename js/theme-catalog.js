@@ -1,21 +1,49 @@
 /**
- * Built-in themes (data/themes-index.json) + custom themes (localStorage).
+ * Built-in category/subcategory tree (data/themes-index.json) + user themes (localStorage).
  */
 
-const LS_CUSTOM = "ca-custom-themes-v1";
+const LS_CUSTOM = "ca-custom-themes-v2";
 const LS_CUSTOM_CATEGORIES = "ca-custom-categories-v1";
+const LS_CUSTOM_SUBCATEGORIES = "ca-custom-subcategories-v1";
 
 function slugifyId(name) {
   const base = String(name || "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
-  return base || "theme";
+  return base || "item";
+}
+
+function normalizeCatalogCategories(paperKey, catalogIndex) {
+  const paper = catalogIndex?.[paperKey];
+  if (!paper) return [];
+
+  if (Array.isArray(paper.categories) && paper.categories[0]?.subcategories) {
+    return paper.categories.map((c) => ({
+      name: c.name,
+      subcategories: [...(c.subcategories || [])],
+      custom: false,
+    }));
+  }
+
+  // Legacy flat categories + themes as subcategories
+  if (Array.isArray(paper.themes)) {
+    const byParent = new Map();
+    for (const t of paper.themes) {
+      const parent = t.parent || "Other";
+      if (!byParent.has(parent)) byParent.set(parent, []);
+      byParent.get(parent).push({ id: t.id, name: t.name });
+    }
+    return [...byParent.entries()].map(([name, subcategories]) => ({ name, subcategories, custom: false }));
+  }
+
+  const names = paper.categories || [];
+  return names.map((name) => ({ name, subcategories: [], custom: false }));
 }
 
 export function getCustomThemesByPaper() {
   try {
-    const raw = localStorage.getItem(LS_CUSTOM);
+    const raw = localStorage.getItem(LS_CUSTOM) || localStorage.getItem("ca-custom-themes-v1");
     if (!raw) return {};
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === "object" ? parsed : {};
@@ -43,15 +71,45 @@ export function saveCustomCategoriesByPaper(byPaper) {
   localStorage.setItem(LS_CUSTOM_CATEGORIES, JSON.stringify(byPaper));
 }
 
+export function getCustomSubcategoriesByPaper() {
+  try {
+    const raw = localStorage.getItem(LS_CUSTOM_SUBCATEGORIES);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveCustomSubcategoriesByPaper(byPaper) {
+  localStorage.setItem(LS_CUSTOM_SUBCATEGORIES, JSON.stringify(byPaper));
+}
+
 export function isCustomCategory(paperKey, category) {
   return (getCustomCategoriesByPaper()[paperKey] || []).includes(category);
 }
 
-/** @returns {{ id: string, name: string, parent: string, keywords?: string, custom?: boolean }[]} */
+export function isCustomSubcategory(paperKey, category, subcategoryId) {
+  return (getCustomSubcategoriesByPaper()[paperKey]?.[category] || []).some((s) => s.id === subcategoryId);
+}
+
+function normalizeCustomTheme(t) {
+  if (t.category && t.subcategory) return { ...t, custom: true };
+  const category = t.category || t.parent || "";
+  const subcategory = t.subcategory || t.subcategoryId || "__general__";
+  const subcategoryName = t.subcategoryName || (subcategory === "__general__" ? "General" : subcategory);
+  return { ...t, category, subcategory, subcategoryName, custom: true };
+}
+
+/** User-created themes only. */
+export function getThemesForSubcategory(paperKey, category, subcategoryId, catalogIndex) {
+  const custom = (getCustomThemesByPaper()[paperKey] || []).map(normalizeCustomTheme);
+  return custom.filter((t) => t.category === category && t.subcategory === subcategoryId);
+}
+
 export function getMergedThemesForPaper(paperKey, catalogIndex) {
-  const builtIn = catalogIndex?.[paperKey]?.themes || [];
-  const custom = getCustomThemesByPaper()[paperKey] || [];
-  return [...builtIn, ...custom.map((t) => ({ ...t, custom: true }))];
+  return (getCustomThemesByPaper()[paperKey] || []).map(normalizeCustomTheme);
 }
 
 export function findThemeById(themeId, catalogIndex, paperTabs) {
@@ -60,22 +118,22 @@ export function findThemeById(themeId, catalogIndex, paperTabs) {
     const themes = getMergedThemesForPaper(paper.key, catalogIndex);
     const t = themes.find((x) => x.id === themeId);
     if (t) {
+      const sub = findSubcategoryById(paper.key, t.category, t.subcategory, catalogIndex);
       return {
         ...t,
         paperKey: paper.key,
         paperLabel: catalogIndex?.[paper.key]?.label || paper.label,
+        subcategoryName: sub?.name || t.subcategoryName || t.subcategory,
       };
     }
   }
   return null;
 }
 
-/** Ordered subcategories for a paper (catalog + custom areas + theme parents). */
 export function getCategoriesForPaper(paperKey, catalogIndex) {
-  const themes = getMergedThemesForPaper(paperKey, catalogIndex);
-  const explicit = catalogIndex?.[paperKey]?.categories || [];
+  const builtIn = normalizeCatalogCategories(paperKey, catalogIndex).map((c) => c.name);
   const custom = getCustomCategoriesByPaper()[paperKey] || [];
-  const order = [...explicit];
+  const order = [...builtIn];
   const seen = new Set(order);
   for (const c of custom) {
     if (!seen.has(c)) {
@@ -83,40 +141,56 @@ export function getCategoriesForPaper(paperKey, catalogIndex) {
       seen.add(c);
     }
   }
-  for (const t of themes) {
-    const parent = t.parent || "Other";
-    if (!seen.has(parent)) {
-      order.push(parent);
-      seen.add(parent);
-    }
-  }
   return order;
 }
 
-export function themesInCategory(paperKey, category, catalogIndex) {
-  return getMergedThemesForPaper(paperKey, catalogIndex).filter(
-    (t) => (t.parent || "Other") === category
-  );
+export function getCategoryMeta(paperKey, categoryName, catalogIndex) {
+  const builtIn = normalizeCatalogCategories(paperKey, catalogIndex).find((c) => c.name === categoryName);
+  if (builtIn) return builtIn;
+  if (isCustomCategory(paperKey, categoryName)) {
+    return { name: categoryName, subcategories: [], custom: true };
+  }
+  return null;
+}
+
+export function getSubcategoriesForCategory(paperKey, categoryName, catalogIndex) {
+  const meta = getCategoryMeta(paperKey, categoryName, catalogIndex);
+  const builtIn = meta?.subcategories || [];
+  const custom = getCustomSubcategoriesByPaper()[paperKey]?.[categoryName] || [];
+  const byId = new Map();
+  for (const s of builtIn) byId.set(s.id, { ...s, custom: false });
+  for (const s of custom) byId.set(s.id, { ...s, custom: true });
+
+  const legacyGeneral = (getCustomThemesByPaper()[paperKey] || [])
+    .map(normalizeCustomTheme)
+    .some((t) => t.category === categoryName && t.subcategory === "__general__");
+  if (legacyGeneral && !byId.has("__general__")) {
+    byId.set("__general__", { id: "__general__", name: "General", custom: true });
+  }
+
+  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function findSubcategoryById(paperKey, categoryName, subcategoryId, catalogIndex) {
+  return getSubcategoriesForCategory(paperKey, categoryName, catalogIndex).find((s) => s.id === subcategoryId) || null;
+}
+
+export function countThemesInSubcategory(paperKey, category, subcategoryId, catalogIndex) {
+  return getThemesForSubcategory(paperKey, category, subcategoryId, catalogIndex).length;
 }
 
 export function countThemesInCategory(paperKey, category, catalogIndex) {
-  return themesInCategory(paperKey, category, catalogIndex).length;
+  const subs = getSubcategoriesForCategory(paperKey, category, catalogIndex);
+  return subs.reduce((n, s) => n + countThemesInSubcategory(paperKey, category, s.id, catalogIndex), 0);
 }
 
 export function addCustomCategory(paperKey, name, catalogIndex = null) {
   const title = String(name || "").trim();
-  if (!title) {
-    throw new Error("Area name is required.");
-  }
+  if (!title) throw new Error("Category name is required.");
 
   const lower = title.toLowerCase();
-  const explicit = catalogIndex?.[paperKey]?.categories || [];
-  const custom = getCustomCategoriesByPaper()[paperKey] || [];
-  const themeParents = getMergedThemesForPaper(paperKey, catalogIndex).map((t) => t.parent || "Other");
-  const taken = [...explicit, ...custom, ...themeParents].map((c) => c.toLowerCase());
-  if (taken.includes(lower)) {
-    throw new Error(`"${title}" already exists as an area.`);
-  }
+  const taken = getCategoriesForPaper(paperKey, catalogIndex).map((c) => c.toLowerCase());
+  if (taken.includes(lower)) throw new Error(`"${title}" already exists as a category.`);
 
   const byPaper = getCustomCategoriesByPaper();
   byPaper[paperKey] = [...(byPaper[paperKey] || []), title];
@@ -124,11 +198,43 @@ export function addCustomCategory(paperKey, name, catalogIndex = null) {
   return title;
 }
 
-export function addCustomTheme(paperKey, { name, parent, keywords = "" }, catalogIndex = null) {
+export function addCustomSubcategory(paperKey, categoryName, name, catalogIndex = null) {
+  const category = String(categoryName || "").trim();
   const title = String(name || "").trim();
-  const group = String(parent || "").trim();
-  if (!title || !group) {
-    throw new Error("Theme name and subject group are both required.");
+  if (!category || !title) throw new Error("Subcategory name is required.");
+
+  const subs = getSubcategoriesForCategory(paperKey, category, catalogIndex);
+  if (subs.some((s) => s.name.toLowerCase() === title.toLowerCase())) {
+    throw new Error(`"${title}" already exists in this category.`);
+  }
+
+  let id = slugifyId(title);
+  const taken = new Set(subs.map((s) => s.id));
+  let n = 2;
+  while (taken.has(id)) {
+    id = `${slugifyId(title)}-${n}`;
+    n += 1;
+  }
+
+  const sub = { id, name: title, custom: true };
+  const byPaper = getCustomSubcategoriesByPaper();
+  const list = byPaper[paperKey]?.[category] || [];
+  byPaper[paperKey] = { ...(byPaper[paperKey] || {}), [category]: [...list, sub] };
+  saveCustomSubcategoriesByPaper(byPaper);
+
+  if (!getCategoriesForPaper(paperKey, catalogIndex).includes(category)) {
+    addCustomCategory(paperKey, category, catalogIndex);
+  }
+
+  return sub;
+}
+
+export function addCustomTheme(paperKey, { name, category, subcategory, keywords = "" }, catalogIndex = null) {
+  const title = String(name || "").trim();
+  const cat = String(category || "").trim();
+  const sub = String(subcategory || "").trim();
+  if (!title || !cat || !sub) {
+    throw new Error("Theme name, category, and subcategory are all required.");
   }
 
   const byPaper = getCustomThemesByPaper();
@@ -138,34 +244,27 @@ export function addCustomTheme(paperKey, { name, parent, keywords = "" }, catalo
   for (const paper of Object.keys(byPaper)) {
     for (const t of byPaper[paper] || []) taken.add(t.id);
   }
-  if (catalogIndex) {
-    for (const key of Object.keys(catalogIndex)) {
-      for (const t of catalogIndex[key]?.themes || []) taken.add(t.id);
-    }
-  }
   let n = 2;
   while (taken.has(id)) {
     id = `${slugifyId(title)}-${n}`;
     n += 1;
   }
 
+  const subMeta = findSubcategoryById(paperKey, cat, sub, catalogIndex);
   const theme = {
     id,
     name: title,
-    parent: group,
+    category: cat,
+    subcategory: sub,
+    subcategoryName: subMeta?.name || sub,
     keywords: String(keywords || "").trim(),
     custom: true,
   };
   byPaper[paperKey] = [...list, theme];
   saveCustomThemesByPaper(byPaper);
-
-  const catByPaper = getCustomCategoriesByPaper();
-  const catList = catByPaper[paperKey] || [];
-  const explicit = catalogIndex?.[paperKey]?.categories || [];
-  if (!explicit.includes(group) && !catList.includes(group)) {
-    catByPaper[paperKey] = [...catList, group];
-    saveCustomCategoriesByPaper(catByPaper);
-  }
-
   return theme;
+}
+
+export function themeFieldIdForSection(sectionName) {
+  return `theme_${String(sectionName).toLowerCase().replace(/\s+/g, "_")}`;
 }

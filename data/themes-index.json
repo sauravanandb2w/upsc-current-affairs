@@ -1,651 +1,492 @@
 {
   "1": {
     "label": "GS Paper I",
-    "themes": [
-      {
-        "id": "architecture-sculpture",
-        "name": "Architecture & Sculpture",
-        "parent": "Indian Art & Culture",
-        "keywords": "architecture sculpture temple rock-cut stupa gandhara chola pallava vijayanagara mughal cave art monuments iron steel location raw material"
-      },
-      {
-        "id": "literature-religion",
-        "name": "Literature, Religion & Philosophy",
-        "parent": "Indian Art & Culture",
-        "keywords": "literature bhakti sufi buddhist jain philosophy gandhara indus pala buddhism vedic rig later vedic philosophy tradition conceiving shaping"
-      },
-      {
-        "id": "heritage-performing-arts",
-        "name": "Heritage & Performing Arts",
-        "parent": "Indian Art & Culture",
-        "keywords": "dance music painting miniature puppet heritage safeguarding coin inscript pottery performing folk motifs narratives ideals"
-      },
-      {
-        "id": "ancient-medieval",
-        "name": "Ancient & Medieval India",
-        "parent": "Indian History",
-        "keywords": "ancient harappan indus maurya gupta kushan magadha sultanate delhi sultan medieval feudal agrarian pallava chola vijayanagara harappa"
-      },
-      {
-        "id": "modern-history",
-        "name": "Modern India & Freedom Struggle",
-        "parent": "Indian History",
-        "keywords": "freedom struggle colonial british 1857 gandhi nehru congress partition independence quit india civil disobedience non-cooperation moderates extremists subhash bose integration princely states administrative issues curzon lord curzon national movement policies"
-      },
-      {
-        "id": "post-independence",
-        "name": "Post-Independence India",
-        "parent": "Indian History",
-        "keywords": "post-independence nehruvian planning linguistic reorganization emergency coalition politics green revolution white revolution"
-      },
-      {
-        "id": "world-history",
-        "name": "World History",
-        "parent": "World History & Geography",
-        "keywords": "world war cold war europe america industrial revolution colonization decolonization balance power fascism communism ussr"
-      },
-      {
-        "id": "physical-geo",
-        "name": "Physical Geography",
-        "parent": "Geography",
-        "keywords": "monsoon cyclone earthquake tsunami volcano climate cloudburst aurora tornado twister fjord physiography landform plate tectonic precipitation flooding million cities smart hyderabad pune remedial arctic antarctic geophysical circum-pacific desertification melting glaciers weather patterns"
-      },
-      {
-        "id": "indian-geo",
-        "name": "Indian Geography",
-        "parent": "Geography",
-        "keywords": "river ganga brahmaputra groundwater irrigation canal drought flood himalaya deccan coastal peninsula soil agriculture mineral resource mining gondwanaland localization agro-based food processing north-west iron steel industries solar energy regional variations"
-      },
-      {
-        "id": "world-geo",
-        "name": "World Geography",
-        "parent": "World History & Geography",
-        "keywords": "continent ocean trade route geopolitical resource distribution demographic transition gulf mexico regional disparity diversity"
-      },
-      {
-        "id": "caste-tribe",
-        "name": "Caste, Tribe & Social Structure",
-        "parent": "Indian Society",
-        "keywords": "caste intercaste tribe tribal scheduled marginality socio-economic parity uniqueness tribal knowledge system mainstream cultural systems"
-      },
-      {
-        "id": "women-gender",
-        "name": "Women, Gender & Empowerment",
-        "parent": "Indian Society",
-        "keywords": "gender equality equity women empowerment feminist marriage divorce gig economy skilled young unmarried women patriarchal"
-      },
-      {
-        "id": "urbanization-migration",
-        "name": "Urbanization & Migration",
-        "parent": "Indian Society",
-        "keywords": "urban urbanization migration globalization city million smart developing countries attract migrants smaller towns urban mass transport local identity global identity regionalism cultural assertiveness"
-      },
-      {
-        "id": "social-reform-change",
-        "name": "Social Reform & Change",
-        "parent": "Indian Society",
-        "keywords": "reform brahmo young bengal socio-religious secularization continuity traditional social values population education cryptocurrency digital initiatives education system socio-economic implications information technology industries major cities"
-      },
-      {
-        "id": "development-inequality",
-        "name": "Development & Inequality",
-        "parent": "Indian Society",
-        "keywords": "poverty inequality regional disparity underprivileged affirmative action equity social justice collaboration government ngos private sector socio-economic issues cultural diversities margin class inequalities eradication poverty programmes covid-19 pandemic"
-      }
-    ],
     "categories": [
-      "Indian Art & Culture",
-      "Indian History",
-      "World History & Geography",
-      "Geography",
-      "Indian Society"
+      {
+        "name": "Geography",
+        "subcategories": [
+          {
+            "id": "indian-geo",
+            "name": "Indian Geography"
+          },
+          {
+            "id": "physical-geo",
+            "name": "Physical Geography"
+          }
+        ]
+      },
+      {
+        "name": "Indian Art & Culture",
+        "subcategories": [
+          {
+            "id": "architecture-sculpture",
+            "name": "Architecture & Sculpture"
+          },
+          {
+            "id": "heritage-performing-arts",
+            "name": "Heritage & Performing Arts"
+          },
+          {
+            "id": "literature-religion",
+            "name": "Literature, Religion & Philosophy"
+          }
+        ]
+      },
+      {
+        "name": "Indian History",
+        "subcategories": [
+          {
+            "id": "ancient-medieval",
+            "name": "Ancient & Medieval India"
+          },
+          {
+            "id": "modern-history",
+            "name": "Modern India & Freedom Struggle"
+          },
+          {
+            "id": "post-independence",
+            "name": "Post-Independence India"
+          }
+        ]
+      },
+      {
+        "name": "Indian Society",
+        "subcategories": [
+          {
+            "id": "caste-tribe",
+            "name": "Caste, Tribe & Social Structure"
+          },
+          {
+            "id": "development-inequality",
+            "name": "Development & Inequality"
+          },
+          {
+            "id": "social-reform-change",
+            "name": "Social Reform & Change"
+          },
+          {
+            "id": "urbanization-migration",
+            "name": "Urbanization & Migration"
+          },
+          {
+            "id": "women-gender",
+            "name": "Women, Gender & Empowerment"
+          }
+        ]
+      },
+      {
+        "name": "World History & Geography",
+        "subcategories": [
+          {
+            "id": "world-geo",
+            "name": "World Geography"
+          },
+          {
+            "id": "world-history",
+            "name": "World History"
+          }
+        ]
+      }
     ]
   },
   "2": {
     "label": "GS Paper II",
-    "themes": [
-      {
-        "id": "fundamental-rights-dpsp",
-        "name": "Fundamental Rights & DPSP",
-        "parent": "Constitution & Polity",
-        "keywords": "fundamental rights dpsp directive principles fundamental duties article 21 liberty privacy life personal gender justice secular secularism equality dignity habeas corpus constitutionalization environment free speech expression hate film"
-      },
-      {
-        "id": "parliament-legislature",
-        "name": "Parliament & Legislatures",
-        "parent": "Constitution & Polity",
-        "keywords": "parliament lok sabha rajya sabha legislative assembly bill committee presiding speaker sovereignty legislation parliamentary law-making ordinary legislative cabinet system marginalisation supremacy financial committee"
-      },
-      {
-        "id": "union-state-executive",
-        "name": "Union & State Executive",
-        "parent": "Constitution & Polity",
-        "keywords": "president governor prime minister council minister executive pardon preemptive mercy ordinance vice-president chief minister attorney general france elected procedure"
-      },
-      {
-        "id": "judiciary",
-        "name": "Judiciary & Judicial Review",
-        "parent": "Constitution & Polity",
-        "keywords": "judiciary supreme court high court collegium judicial independence accountability review pil public interest litigation contempt lok adalat arbitration administrative tribunal court system nalsa legal aid free legal"
-      },
-      {
-        "id": "federalism-centre-state",
-        "name": "Federalism & Centre-State",
-        "parent": "Constitution & Polity",
-        "keywords": "federalism centre-state center state sarkaria zonal finance commission gst 101st amendment inter-state inter state fiscal cooperative fiscal federalism planned development article 356 cooperation competition confrontation federation decentralisation power grassroots"
-      },
-      {
-        "id": "elections-rpa",
-        "name": "Elections & RPA",
-        "parent": "Constitution & Polity",
-        "keywords": "election electoral representation people act rpa corrupt practice undue influence candidate returned void voter one nation simultaneous reform disqualification dispute member parliament state legislature party system transition contradiction paradox"
-      },
-      {
-        "id": "constitutional-bodies",
-        "name": "Constitutional Bodies",
-        "parent": "Constitution & Polity",
-        "keywords": "cag comptroller auditor auditor-general upsc election commission ncrwc ncw ncpcr nhrc constitutional body statutory finance commission lokpal cvc competition commission cci abuse dominant"
-      },
-      {
-        "id": "constitutional-amendment",
-        "name": "Amendment & Basic Structure",
-        "parent": "Constitution & Polity",
-        "keywords": "amendment amend basic structure kesavananda minerva article 368 constitutional morality living instrument dynamism procedural substantive limitation change constitution"
-      },
-      {
-        "id": "special-provisions-ut",
-        "name": "UTs & Special Provisions",
-        "parent": "Constitution & Polity",
-        "keywords": "jammu kashmir reorganization reorganisation ut union territory delhi special status scheduled area article 370 371 ladakh assembly legislative"
-      },
-      {
-        "id": "comparative-constitution",
-        "name": "Comparative Constitutions",
-        "parent": "Constitution & Polity",
-        "keywords": "compare contrast british american usa constitution uk westminster parliamentary sovereignty secular principles united states france learn approach"
-      },
-      {
-        "id": "e-governance",
-        "name": "E-Governance & Digital India",
-        "parent": "Governance & Administration",
-        "keywords": "e-governance egovernance digital technology service delivery back-end backend integration user-centric user centric fourth industrial revolution information use value effectiveness transparency accountability inadequacies hamper"
-      },
-      {
-        "id": "local-government",
-        "name": "Local Government & Decentralization",
-        "parent": "Governance & Administration",
-        "keywords": "local body panchayat municipal samiti grassroots decentralisation decentralization local self-government local level merger rural urban good governance sources grants decision-making problem-solving responsibilities located close source execution contemporary development models"
-      },
-      {
-        "id": "civil-services",
-        "name": "Civil Services & Bureaucracy",
-        "parent": "Governance & Administration",
-        "keywords": "civil service bureaucracy cadre slow change neutrality effectiveness institutional quality driver economic performance reform strengthening democracy doctrine democratic governance integrity commitment civil servants"
-      },
-      {
-        "id": "accountability-transparency",
-        "name": "Accountability & Citizen Charter",
-        "parent": "Governance & Administration",
-        "keywords": "citizens charter citizen-centric citizen centric organizational transparency accountability limitations potential full potential people participation inter-dependent interdependent regulatory institutions independent autonomous corporate governance satyam"
-      },
-      {
-        "id": "public-service-delivery",
-        "name": "Public Service Delivery & NGOs",
-        "parent": "Governance & Administration",
-        "keywords": "public service delivery alternative model civil society non-governmental ngo fcra foreign funding contribution regulation financial institution insurance overlapping diversification rail tariff authority subsidy"
-      },
-      {
-        "id": "poverty-inequality",
-        "name": "Poverty, Hunger & Inequality",
-        "parent": "Social Justice & Welfare",
-        "keywords": "poverty hunger malnutrition vicious cycle inequality ownership paradox resources alleviation programmes showpieces political will estimates reduction incidence intensity vulnerable backward exclusion social expenditure shrinking divergence"
-      },
-      {
-        "id": "health-nutrition",
-        "name": "Public Health & Nutrition",
-        "parent": "Social Justice & Welfare",
-        "keywords": "health healthcare geriatric pediatric nutrition health for all local community-level community level intervention marketization public healthcare system amartya sen primary health care"
-      },
-      {
-        "id": "education-skills",
-        "name": "Education & Skill Development",
-        "parent": "Social Justice & Welfare",
-        "keywords": "education rte compulsory incentive-based incentive based vocational skill training earn learn higher education foreign eduction internationally competitive quality major improvements"
-      },
-      {
-        "id": "vulnerable-groups",
-        "name": "Women, Children & Disability",
-        "parent": "Social Justice & Welfare",
-        "keywords": "women gender feminist patriarchal empowerment equity social capital disability persons disabilities children child ncpcr digital era public examination unfair means university state vulnerable sections discriminatory approach welfare schemes"
-      },
-      {
-        "id": "welfare-schemes-livelihood",
-        "name": "Welfare Schemes & Livelihood",
-        "parent": "Social Justice & Welfare",
-        "keywords": "welfare scheme microfinance micro-finance shg self-help bank linkage sblp asset creation income security rural poor performance awareness active involvement inflation unemployment deft management serve poor underprivileged"
-      },
-      {
-        "id": "pressure-groups-civil-society",
-        "name": "Pressure Groups & Civil Society",
-        "parent": "Social Justice & Welfare",
-        "keywords": "pressure group informal face politics structure functioning business associations public policy making environmental pressure groups awareness advocating policies protection charitable trust inclusive development vital public issues civil society anti-state non-state actors"
-      },
-      {
-        "id": "neighbourhood-regional",
-        "name": "Neighbourhood & Regional",
-        "parent": "International Relations",
-        "keywords": "neighbourhood neighborhood saarc bimstec gujral doctrine mausam maldives string pearls central asian republics cars south china sea maritime territorial pakistan mutual distrust soft power sports cultural exchange project"
-      },
-      {
-        "id": "indo-pacific-bilateral",
-        "name": "Indo-Pacific & Strategic Partnerships",
-        "parent": "International Relations",
-        "keywords": "quad quadrilateral aukus indo-pacific indo us indo-us indo-russian defence defense deals stability strategic ally counter china west fostering alternative supply chain i2u2 israel uae depth diversity japan global partnership sco aims objectives"
-      },
-      {
-        "id": "multilateral-institutions",
-        "name": "Multilateral Institutions",
-        "parent": "International Relations",
-        "keywords": "united nations unsc reform wto doha round negotiations mandate binding who global health security covid pandemic nato us-europe strategic partnership globalization waning sovereign nationalism cold war"
-      },
-      {
-        "id": "energy-economic-diplomacy",
-        "name": "Energy & Economic Diplomacy",
-        "parent": "International Relations",
-        "keywords": "energy security kingpin foreign policy middle eastern look east economic strategic dimensions africa digital partnership co-development institutional trade bloc economic ties japan policy constraints liberalization privatization globalization governmental system responded"
-      },
-      {
-        "id": "terrorism-conflict",
-        "name": "Terrorism & Conflict",
-        "parent": "International Relations",
-        "keywords": "terrorism terror cross-border counter terror counter-terrorism isaf afghanistan withdrawal security implications global peace effectiveness security council increasing attacks interference internal affairs"
-      },
-      {
-        "id": "diaspora-soft-power",
-        "name": "Diaspora & Soft Power",
-        "parent": "International Relations",
-        "keywords": "diaspora scaled heights west america european countries south-east asian south east economic political benefits role economy society leader oppressed marginalised nations disappeared"
-      }
-    ],
     "categories": [
-      "Constitution & Polity",
-      "Governance & Administration",
-      "Social Justice & Welfare",
-      "International Relations"
+      {
+        "name": "Constitution & Polity",
+        "subcategories": [
+          {
+            "id": "constitutional-amendment",
+            "name": "Amendment & Basic Structure"
+          },
+          {
+            "id": "comparative-constitution",
+            "name": "Comparative Constitutions"
+          },
+          {
+            "id": "constitutional-bodies",
+            "name": "Constitutional Bodies"
+          },
+          {
+            "id": "elections-rpa",
+            "name": "Elections & RPA"
+          },
+          {
+            "id": "federalism-centre-state",
+            "name": "Federalism & Centre-State"
+          },
+          {
+            "id": "fundamental-rights-dpsp",
+            "name": "Fundamental Rights & DPSP"
+          },
+          {
+            "id": "judiciary",
+            "name": "Judiciary & Judicial Review"
+          },
+          {
+            "id": "parliament-legislature",
+            "name": "Parliament & Legislatures"
+          },
+          {
+            "id": "union-state-executive",
+            "name": "Union & State Executive"
+          },
+          {
+            "id": "special-provisions-ut",
+            "name": "UTs & Special Provisions"
+          }
+        ]
+      },
+      {
+        "name": "Governance & Administration",
+        "subcategories": [
+          {
+            "id": "accountability-transparency",
+            "name": "Accountability & Citizen Charter"
+          },
+          {
+            "id": "civil-services",
+            "name": "Civil Services & Bureaucracy"
+          },
+          {
+            "id": "e-governance",
+            "name": "E-Governance & Digital India"
+          },
+          {
+            "id": "local-government",
+            "name": "Local Government & Decentralization"
+          },
+          {
+            "id": "public-service-delivery",
+            "name": "Public Service Delivery & NGOs"
+          }
+        ]
+      },
+      {
+        "name": "International Relations",
+        "subcategories": [
+          {
+            "id": "diaspora-soft-power",
+            "name": "Diaspora & Soft Power"
+          },
+          {
+            "id": "energy-economic-diplomacy",
+            "name": "Energy & Economic Diplomacy"
+          },
+          {
+            "id": "indo-pacific-bilateral",
+            "name": "Indo-Pacific & Strategic Partnerships"
+          },
+          {
+            "id": "multilateral-institutions",
+            "name": "Multilateral Institutions"
+          },
+          {
+            "id": "neighbourhood-regional",
+            "name": "Neighbourhood & Regional"
+          },
+          {
+            "id": "terrorism-conflict",
+            "name": "Terrorism & Conflict"
+          }
+        ]
+      },
+      {
+        "name": "Social Justice & Welfare",
+        "subcategories": [
+          {
+            "id": "education-skills",
+            "name": "Education & Skill Development"
+          },
+          {
+            "id": "poverty-inequality",
+            "name": "Poverty, Hunger & Inequality"
+          },
+          {
+            "id": "pressure-groups-civil-society",
+            "name": "Pressure Groups & Civil Society"
+          },
+          {
+            "id": "health-nutrition",
+            "name": "Public Health & Nutrition"
+          },
+          {
+            "id": "welfare-schemes-livelihood",
+            "name": "Welfare Schemes & Livelihood"
+          },
+          {
+            "id": "vulnerable-groups",
+            "name": "Women, Children & Disability"
+          }
+        ]
+      }
     ]
   },
   "3": {
     "label": "GS Paper III",
-    "themes": [
-      {
-        "id": "fiscal-monetary-growth",
-        "name": "Fiscal, Monetary & Growth",
-        "parent": "Economy & Development",
-        "keywords": "gdp growth inflation monetary fiscal budget tax rbi food inflation v-shaped recovery capital revenue gross domestic product computing methodology subsidy inclusive growth"
-      },
-      {
-        "id": "industry-infrastructure",
-        "name": "Industry, MSME & Infrastructure",
-        "parent": "Economy & Development",
-        "keywords": "msme manufacturing industrial policy pli infrastructure investment udhan regional air connectivity monetisation public expenditure social services post-reforms"
-      },
-      {
-        "id": "banking-finance",
-        "name": "Banking & Financial Sector",
-        "parent": "Economy & Development",
-        "keywords": "banking financial sector insurance gst ppp financial institution product diversification overlapping"
-      },
-      {
-        "id": "employment-labour",
-        "name": "Employment & Labour",
-        "parent": "Economy & Development",
-        "keywords": "labour code labour market reforms employment job skill land reform small marginal farmers socio-economic conditions"
-      },
-      {
-        "id": "crops-farmers",
-        "name": "Crops & Farmers",
-        "parent": "Agriculture & Food Security",
-        "keywords": "agriculture crop millet farmer msp horticulture green revolution white revolution land holding"
-      },
-      {
-        "id": "food-security-fci",
-        "name": "Food Security & PDS",
-        "parent": "Agriculture & Food Security",
-        "keywords": "food security fci buffer stock public distribution stabilizing agricultural prices challenges"
-      },
-      {
-        "id": "irrigation-agri-economy",
-        "name": "Irrigation & Agro-Industries",
-        "parent": "Agriculture & Food Security",
-        "keywords": "irrigation agro-based food processing localization north-west farmer distress"
-      },
-      {
-        "id": "space-nuclear-defence",
-        "name": "Space, Nuclear & Defence Tech",
-        "parent": "Science & Technology",
-        "keywords": "space satellite nuclear biotechnology defence technology"
-      },
-      {
-        "id": "digital-ai-cyber",
-        "name": "Digital, AI & Cyber",
-        "parent": "Science & Technology",
-        "keywords": "ai artificial intelligence digital data protection cyber encryption ict highway toll technology innovation"
-      },
-      {
-        "id": "ipr-innovation",
-        "name": "IPR & Innovation",
-        "parent": "Science & Technology",
-        "keywords": "patent ipr innovation research asteroids threat extinction strategies prevent"
-      },
-      {
-        "id": "climate-energy",
-        "name": "Climate Change & Energy",
-        "parent": "Environment & Biodiversity",
-        "keywords": "climate change cop net zero renewable energy green grid emission cop26 whO aqg air quality guidelines sunlight electric energy conventional generation"
-      },
-      {
-        "id": "pollution-eia",
-        "name": "Pollution & EIA",
-        "parent": "Environment & Biodiversity",
-        "keywords": "pollution eia notification industrial river sand mining environment impact assessment ngo activist coastal mining legal illegal"
-      },
-      {
-        "id": "biodiversity-water",
-        "name": "Biodiversity, Forests & Water",
-        "parent": "Environment & Biodiversity",
-        "keywords": "biodiversity wildlife forest wetland jal shakti freshwater water conservation carrying capacity ecosystem visvesvaaraya swaminathan water engineering alternative technologies shortage clean safe"
-      },
-      {
-        "id": "disaster-management",
-        "name": "Disaster Management",
-        "parent": "Environment & Biodiversity",
-        "keywords": "disaster resilience sendai framework flood drought landslide urban flood cyclone preparedness mitigation adaptation"
-      },
-      {
-        "id": "terrorism-insurgency",
-        "name": "Terrorism & Insurgency",
-        "parent": "Internal Security",
-        "keywords": "terror terrorist jamaat insurgent cross-border complexity intensity causes linkages obnoxious nexus ogws over-ground workers"
-      },
-      {
-        "id": "lwe-naxal",
-        "name": "Left Wing Extremism",
-        "parent": "Internal Security",
-        "keywords": "naxal left-wing extremism lwe tribal naxalite determinants eastern strategy civil administration"
-      },
-      {
-        "id": "border-security",
-        "name": "Border & Geopolitical Security",
-        "parent": "Internal Security",
-        "keywords": "border myanmar bangladesh pakistan loc badp china cpec one belt road troubled border contentious issues transborder crimes line control"
-      },
-      {
-        "id": "cyber-narco",
-        "name": "Cyber & Narco Security",
-        "parent": "Internal Security",
-        "keywords": "cyber narco-terrorism social media encrypting messaging attacks defensive measures internal security militants deny local support"
-      }
-    ],
-    "insightsSections": [
-      {
-        "id": "indian-economy",
-        "name": "Indian Economy",
-        "displayName": "Indian Economy",
-        "themeId": "fiscal-monetary-growth",
-        "parent": "Economy & Development"
-      },
-      {
-        "id": "inclusive-growth",
-        "name": "Inclusive Growth",
-        "displayName": "Inclusive Growth",
-        "themeId": "fiscal-monetary-growth",
-        "parent": "Economy & Development"
-      },
-      {
-        "id": "government-budgeting",
-        "name": "Government Budgeting",
-        "displayName": "Government Budgeting",
-        "themeId": "fiscal-monetary-growth",
-        "parent": "Economy & Development"
-      },
-      {
-        "id": "agriculture-and-food-security",
-        "name": "Agriculture and Food Security",
-        "displayName": "Agriculture and Food Security",
-        "themeId": "crops-farmers",
-        "parent": "Agriculture & Food Security"
-      },
-      {
-        "id": "food-processing-and-related-industri",
-        "name": "Food Processing and Related Industries in India",
-        "displayName": "Food Processing and Related Industries in India",
-        "themeId": "irrigation-agri-economy",
-        "parent": "Agriculture & Food Security"
-      },
-      {
-        "id": "land-reforms-in-india",
-        "name": "Land Reforms in India",
-        "displayName": "Land Reforms in India",
-        "themeId": "employment-labour",
-        "parent": "Economy & Development"
-      },
-      {
-        "id": "effects-of-liberalization-on-the-eco",
-        "name": "Effects of Liberalization on the Economy, Industrial Policy",
-        "displayName": "Effects of Liberalization on the Economy, Industrial Policy",
-        "themeId": "industry-infrastructure",
-        "parent": "Economy & Development"
-      },
-      {
-        "id": "infrastructure",
-        "name": "Infrastructure",
-        "displayName": "Infrastructure",
-        "themeId": "industry-infrastructure",
-        "parent": "Economy & Development"
-      },
-      {
-        "id": "investment-models",
-        "name": "Investment Models",
-        "displayName": "Investment Models",
-        "themeId": "industry-infrastructure",
-        "parent": "Economy & Development"
-      },
-      {
-        "id": "science-and-technology",
-        "name": "Science and Technology",
-        "displayName": "Science and Technology",
-        "themeId": "space-nuclear-defence",
-        "parent": "Science & Technology"
-      },
-      {
-        "id": "environment-climate-change-and-conse",
-        "name": "Environment, Climate Change, and Conservation",
-        "displayName": "Environment, Climate Change, and Conservation",
-        "themeId": "climate-energy",
-        "parent": "Environment & Biodiversity"
-      },
-      {
-        "id": "disaster-management",
-        "name": "Disaster Management",
-        "displayName": "Disaster Management",
-        "themeId": "disaster-management",
-        "parent": "Environment & Biodiversity"
-      },
-      {
-        "id": "internal-security",
-        "name": "Internal Security",
-        "displayName": "Internal Security",
-        "themeId": "terrorism-insurgency",
-        "parent": "Internal Security"
-      }
-    ],
-    "source": "https://www.insightsonindia.com/upsc-mains-general-studies-3-pyq/",
     "categories": [
-      "Economy & Development",
-      "Agriculture & Food Security",
-      "Science & Technology",
-      "Environment & Biodiversity",
-      "Internal Security"
-    ]
+      {
+        "name": "Agriculture & Food Security",
+        "subcategories": [
+          {
+            "id": "agriculture-and-food-security",
+            "name": "Agriculture and Food Security"
+          },
+          {
+            "id": "crops-farmers",
+            "name": "Crops & Farmers"
+          },
+          {
+            "id": "food-processing-and-related-industri",
+            "name": "Food Processing and Related Industries in India"
+          },
+          {
+            "id": "food-security-fci",
+            "name": "Food Security & PDS"
+          },
+          {
+            "id": "irrigation-agri-economy",
+            "name": "Irrigation & Agro-Industries"
+          }
+        ]
+      },
+      {
+        "name": "Economy & Development",
+        "subcategories": [
+          {
+            "id": "banking-finance",
+            "name": "Banking & Financial Sector"
+          },
+          {
+            "id": "effects-of-liberalization-on-the-eco",
+            "name": "Effects of Liberalization on the Economy, Industrial Policy"
+          },
+          {
+            "id": "employment-labour",
+            "name": "Employment & Labour"
+          },
+          {
+            "id": "fiscal-monetary-growth",
+            "name": "Fiscal, Monetary & Growth"
+          },
+          {
+            "id": "government-budgeting",
+            "name": "Government Budgeting"
+          },
+          {
+            "id": "inclusive-growth",
+            "name": "Inclusive Growth"
+          },
+          {
+            "id": "indian-economy",
+            "name": "Indian Economy"
+          },
+          {
+            "id": "industry-infrastructure",
+            "name": "Industry, MSME & Infrastructure"
+          },
+          {
+            "id": "infrastructure",
+            "name": "Infrastructure"
+          },
+          {
+            "id": "investment-models",
+            "name": "Investment Models"
+          },
+          {
+            "id": "land-reforms-in-india",
+            "name": "Land Reforms in India"
+          }
+        ]
+      },
+      {
+        "name": "Environment & Biodiversity",
+        "subcategories": [
+          {
+            "id": "biodiversity-water",
+            "name": "Biodiversity, Forests & Water"
+          },
+          {
+            "id": "climate-energy",
+            "name": "Climate Change & Energy"
+          },
+          {
+            "id": "disaster-management",
+            "name": "Disaster Management"
+          },
+          {
+            "id": "environment-climate-change-and-conse",
+            "name": "Environment, Climate Change, and Conservation"
+          },
+          {
+            "id": "pollution-eia",
+            "name": "Pollution & EIA"
+          }
+        ]
+      },
+      {
+        "name": "Internal Security",
+        "subcategories": [
+          {
+            "id": "border-security",
+            "name": "Border & Geopolitical Security"
+          },
+          {
+            "id": "cyber-narco",
+            "name": "Cyber & Narco Security"
+          },
+          {
+            "id": "internal-security",
+            "name": "Internal Security"
+          },
+          {
+            "id": "lwe-naxal",
+            "name": "Left Wing Extremism"
+          },
+          {
+            "id": "terrorism-insurgency",
+            "name": "Terrorism & Insurgency"
+          }
+        ]
+      },
+      {
+        "name": "Science & Technology",
+        "subcategories": [
+          {
+            "id": "digital-ai-cyber",
+            "name": "Digital, AI & Cyber"
+          },
+          {
+            "id": "ipr-innovation",
+            "name": "IPR & Innovation"
+          },
+          {
+            "id": "science-and-technology",
+            "name": "Science and Technology"
+          },
+          {
+            "id": "space-nuclear-defence",
+            "name": "Space, Nuclear & Defence Tech"
+          }
+        ]
+      }
+    ],
+    "source": "https://www.insightsonindia.com/upsc-mains-general-studies-3-pyq/"
   },
   "4": {
     "label": "GS Paper IV",
-    "themes": [
-      {
-        "id": "ethics-human-interface",
-        "name": "Ethics & Human Interface",
-        "parent": "Ethics & Values",
-        "keywords": "ethics moral value human interface dimension responsible behavior just unjust contextual literalness substance encompasses key dimensions morally"
-      },
-      {
-        "id": "attitude",
-        "name": "Attitude",
-        "parent": "Ethics & Values",
-        "keywords": "attitude behaviour behavior influence workplace coercion undue influence"
-      },
-      {
-        "id": "aptitude-ei",
-        "name": "Aptitude & Emotional Intelligence",
-        "parent": "Ethics & Values",
-        "keywords": "emotional intelligence eq aptitude resilience stress"
-      },
-      {
-        "id": "integrity-probity",
-        "name": "Integrity & Probity",
-        "parent": "Ethics & Values",
-        "keywords": "integrity probity transparency code of conduct code of ethics corruption moral integrity professional efficiency conflict of interest suitable model guidance public administration"
-      },
-      {
-        "id": "thinkers-quotes",
-        "name": "Thinkers & Quotations",
-        "parent": "Ethics & Values",
-        "keywords": "quotation thinker vivekananda gandhi kant patel guru nanak philosopher peace believe act quotations great thinkers convey present context"
-      },
-      {
-        "id": "public-service-values",
-        "name": "Public Service Values",
-        "parent": "Public Service & Governance",
-        "keywords": "public service civil servant governance karmayogi gender female officer mission administrative rational bns nyaya sanhita law equality impartiality productive efficiency delivering services grassroots challenges female public servants"
-      },
-      {
-        "id": "corporate-governance",
-        "name": "Corporate & Applied Ethics",
-        "parent": "Applied & Corporate Ethics",
-        "keywords": "corporate governance company ceo shareholder ai greenhouse emission net zero weapon industry developed nation war peace climate greed global warming human greed development abc incorporated ethical issues"
-      },
-      {
-        "id": "case-study",
-        "name": "Case Study",
-        "parent": "Case Studies",
-        "keywords": "you are district magistrate dm sp ias officer hospital procurement water farmer industry dilemma case landslide vinod sneha rohit raman srinivasan abc incorporated terrorist social media naxal tribal collector shortage course action options compatible measures"
-      }
-    ],
-    "insightsSections": [
-      {
-        "id": "ethics-and-human-interface",
-        "name": "Ethics and Human Interface",
-        "displayName": "Ethics and Human Interface",
-        "themeId": "ethics-human-interface",
-        "parent": "Ethics & Values"
-      },
-      {
-        "id": "attitude",
-        "name": "Attitude",
-        "displayName": "Attitude",
-        "themeId": "attitude",
-        "parent": "Ethics & Values"
-      },
-      {
-        "id": "aptitude-and-foundational-values-for-civ",
-        "name": "Aptitude and Foundational Values for Civil Service",
-        "displayName": "Aptitude and Foundational Values for Civil Service",
-        "themeId": "public-service-values",
-        "parent": "Public Service & Governance"
-      },
-      {
-        "id": "emotional-intelligence",
-        "name": "Emotional Intelligence",
-        "displayName": "Emotional Intelligence",
-        "themeId": "aptitude-ei",
-        "parent": "Ethics & Values"
-      },
-      {
-        "id": "contributions-of-moral-thinkers-and-phil",
-        "name": "Contributions of Moral Thinkers and Philosophers from India and World",
-        "displayName": "Contributions of Moral Thinkers and Philosophers from India and World",
-        "themeId": "thinkers-quotes",
-        "parent": "Ethics & Values"
-      },
-      {
-        "id": "public-civil-service-values-and-ethics-i",
-        "name": "Public/Civil Service Values and Ethics in Public Administration",
-        "displayName": "Public/Civil Service Values and Ethics in Public Administration",
-        "themeId": "public-service-values",
-        "parent": "Public Service & Governance"
-      },
-      {
-        "id": "probity-in-governance",
-        "name": "Probity in Governance",
-        "displayName": "Probity in Governance",
-        "themeId": "integrity-probity",
-        "parent": "Ethics & Values"
-      },
-      {
-        "id": "case-study-ethics-and-human-interface",
-        "name": "Case Study: Ethics and Human Interface",
-        "displayName": "Case Study: Ethics and Human Interface",
-        "themeId": "case-study",
-        "parent": "Ethics & Values"
-      }
-    ],
-    "source": "https://www.insightsonindia.com/upsc-mains-general-studies-4-pyq/",
     "categories": [
-      "Ethics & Values",
-      "Public Service & Governance",
-      "Applied & Corporate Ethics",
-      "Case Studies"
-    ]
+      {
+        "name": "Applied & Corporate Ethics",
+        "subcategories": [
+          {
+            "id": "corporate-governance",
+            "name": "Corporate & Applied Ethics"
+          }
+        ]
+      },
+      {
+        "name": "Case Studies",
+        "subcategories": [
+          {
+            "id": "case-study",
+            "name": "Case Study"
+          }
+        ]
+      },
+      {
+        "name": "Ethics & Values",
+        "subcategories": [
+          {
+            "id": "aptitude-ei",
+            "name": "Aptitude & Emotional Intelligence"
+          },
+          {
+            "id": "attitude",
+            "name": "Attitude"
+          },
+          {
+            "id": "case-study-ethics-and-human-interface",
+            "name": "Case Study: Ethics and Human Interface"
+          },
+          {
+            "id": "contributions-of-moral-thinkers-and-phil",
+            "name": "Contributions of Moral Thinkers and Philosophers from India and World"
+          },
+          {
+            "id": "emotional-intelligence",
+            "name": "Emotional Intelligence"
+          },
+          {
+            "id": "ethics-human-interface",
+            "name": "Ethics & Human Interface"
+          },
+          {
+            "id": "ethics-and-human-interface",
+            "name": "Ethics and Human Interface"
+          },
+          {
+            "id": "integrity-probity",
+            "name": "Integrity & Probity"
+          },
+          {
+            "id": "probity-in-governance",
+            "name": "Probity in Governance"
+          },
+          {
+            "id": "thinkers-quotes",
+            "name": "Thinkers & Quotations"
+          }
+        ]
+      },
+      {
+        "name": "Public Service & Governance",
+        "subcategories": [
+          {
+            "id": "aptitude-and-foundational-values-for-civ",
+            "name": "Aptitude and Foundational Values for Civil Service"
+          },
+          {
+            "id": "public-service-values",
+            "name": "Public Service Values"
+          },
+          {
+            "id": "public-civil-service-values-and-ethics-i",
+            "name": "Public/Civil Service Values and Ethics in Public Administration"
+          }
+        ]
+      }
+    ],
+    "source": "https://www.insightsonindia.com/upsc-mains-general-studies-4-pyq/"
   },
   "essay": {
     "label": "Essay",
-    "themes": [
-      {
-        "id": "philosophy-ethics",
-        "name": "Philosophy & Ethics",
-        "parent": "Philosophy & Ethics",
-        "keywords": "philosophy ethics values moral dilemma quotation thinker"
-      },
-      {
-        "id": "society-development",
-        "name": "Society & Development",
-        "parent": "Society & Development",
-        "keywords": "society development inequality gender urbanization women empowerment poverty"
-      },
-      {
-        "id": "economy-environment",
-        "name": "Economy & Environment",
-        "parent": "Economy & Environment",
-        "keywords": "economy environment climate sustainable growth green energy"
-      },
-      {
-        "id": "science-technology",
-        "name": "Science & Technology",
-        "parent": "Science & Technology",
-        "keywords": "science technology innovation ai digital space biotechnology"
-      },
-      {
-        "id": "governance-democracy",
-        "name": "Governance & Democracy",
-        "parent": "Governance & Democracy",
-        "keywords": "governance democracy federalism accountability transparency federal polity"
-      }
-    ],
     "categories": [
-      "Philosophy & Ethics",
-      "Society & Development",
-      "Economy & Environment",
-      "Science & Technology",
-      "Governance & Democracy"
+      {
+        "name": "Essay",
+        "subcategories": [
+          {
+            "id": "philosophy-ethics",
+            "name": "Philosophy & Ethics"
+          },
+          {
+            "id": "society-development",
+            "name": "Society & Development"
+          },
+          {
+            "id": "economy-environment",
+            "name": "Economy & Environment"
+          },
+          {
+            "id": "science-technology",
+            "name": "Science & Technology"
+          },
+          {
+            "id": "governance-democracy",
+            "name": "Governance & Democracy"
+          }
+        ]
+      }
     ]
   }
 }

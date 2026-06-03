@@ -21,7 +21,7 @@ function resolveUserId(userId) {
 }
 
 function emptyEntry() {
-  return { notes: emptyThemeSections(), links: [], sources: [] };
+  return { notes: emptyThemeSections(), links: [], sources: [], locks: {} };
 }
 
 function entryHasContent(entry) {
@@ -39,6 +39,7 @@ function readLocal(themeId) {
     parsed.notes = { ...emptyThemeSections(), ...(parsed.notes || {}) };
     parsed.links = parsed.links || [];
     parsed.sources = parsed.sources || [];
+    parsed.locks = parsed.locks || {};
     return parsed;
   } catch {
     return null;
@@ -204,4 +205,38 @@ export function hydrateThemesFromLocal() {
     const themeId = key.slice(LS_PREFIX.length);
     if (!themeCache[themeId]) getThemeEntry(themeId);
   }
+}
+
+export function isThemeFieldLocked(themeId, fieldId) {
+  return Boolean(getThemeEntry(themeId).locks?.[fieldId]);
+}
+
+export function getThemeLockedSnapshot(themeId, fieldId) {
+  return getThemeEntry(themeId).locks?.[fieldId]?.snapshot ?? "";
+}
+
+export function lockThemeField(themeId, fieldId, snapshot) {
+  const entry = getThemeEntry(themeId);
+  entry.locks = {
+    ...(entry.locks || {}),
+    [fieldId]: { snapshot: snapshot ?? "", lockedAt: new Date().toISOString() },
+  };
+  persistThemeEntry(themeId, entry);
+}
+
+export function unlockThemeField(themeId, fieldId) {
+  const entry = getThemeEntry(themeId);
+  const next = { ...(entry.locks || {}) };
+  delete next[fieldId];
+  entry.locks = next;
+  persistThemeEntry(themeId, entry);
+}
+
+export function pickThemeNoteValue(themeId, fieldId, liveValue, gitValue = "") {
+  if (isThemeFieldLocked(themeId, fieldId)) {
+    return getThemeLockedSnapshot(themeId, fieldId);
+  }
+  const local = String(liveValue ?? "").trim();
+  if (local) return liveValue;
+  return gitValue || "";
 }

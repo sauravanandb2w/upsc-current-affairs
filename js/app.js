@@ -98,6 +98,7 @@ import {
   renderThemeDetail,
   themeById,
   ensureThemesCatalogLoaded,
+  flushThemeNoteEditorsFromDom,
 } from "./views-themes.js";
 import {
   hydrateThemesFromLocal,
@@ -174,7 +175,8 @@ const state = {
   pendingDraftId: null,
   drillIndex: 0,
   themePaper: "1",
-  themeParent: null,
+  themeCategory: null,
+  themeSubcategory: null,
   themeId: null,
 };
 
@@ -1545,11 +1547,22 @@ function bindSearch() {
   });
 }
 
-function navigate(view, targetId = null, themePaper = null, themeParent = undefined) {
+function parseThemeNavInput(themeNav) {
+  if (themeNav === undefined) return undefined;
+  if (themeNav === null) return { category: null, subcategory: null };
+  if (typeof themeNav === "string") return { category: themeNav, subcategory: null };
+  return {
+    category: themeNav.category ?? null,
+    subcategory: themeNav.subcategory ?? null,
+  };
+}
+
+function navigate(view, targetId = null, themePaper = null, themeNav = undefined) {
   if (state.view === "item" && state.itemId) {
     flushItemNoteEditorsFromDom();
   }
   if (state.view === "theme" && state.themeId) {
+    flushThemeNoteEditorsFromDom(state.themeId, state.session?.user?.id || null);
     void flushThemeSavesNow();
   }
 
@@ -1557,22 +1570,32 @@ function navigate(view, targetId = null, themePaper = null, themeParent = undefi
   if (view === "item") {
     state.itemId = targetId;
     state.themeId = null;
-    state.themeParent = null;
+    state.themeCategory = null;
+    state.themeSubcategory = null;
   } else if (view === "theme") {
     state.themeId = targetId;
     state.itemId = null;
     const t = themeById(targetId);
     if (t?.paperKey) state.themePaper = t.paperKey;
-    if (t?.parent) state.themeParent = t.parent;
+    if (t?.category) state.themeCategory = t.category;
+    if (t?.subcategory) state.themeSubcategory = t.subcategory;
   } else if (view === "themes") {
     state.itemId = null;
     state.themeId = null;
     if (themePaper != null) state.themePaper = themePaper;
-    state.themeParent = themeParent !== undefined ? themeParent : null;
+    const nav = parseThemeNavInput(themeNav);
+    if (nav !== undefined) {
+      state.themeCategory = nav.category;
+      state.themeSubcategory = nav.subcategory;
+    } else {
+      state.themeCategory = null;
+      state.themeSubcategory = null;
+    }
   } else {
     state.itemId = null;
     state.themeId = null;
-    state.themeParent = null;
+    state.themeCategory = null;
+    state.themeSubcategory = null;
   }
 
   if (themePaper != null && view !== "themes") state.themePaper = themePaper;
@@ -1613,7 +1636,8 @@ async function openThemeDetail() {
 function themeViewCtx() {
   return {
     paperKey: state.themePaper,
-    themeParent: state.themeParent,
+    themeCategory: state.themeCategory,
+    themeSubcategory: state.themeSubcategory,
     themeId: state.themeId,
     navigate,
     escapeHtml,

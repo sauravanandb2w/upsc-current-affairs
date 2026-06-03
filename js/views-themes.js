@@ -15,6 +15,10 @@ import {
   updateThemeLinks,
   updateThemeSources,
   flushThemeSavesNow,
+  isThemeFieldLocked,
+  lockThemeField,
+  unlockThemeField,
+  pickThemeNoteValue,
 } from "./theme-store.js";
 import {
   renderGitHubConnectHint,
@@ -32,11 +36,24 @@ import {
   findThemeById,
   addCustomTheme,
   addCustomCategory,
+  addCustomSubcategory,
   getCategoriesForPaper,
-  themesInCategory,
+  getSubcategoriesForCategory,
+  getThemesForSubcategory,
   countThemesInCategory,
+  countThemesInSubcategory,
   isCustomCategory,
+  isCustomSubcategory,
+  themeFieldIdForSection,
 } from "./theme-catalog.js";
+import {
+  renderRichNoteEditorHtml,
+  bindRichNoteEditor,
+  readNoteFieldValue,
+  writeNoteFieldValue,
+  applyNoteEditorHeightsIn,
+  setRichNoteLocked,
+} from "./rich-notes.js";
 
 const PAPER_TABS = [
   { key: "1", label: "GS Paper I", short: "GS I" },
@@ -58,12 +75,30 @@ function renderPaperTabs(paperKey) {
 
 function bindPaperTabClicks(ctx, root = document) {
   root.querySelectorAll("[data-theme-paper]").forEach((btn) => {
-    btn.addEventListener("click", () => ctx.navigate("themes", null, btn.dataset.themePaper, null));
+    btn.addEventListener("click", () => navThemes(ctx, btn.dataset.themePaper, null, null));
   });
 }
 
 let themesIndex = null;
 let themeDetailRenderSeq = 0;
+
+const LOCK_ICON_OPEN = `<svg class="note-lock-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M15 11V5a4 4 0 0 1 3 0"/></svg>`;
+const LOCK_ICON_CLOSED = `<svg class="note-lock-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+
+function navThemes(ctx, paperKey, category = null, subcategory = null) {
+  ctx.navigate("themes", null, paperKey, { category, subcategory });
+}
+
+export function flushThemeNoteEditorsFromDom(themeId, userId = null) {
+  if (!themeId) return;
+  const entry = getThemeEntry(themeId);
+  const notes = { ...entry.notes };
+  document.querySelectorAll(".theme-notes-panel .note-field[data-theme-section]").forEach((fieldEl) => {
+    const sec = fieldEl.dataset.themeSection;
+    if (sec) notes[sec] = readNoteFieldValue(fieldEl);
+  });
+  updateThemeNotes(themeId, notes, userId);
+}
 
 function escapeHtml(text) {
   return String(text ?? "")
@@ -101,7 +136,7 @@ export async function ensureThemesCatalogLoaded(mainEl, indexUrl) {
     return true;
   } catch (err) {
     if (mainEl) {
-      mainEl.innerHTML = `<p class="error">Could not load theme catalog — ${escapeHtml(err.message || String(err))}. Hard refresh (Cmd+Shift+R) to load v56+.</p>`;
+      mainEl.innerHTML = `<p class="error">Could not load theme catalog — ${escapeHtml(err.message || String(err))}. Hard refresh (Cmd+Shift+R) to load v57+.</p>`;
     }
     return false;
   }
@@ -119,14 +154,39 @@ function themesForPaper(paperKey) {
   return getMergedThemesForPaper(paperKey, themesIndex);
 }
 
-function parentGroupsForPaper(paperKey) {
-  return getCategoriesForPaper(paperKey, themesIndex);
+function renderThemeBreadcrumb(paperLabel, category, subcategoryName) {
+  const parts = [paperLabel];
+  if (category) parts.push(category);
+  if (subcategoryName) parts.push(subcategoryName);
+  return parts.map((p) => `<span>${escapeHtml(p)}</span>`).join('<span class="theme-crumb-sep">›</span>');
 }
 
-function renderThemeBreadcrumb(paperLabel, category, { showCategory = true } = {}) {
-  const parts = [paperLabel];
-  if (showCategory && category) parts.push(category);
-  return parts.map((p) => `<span>${escapeHtml(p)}</span>`).join('<span class="theme-crumb-sep">›</span>');
+function renderThemeNoteLabelRow(label, themeId, fieldId) {
+  const locked = isThemeFieldLocked(themeId, fieldId);
+  const lockBtn = `<span class="note-lock-wrap" title="Lock = keep editing locally; locked text won't go to GitHub until you unlock">
+        <button type="button" class="note-lock-btn${locked ? " note-lock-btn--locked" : ""}" data-theme-lock-field="${escapeHtml(fieldId)}" aria-pressed="${locked ? "true" : "false"}">${locked ? LOCK_ICON_CLOSED : LOCK_ICON_OPEN}</button>
+      </span>`;
+  return `<div class="note-label-row"><span class="note-label">${escapeHtml(label)}</span>${lockBtn}</div>`;
+}
+
+function bindThemeNoteLocks(root, themeId) {
+  root.querySelectorAll("[data-theme-lock-field]").forEach((btn) => {
+    const fieldId = btn.dataset.themeLockField;
+    const field = btn.closest(".note-field");
+    const editor = field?.querySelector(".rich-note-editor");
+    setRichNoteLocked(editor, isThemeFieldLocked(themeId, fieldId));
+    btn.addEventListener("click", () => {
+      const locked = isThemeFieldLocked(themeId, fieldId);
+      if (locked) {
+        unlockThemeField(themeId, fieldId);
+      } else {
+        lockThemeField(themeId, fieldId, readNoteFieldValue(field));
+      }
+      setRichNoteLocked(editor, isThemeFieldLocked(themeId, fieldId));
+      btn.innerHTML = isThemeFieldLocked(themeId, fieldId) ? LOCK_ICON_CLOSED : LOCK_ICON_OPEN;
+      btn.classList.toggle("note-lock-btn--locked", isThemeFieldLocked(themeId, fieldId));
+    });
+  });
 }
 
 function defaultThemeManifest(theme, paperKey) {
@@ -251,12 +311,15 @@ export function renderThemesHub(ctx) {
 
   const paperKey = ctx.paperKey || "1";
   const paperMeta = themesIndex?.[paperKey];
-  const themeParent = ctx.themeParent || null;
+  const category = ctx.themeCategory || null;
+  const subcategory = ctx.themeSubcategory || null;
 
-  if (!themeParent) {
+  if (!category) {
     renderThemeCategoriesHub(ctx, paperKey, paperMeta);
+  } else if (!subcategory) {
+    renderThemeSubcategoriesHub(ctx, paperKey, paperMeta, category);
   } else {
-    renderThemesInCategoryHub(ctx, paperKey, paperMeta, themeParent);
+    renderThemesInSubcategoryHub(ctx, paperKey, paperMeta, category, subcategory);
   }
 }
 
@@ -268,67 +331,104 @@ function renderThemeCategoriesHub(ctx, paperKey, paperMeta) {
     <div class="themes-hub-panel theme-panel-enter" data-active-paper="${escapeHtml(paperKey)}">
     <section class="themes-hero">
       <h2>Mains themes</h2>
-      <p class="muted">Pick a syllabus area, then open themes inside it.</p>
-      <button type="button" class="btn-primary btn-sm" id="addCategoryBtn">+ Add area</button>
+      <p class="muted">Pick a category, then a subcategory — you add your own themes inside.</p>
+      <button type="button" class="btn-primary btn-sm" id="addCategoryBtn">+ Add category</button>
     </section>
     ${renderPaperTabs(paperKey)}
-    <p class="themes-breadcrumb muted small">${renderThemeBreadcrumb(paperMeta?.label || "", null, { showCategory: false })}</p>
-    <p class="themes-paper-desc muted small">${categories.length} areas · ${totalThemes} theme${totalThemes === 1 ? "" : "s"}</p>
+    <p class="themes-breadcrumb muted small">${renderThemeBreadcrumb(paperMeta?.label || "", null, null)}</p>
+    <p class="themes-paper-desc muted small">${categories.length} categories · ${totalThemes} your theme${totalThemes === 1 ? "" : "s"}</p>
     <div class="themes-category-grid theme-stagger-grid">
       ${categories
         .map((cat) => {
+          const subs = getSubcategoriesForCategory(paperKey, cat, themesIndex).length;
           const n = countThemesInCategory(paperKey, cat, themesIndex);
           const custom = isCustomCategory(paperKey, cat);
           return `
         <button type="button" class="theme-category-card${custom ? " theme-category-card--custom" : ""}" data-theme-category="${escapeHtml(cat)}">
           <span class="theme-category-name">${escapeHtml(cat)}${custom ? ' <span class="theme-custom-badge">custom</span>' : ""}</span>
+          <span class="theme-category-count muted small">${subs} sub · ${n} theme${n === 1 ? "" : "s"}</span>
+        </button>`;
+        })
+        .join("")}
+    </div>
+    ${renderAddCategoryDialog(paperMeta, paperKey)}
+    </div>`;
+
+  bindPaperTabClicks(ctx, ctx.main);
+  ctx.main.querySelectorAll("[data-theme-category]").forEach((btn) => {
+    btn.addEventListener("click", () => navThemes(ctx, paperKey, btn.dataset.themeCategory, null));
+  });
+  bindAddCategoryDialog(ctx, paperKey);
+}
+
+function renderThemeSubcategoriesHub(ctx, paperKey, paperMeta, category) {
+  const subcategories = getSubcategoriesForCategory(paperKey, category, themesIndex);
+
+  ctx.main.innerHTML = `
+    <div class="themes-hub-panel theme-panel-enter" data-active-paper="${escapeHtml(paperKey)}">
+    <button type="button" class="btn-ghost back-btn theme-back-enter" id="themeCategoryBackBtn">← All categories</button>
+    <section class="themes-hero">
+      <h2>${escapeHtml(category)}</h2>
+      <p class="muted">${escapeHtml(paperMeta?.label || "")} — pick a subcategory, then add themes.</p>
+      <button type="button" class="btn-primary btn-sm" id="addSubcategoryBtn">+ Add subcategory</button>
+    </section>
+    ${renderPaperTabs(paperKey)}
+    <p class="themes-breadcrumb muted small">${renderThemeBreadcrumb(paperMeta?.label || "", category, null)}</p>
+    <p class="themes-paper-desc muted small">${subcategories.length} subcategories</p>
+    <div class="themes-category-grid theme-stagger-grid">
+      ${subcategories
+        .map((sub) => {
+          const n = countThemesInSubcategory(paperKey, category, sub.id, themesIndex);
+          const custom = sub.custom || isCustomSubcategory(paperKey, category, sub.id);
+          return `
+        <button type="button" class="theme-category-card theme-category-card--sub${custom ? " theme-category-card--custom" : ""}" data-theme-subcategory="${escapeHtml(sub.id)}">
+          <span class="theme-category-name">${escapeHtml(sub.name)}${custom ? ' <span class="theme-custom-badge">custom</span>' : ""}</span>
           <span class="theme-category-count muted small">${n} theme${n === 1 ? "" : "s"}</span>
         </button>`;
         })
         .join("")}
     </div>
-    <dialog class="add-theme-dialog" id="addCategoryDialog">
-      <form method="dialog" class="add-theme-form" id="addCategoryForm">
-        <h3>Add area — ${escapeHtml(paperMeta?.label || paperKey)}</h3>
-        <p class="muted small">Creates a new syllabus bucket (e.g. <strong>World History</strong>). Custom areas stay on this browser until added to <code>data/themes-index.json</code> in git.</p>
+    <dialog class="add-theme-dialog" id="addSubcategoryDialog">
+      <form method="dialog" class="add-theme-form" id="addSubcategoryForm">
+        <h3>Add subcategory — ${escapeHtml(category)}</h3>
+        <p class="muted small">e.g. <strong>Ancient &amp; Medieval India</strong> under Indian History.</p>
         <label class="add-theme-field">
-          <span>Area name</span>
-          <input type="text" id="addCategoryName" required placeholder="e.g. Post-colonial Africa" />
+          <span>Subcategory name</span>
+          <input type="text" id="addSubcategoryName" required placeholder="e.g. Gupta period" />
         </label>
-        <p class="add-theme-error hidden" id="addCategoryError"></p>
+        <p class="add-theme-error hidden" id="addSubcategoryError"></p>
         <div class="add-theme-actions">
-          <button type="button" class="btn-ghost btn-sm" id="addCategoryCancel">Cancel</button>
+          <button type="button" class="btn-ghost btn-sm" id="addSubcategoryCancel">Cancel</button>
           <button type="submit" class="btn-primary btn-sm">Add &amp; open</button>
         </div>
       </form>
     </dialog>
     </div>`;
 
+  document.getElementById("themeCategoryBackBtn")?.addEventListener("click", () => navThemes(ctx, paperKey, null, null));
   bindPaperTabClicks(ctx, ctx.main);
-  ctx.main.querySelectorAll("[data-theme-category]").forEach((btn) => {
-    btn.addEventListener("click", () =>
-      ctx.navigate("themes", null, paperKey, btn.dataset.themeCategory)
-    );
+  ctx.main.querySelectorAll("[data-theme-subcategory]").forEach((btn) => {
+    btn.addEventListener("click", () => navThemes(ctx, paperKey, category, btn.dataset.themeSubcategory));
   });
-
-  bindAddCategoryDialog(ctx, paperKey);
+  bindAddSubcategoryDialog(ctx, paperKey, category);
 }
 
-function renderThemesInCategoryHub(ctx, paperKey, paperMeta, themeParent) {
-  const themes = themesInCategory(paperKey, themeParent, themesIndex);
-  const parentOptions = parentGroupsForPaper(paperKey);
+function renderThemesInSubcategoryHub(ctx, paperKey, paperMeta, category, subcategoryId) {
+  const sub = getSubcategoriesForCategory(paperKey, category, themesIndex).find((s) => s.id === subcategoryId);
+  const subName = sub?.name || subcategoryId;
+  const themes = getThemesForSubcategory(paperKey, category, subcategoryId, themesIndex);
 
   ctx.main.innerHTML = `
     <div class="themes-hub-panel theme-panel-enter" data-active-paper="${escapeHtml(paperKey)}">
-    <button type="button" class="btn-ghost back-btn theme-back-enter" id="themeCategoryBackBtn">← All areas</button>
+    <button type="button" class="btn-ghost back-btn theme-back-enter" id="themeSubcategoryBackBtn">← ${escapeHtml(category)}</button>
     <section class="themes-hero">
-      <h2>${escapeHtml(themeParent)}</h2>
-      <p class="muted">${escapeHtml(paperMeta?.label || "")} — pick a theme or add your own.</p>
-      <button type="button" class="btn-primary btn-sm" id="addThemeBtn">+ Add theme here</button>
+      <h2>${escapeHtml(subName)}</h2>
+      <p class="muted">Your themes in this subcategory — add notes, cuttings, and PDFs.</p>
+      <button type="button" class="btn-primary btn-sm" id="addThemeBtn">+ Add theme</button>
     </section>
     ${renderPaperTabs(paperKey)}
-    <p class="themes-breadcrumb muted small">${renderThemeBreadcrumb(paperMeta?.label || "", themeParent)}</p>
-    <p class="themes-paper-desc muted small">${themes.length} theme${themes.length === 1 ? "" : "s"} in this area</p>
+    <p class="themes-breadcrumb muted small">${renderThemeBreadcrumb(paperMeta?.label || "", category, subName)}</p>
+    <p class="themes-paper-desc muted small">${themes.length} theme${themes.length === 1 ? "" : "s"}</p>
     ${
       themes.length
         ? `<div class="themes-cards themes-cards--flat theme-stagger-grid">
@@ -336,22 +436,21 @@ function renderThemesInCategoryHub(ctx, paperKey, paperMeta, themeParent) {
               .map(
                 (t) => `
               <button type="button" class="theme-card" data-open-theme="${escapeHtml(t.id)}">
-                <span class="theme-card-name">${escapeHtml(t.name)}${t.custom ? ' <span class="theme-custom-badge">custom</span>' : ""}</span>
+                <span class="theme-card-name">${escapeHtml(t.name)}</span>
               </button>`
               )
               .join("")}
           </div>`
-        : `<p class="muted">No themes in this area yet. Click <strong>+ Add theme here</strong>.</p>`
+        : `<p class="muted">No themes yet. Click <strong>+ Add theme</strong> to create one.</p>`
     }
     <dialog class="add-theme-dialog" id="addThemeDialog">
       <form method="dialog" class="add-theme-form" id="addThemeForm">
-        <h3>Add theme — ${escapeHtml(themeParent)}</h3>
-        <p class="muted small">Saved under <strong>${escapeHtml(paperMeta?.label || paperKey)} › ${escapeHtml(themeParent)}</strong>. Custom themes stay on this browser until added to <code>data/themes-index.json</code> in git.</p>
+        <h3>Add theme — ${escapeHtml(subName)}</h3>
+        <p class="muted small">${escapeHtml(paperMeta?.label || paperKey)} › ${escapeHtml(category)} › ${escapeHtml(subName)}</p>
         <label class="add-theme-field">
           <span>Theme name</span>
-          <input type="text" id="addThemeName" required placeholder="e.g. Cold War alliances in news" />
+          <input type="text" id="addThemeName" required placeholder="e.g. Harappan trade routes" />
         </label>
-        <input type="hidden" id="addThemeParent" value="${escapeHtml(themeParent)}" />
         <label class="add-theme-field">
           <span>Keywords (optional)</span>
           <input type="text" id="addThemeKeywords" placeholder="search tags…" />
@@ -365,16 +464,31 @@ function renderThemesInCategoryHub(ctx, paperKey, paperMeta, themeParent) {
     </dialog>
     </div>`;
 
-  document.getElementById("themeCategoryBackBtn")?.addEventListener("click", () => {
-    ctx.navigate("themes", null, paperKey, null);
-  });
-
+  document.getElementById("themeSubcategoryBackBtn")?.addEventListener("click", () => navThemes(ctx, paperKey, category, null));
   bindPaperTabClicks(ctx, ctx.main);
   ctx.main.querySelectorAll("[data-open-theme]").forEach((btn) => {
     btn.addEventListener("click", () => ctx.navigate("theme", btn.dataset.openTheme));
   });
+  bindAddThemeDialog(ctx, paperKey, category, subcategoryId);
+}
 
-  bindAddThemeDialog(ctx, paperKey, themeParent, parentOptions);
+function renderAddCategoryDialog(paperMeta, paperKey) {
+  return `
+    <dialog class="add-theme-dialog" id="addCategoryDialog">
+      <form method="dialog" class="add-theme-form" id="addCategoryForm">
+        <h3>Add category — ${escapeHtml(paperMeta?.label || paperKey)}</h3>
+        <p class="muted small">Top-level syllabus bucket (e.g. <strong>Indian History</strong>).</p>
+        <label class="add-theme-field">
+          <span>Category name</span>
+          <input type="text" id="addCategoryName" required placeholder="e.g. Indian History" />
+        </label>
+        <p class="add-theme-error hidden" id="addCategoryError"></p>
+        <div class="add-theme-actions">
+          <button type="button" class="btn-ghost btn-sm" id="addCategoryCancel">Cancel</button>
+          <button type="submit" class="btn-primary btn-sm">Add &amp; open</button>
+        </div>
+      </form>
+    </dialog>`;
 }
 
 function bindAddCategoryDialog(ctx, paperKey) {
@@ -393,7 +507,7 @@ function bindAddCategoryDialog(ctx, paperKey) {
     try {
       const category = addCustomCategory(paperKey, nameInput?.value, themesIndex);
       dialog?.close();
-      ctx.navigate("themes", null, paperKey, category);
+      navThemes(ctx, paperKey, category, null);
     } catch (err) {
       if (errEl) {
         errEl.textContent = err.message || String(err);
@@ -403,7 +517,33 @@ function bindAddCategoryDialog(ctx, paperKey) {
   });
 }
 
-function bindAddThemeDialog(ctx, paperKey, defaultParent, _parentOptions) {
+function bindAddSubcategoryDialog(ctx, paperKey, category) {
+  const dialog = document.getElementById("addSubcategoryDialog");
+  const nameInput = document.getElementById("addSubcategoryName");
+  document.getElementById("addSubcategoryBtn")?.addEventListener("click", () => {
+    if (nameInput) nameInput.value = "";
+    document.getElementById("addSubcategoryError")?.classList.add("hidden");
+    dialog?.showModal();
+    nameInput?.focus();
+  });
+  document.getElementById("addSubcategoryCancel")?.addEventListener("click", () => dialog?.close());
+  document.getElementById("addSubcategoryForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById("addSubcategoryError");
+    try {
+      const sub = addCustomSubcategory(paperKey, category, nameInput?.value, themesIndex);
+      dialog?.close();
+      navThemes(ctx, paperKey, category, sub.id);
+    } catch (err) {
+      if (errEl) {
+        errEl.textContent = err.message || String(err);
+        errEl.classList.remove("hidden");
+      }
+    }
+  });
+}
+
+function bindAddThemeDialog(ctx, paperKey, category, subcategoryId) {
   const dialog = document.getElementById("addThemeDialog");
   document.getElementById("addThemeBtn")?.addEventListener("click", () => dialog?.showModal());
   document.getElementById("addThemeCancel")?.addEventListener("click", () => dialog?.close());
@@ -415,7 +555,8 @@ function bindAddThemeDialog(ctx, paperKey, defaultParent, _parentOptions) {
         paperKey,
         {
           name: document.getElementById("addThemeName")?.value,
-          parent: document.getElementById("addThemeParent")?.value || defaultParent,
+          category,
+          subcategory: subcategoryId,
           keywords: document.getElementById("addThemeKeywords")?.value,
         },
         themesIndex
@@ -453,59 +594,67 @@ export async function renderThemeDetail(ctx) {
   const gitPdfs = (manifest.sources || []).filter((s) => s?.file?.storage === "git" && s?.file?.path);
   const manifestJson = JSON.stringify(manifest).replace(/"/g, "&quot;");
   const userId = ctx.userId;
+  const fromGit = normalizeThemeSections(parseThemeNotesMd(mdText || ""));
 
   ctx.main.innerHTML = `
-    <button type="button" class="btn-ghost back-btn" id="themeBackBtn">← ${escapeHtml(theme.parent || "Themes")}</button>
+    <button type="button" class="btn-ghost back-btn theme-back-enter" id="themeBackBtn">← ${escapeHtml(theme.subcategoryName || "Themes")}</button>
     <article class="item-spread theme-spread">
-      <header class="item-header">
-        <p class="muted small">${escapeHtml(theme.paperLabel)} · ${escapeHtml(theme.parent || "")}</p>
+      <header class="item-header theme-detail-header">
+        <p class="muted small">${escapeHtml(theme.paperLabel)} · ${escapeHtml(theme.category || "")} · ${escapeHtml(theme.subcategoryName || "")}</p>
         <h2>${escapeHtml(theme.name)}</h2>
       </header>
 
-      <section class="materials-block git-zone">
-        <h4 class="materials-subhead">Quick links</h4>
-        <div class="link-ribbon" id="themeLinkRibbon">${renderLinkRibbon(entry.links)}</div>
-        <div id="themeLinksEditor" class="links-editor"></div>
-        <button type="button" class="btn-ghost btn-sm" id="themeAddLinkBtn">+ Add link</button>
-      </section>
-
-      <section class="materials-block git-zone git-zone--materials">
-        <h4 class="materials-subhead">Sources &amp; PDF links</h4>
-        <p class="muted small">Reports, magazines. Large PDFs → paste Drive URL here.</p>
-        <div id="themeSourcesList" class="sources-list"></div>
-        <button type="button" class="btn-ghost btn-sm" id="themeAddSourceBtn">+ Add source</button>
-        <button type="button" class="btn-ghost btn-sm" id="themeAddPdfLinkBtn">+ Paste PDF / Drive link</button>
-      </section>
-
-      <section class="materials-block materials-uploads git-zone">
-        <h4 class="materials-subhead">Cuttings &amp; photos <span class="git-zone-badge git-zone-badge--inline">Git upload</span></h4>
+      <section class="materials-panel git-zone git-zone--materials theme-materials-panel">
+        <h3 class="section-label git-zone-section-label">Materials — links, cuttings, PDFs</h3>
         ${renderGitHubConnectHint()}
-        <div class="materials-gallery gallery">${renderThemeGallery(themeId, manifest.images)}</div>
-        <div class="upload-row">
-          ${renderGitHubUploadButton("theme-image", { "theme-id": themeId, "theme-manifest": manifestJson })}
+
+        <div class="materials-block">
+          <h4 class="materials-subhead">Quick links</h4>
+          <div class="link-ribbon" id="themeLinkRibbon">${renderLinkRibbon(entry.links)}</div>
+          <div id="themeLinksEditor" class="links-editor"></div>
+          <button type="button" class="btn-ghost btn-sm" id="themeAddLinkBtn">+ Add link</button>
+        </div>
+
+        <div class="materials-block git-zone git-zone--materials">
+          <h4 class="materials-subhead">Sources &amp; PDF links</h4>
+          <p class="muted small">Reports, magazines. Large PDFs → paste Drive URL here.</p>
+          <div id="themeSourcesList" class="sources-list"></div>
+          <button type="button" class="btn-ghost btn-sm" id="themeAddSourceBtn">+ Add source</button>
+          <button type="button" class="btn-ghost btn-sm" id="themeAddPdfLinkBtn">+ Paste PDF / Drive link</button>
+        </div>
+
+        <div class="materials-block materials-uploads git-zone">
+          <h4 class="materials-subhead">Cuttings &amp; photos <span class="git-zone-badge git-zone-badge--inline">Git upload</span></h4>
+          <div class="materials-gallery gallery">${renderThemeGallery(themeId, manifest.images)}</div>
+          <div class="upload-row">
+            ${renderGitHubUploadButton("theme-image", { "theme-id": themeId, "theme-manifest": manifestJson })}
+          </div>
+        </div>
+
+        <div class="materials-block materials-uploads git-zone">
+          <h4 class="materials-subhead">Small PDF in git <span class="git-zone-badge git-zone-badge--inline">Git upload</span></h4>
+          <div class="materials-pdfs">${renderThemePdfList(themeId, gitPdfs)}</div>
+          <div class="upload-row">
+            ${renderGitHubUploadButton("theme-pdf", { "theme-id": themeId, "theme-manifest": manifestJson })}
+          </div>
         </div>
       </section>
 
-      <section class="materials-block materials-uploads git-zone">
-        <h4 class="materials-subhead">Small PDF in git <span class="git-zone-badge git-zone-badge--inline">Git upload</span></h4>
-        <div class="materials-pdfs">${renderThemePdfList(themeId, gitPdfs)}</div>
-        <div class="upload-row">
-          ${renderGitHubUploadButton("theme-pdf", { "theme-id": themeId, "theme-manifest": manifestJson })}
-        </div>
-      </section>
-
-      <section class="notes-panel theme-notes-panel git-zone">
+      <section class="notes-panel theme-notes-panel item-notes-panel git-zone git-zone--notes">
         <div class="git-zone-head">
           <span class="git-zone-badge git-zone-badge--notes">Theme notes → GitHub</span>
-          <span class="git-zone-hint muted small">Markdown textareas — syncs to Supabase while typing; commit archives to notes.md</span>
+          <span class="git-zone-hint muted small">Summary, static linkages, exam corner… → notes.md</span>
         </div>
-        ${THEME_SECTIONS.map(
-          (sec) => `
-          <div class="note-field theme-note-field">
-            <label class="note-label">${escapeHtml(sec)}</label>
-            <textarea class="theme-note-input" data-theme-section="${escapeHtml(sec)}" rows="5" placeholder="${escapeHtml(sec)}"></textarea>
-          </div>`
-        ).join("")}
+        <p class="note-locks-help muted small">Toolbar: <strong>bold</strong>, lists, tables. <strong>Padlock</strong> = locked fields skip GitHub commit. Box height: <strong>S/M/L</strong> in header.</p>
+        ${THEME_SECTIONS.map((sec) => {
+          const fid = themeFieldIdForSection(sec);
+          const locked = isThemeFieldLocked(themeId, fid);
+          return `
+          <div class="note-field git-notes-field theme-note-field${locked ? " note-field--locked" : ""}" data-theme-section="${escapeHtml(sec)}">
+            ${renderThemeNoteLabelRow(sec, themeId, fid)}
+            ${renderRichNoteEditorHtml({ "data-theme-field-id": fid, "data-theme-section": sec }, { placeholder: sec, rows: 5 })}
+          </div>`;
+        }).join("")}
         <div class="git-zone-actions git-zone-actions--notes">
           <button type="button" class="btn-git-notes btn-sm" id="themeCommitNotesBtn">Commit notes.md → GitHub</button>
           <button type="button" class="btn-ghost btn-sm" id="themeRefreshNotesBtn">Refresh notes from GitHub</button>
@@ -514,14 +663,24 @@ export async function renderThemeDetail(ctx) {
     </article>`;
 
   const liveNotes = { ...notes };
-  ctx.main.querySelectorAll(".theme-note-input").forEach((ta) => {
-    const sec = ta.dataset.themeSection;
-    ta.value = notes[sec] || "";
-    ta.addEventListener("input", () => {
-      liveNotes[sec] = ta.value;
-      updateThemeNotes(themeId, liveNotes, userId);
+  ctx.main.querySelectorAll(".theme-note-field[data-theme-section]").forEach((fieldEl) => {
+    const sec = fieldEl.dataset.themeSection;
+    const fid = themeFieldIdForSection(sec);
+    const gitVal = fromGit[sec] || "";
+    const val = notes[sec] || gitVal || "";
+    writeNoteFieldValue(fieldEl, val);
+    bindRichNoteEditor(fieldEl.querySelector(".rich-note-editor"), {
+      onInput: () => {
+        liveNotes[sec] = readNoteFieldValue(fieldEl);
+        updateThemeNotes(themeId, liveNotes, userId);
+      },
     });
+    if (isThemeFieldLocked(themeId, fid)) {
+      setRichNoteLocked(fieldEl.querySelector(".rich-note-editor"), true);
+    }
   });
+  bindThemeNoteLocks(ctx.main, themeId);
+  applyNoteEditorHeightsIn(ctx.main);
 
   mountThemeLinksEditor(ctx, themeId, userId, [...(entry.links || [])]);
   mountThemeSourcesEditor(ctx, themeId, userId, [...(entry.sources || [])], manifest);
@@ -531,13 +690,21 @@ export async function renderThemeDetail(ctx) {
   bindThemeMaterialsUploads(ctx.main, themeId, manifest, reload);
 
   document.getElementById("themeBackBtn")?.addEventListener("click", () => {
-    ctx.navigate("themes", null, paperKey, theme.parent || null);
+    navThemes(ctx, paperKey, theme.category, theme.subcategory);
   });
 
   document.getElementById("themeCommitNotesBtn")?.addEventListener("click", async () => {
     try {
+      flushThemeNoteEditorsFromDom(themeId, userId);
       await flushThemeSavesNow();
-      const { path } = await commitThemeNotesMdToGitHub(themeId, theme.name, liveNotes);
+      const commitSections = { ...emptyThemeSections() };
+      for (const sec of THEME_SECTIONS) {
+        const fid = themeFieldIdForSection(sec);
+        const fieldEl = ctx.main.querySelector(`[data-theme-section="${sec}"]`);
+        const live = fieldEl ? readNoteFieldValue(fieldEl) : liveNotes[sec];
+        commitSections[sec] = pickThemeNoteValue(themeId, fid, live, fromGit[sec] || "");
+      }
+      const { path } = await commitThemeNotesMdToGitHub(themeId, theme.name, commitSections);
       alert(`Committed ${path} to GitHub.`);
       reload();
     } catch (err) {
