@@ -316,5 +316,34 @@ function blockPlainFromDiv(div) {
 
 /** Markdown for notes.md / Supabase (never HTML). */
 export function noteMarkdownForStorage(value) {
-  return noteValueToMarkdown(value);
+  return normalizeGitSectionMarkdown(noteValueToMarkdown(value));
+}
+
+/**
+ * Clean in-section lines that wrongly use ## (reserved for notes.md section titles).
+ * Legacy commits and rich-text headings produced ## bullets/subheads inside a section.
+ */
+export function normalizeGitSectionMarkdown(body) {
+  const md = noteValueToMarkdown(body).trim();
+  if (!md) return "";
+  const lines = md.split(/\r?\n/);
+  const out = [];
+  for (const line of lines) {
+    if (line.startsWith("## ") && !line.startsWith("###")) {
+      const rest = line.slice(3).trim();
+      if (rest.startsWith("- ")) {
+        out.push(rest);
+        continue;
+      }
+      if (rest.startsWith("<")) {
+        out.push(rest);
+        continue;
+      }
+      if (!rest) continue;
+      out.push(`### ${rest}`);
+      continue;
+    }
+    out.push(line);
+  }
+  return out.join("\n").trim();
 }

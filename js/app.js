@@ -11,6 +11,9 @@ import {
   defaultNotesTemplate,
   mergeGitSectionsWithLocal,
   SUMMARY_SECTION,
+  normalizeParsedGitSections,
+  gitSectionsHaveBody,
+  sectionPlainLength,
 } from "./notes-md.js";
 import {
   hydrateCloudFromLocal,
@@ -35,6 +38,10 @@ import {
   getLastCloudSyncError,
   clearGitNotesDraftAfterCommit,
   getCommittedSummary,
+  markGitNotesDraftDirty,
+  isGitNotesArchivedToGit,
+  getGitCommittedSnapshot,
+  applyGitNotesFromRemote,
 } from "./ca-store.js";
 import {
   initSupabase,
@@ -384,31 +391,30 @@ async function fetchNotesMd(itemId) {
   }
 }
 
-function mergePulledGitWithLocal(parsed, local, itemId) {
-  const merged = { ...emptyGitSections(), ...parsed };
-  if (!local || typeof local !== "object") {
-    for (const sec of GIT_SECTIONS) {
-      merged[sec] = noteValueToMarkdown(parsed[sec] || "");
-    }
-    return merged;
-  }
+function gitSectionsFromRemotePull(fromGit, itemId) {
+  const normalized = normalizeParsedGitSections({ ...emptyGitSections(), ...fromGit });
   for (const sec of GIT_SECTIONS) {
-    const fromGit = noteValueToMarkdown(parsed[sec] || "");
     const fid = fieldIdForSection(sec);
-    const localVal = local[sec] ?? local[fid] ?? "";
-    const localMd = noteValueToMarkdown(localVal);
     if (itemId && isFieldLocked(itemId, fid)) {
-      merged[sec] = localMd.trim() ? localMd : noteValueToMarkdown(getLockedSnapshot(itemId, fid));
-      continue;
+      const snap = getLockedSnapshot(itemId, fid);
+      if (sectionPlainLength(snap) > 0) {
+        normalized[sec] = noteValueToMarkdown(snap);
+      }
     }
-    if (!noteToPlainText(fromGit).trim() && localMd.trim()) merged[sec] = localMd;
-    else merged[sec] = fromGit.trim() ? fromGit : localMd;
   }
-  return merged;
+  return normalized;
 }
 
 function getGitSections(itemId, mdText) {
-  const fromGit = mdText ? parseNotesMd(mdText) : emptyGitSections();
+  const fromGit = normalizeParsedGitSections(parseNotesMd(mdText || ""));
+
+  // After commit (or Refresh from GitHub): Git is the single source — not Supabase/snapshot.
+  if (isGitNotesArchivedToGit(itemId)) {
+    if (gitSectionsHaveBody(fromGit)) return fromGit;
+    const snap = getGitCommittedSnapshot(itemId)?.gitSections;
+    return normalizeParsedGitSections({ ...emptyGitSections(), ...(snap || {}) });
+  }
+
   const local = getGitNotesFromLocal(itemId);
   return mergeGitSectionsWithLocal(fromGit, local);
 }
@@ -1090,15 +1096,13 @@ async function renderItemDetail(itemId) {
         );
       }
       const fromGit = parseNotesMd(mdText);
-      const localBefore = getGitNotesFromLocal(itemId);
-      saveGitNotesToLocal(itemId, mergePulledGitWithLocal(fromGit, localBefore, itemId), userId);
-      if (fromGit[SUMMARY_SECTION]?.trim()) {
-        const summaryMd = noteValueToMarkdown(fromGit[SUMMARY_SECTION]);
-        if (!isFieldLocked(itemId, "summary")) {
-          updateCloudField(itemId, userId, "summary", summaryMd);
-        }
+      const gitSections = gitSectionsFromRemotePull(fromGit, itemId);
+      let summaryMd = null;
+      if (fromGit[SUMMARY_SECTION]?.trim() && !isFieldLocked(itemId, "summary")) {
+        summaryMd = noteValueToMarkdown(fromGit[SUMMARY_SECTION]);
       }
-      alert("Loaded notes from GitHub into this browser.");
+      await applyGitNotesFromRemote(itemId, userId, gitSections, { summary: summaryMd });
+      alert("Loaded notes from GitHub (Git is now the source for deep sections on this device).");
       navigate("item", itemId);
     } catch (err) {
       alert(err.message || String(err));

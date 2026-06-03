@@ -1,6 +1,7 @@
 /** Parse and serialize study/items/<id>/notes.md (git-only sections). */
 
 import { fieldIdForSection } from "./field-locks.js";
+import { normalizeGitSectionMarkdown } from "./note-markdown.js";
 
 export const GIT_SECTIONS = [
   "Facts",
@@ -29,14 +30,19 @@ function coalesceNoteText(...candidates) {
   return String(candidates[candidates.length - 1] ?? "");
 }
 
-/** Git notes.md as base; browser/Supabase overrides only non-empty sections. */
+/** Git notes.md as base; browser/Supabase overrides only non-empty sections (drafting). */
 export function mergeGitSectionsWithLocal(fromGit, local) {
-  const merged = { ...emptyGitSections(), ...fromGit };
+  const merged = emptyGitSections();
+  for (const sec of GIT_SECTIONS) {
+    merged[sec] = normalizeGitSectionMarkdown(fromGit?.[sec] || "");
+  }
   if (!local || typeof local !== "object") return merged;
   for (const sec of GIT_SECTIONS) {
     const fid = fieldIdForSection(sec);
     const val = local[sec] ?? local[fid];
-    if (val != null && sectionPlainLength(val) > 0) merged[sec] = coalesceNoteText(val, merged[sec]);
+    if (val != null && sectionPlainLength(val) > 0) {
+      merged[sec] = normalizeGitSectionMarkdown(coalesceNoteText(val, merged[sec]));
+    }
   }
   return merged;
 }
@@ -72,11 +78,24 @@ export function parseNotesMd(text) {
   return sections;
 }
 
+export function normalizeParsedGitSections(sections) {
+  if (!sections || typeof sections !== "object") return { ...emptyGitSections(), [SUMMARY_SECTION]: "" };
+  const out = { ...sections };
+  for (const key of [SUMMARY_SECTION, ...GIT_SECTIONS]) {
+    if (out[key]) out[key] = normalizeGitSectionMarkdown(out[key]);
+  }
+  return out;
+}
+
+export function gitSectionsHaveBody(sections) {
+  return GIT_SECTIONS.some((sec) => sectionPlainLength(sections?.[sec]) > 0);
+}
+
 export function serializeNotesMd(sections, { includeSummary = false } = {}) {
   const order = includeSummary ? [SUMMARY_SECTION, ...GIT_SECTIONS] : GIT_SECTIONS;
   const parts = [];
   for (const key of order) {
-    const body = (sections[key] || "").trim();
+    const body = normalizeGitSectionMarkdown(sections[key] || "");
     parts.push(`## ${key}`, "", body || "", "");
   }
   return parts.join("\n").trimEnd() + "\n";

@@ -271,6 +271,31 @@ export async function clearGitNotesDraftAfterCommit(itemId, userId, snapshot = n
   return result;
 }
 
+/**
+ * After Refresh from GitHub: Git is the only source for deep sections.
+ * Clears Supabase git_notes_json and marks item archived (same as post-commit).
+ */
+export async function applyGitNotesFromRemote(itemId, userId, gitSections, { summary = null } = {}) {
+  cancelPendingCloudSave(itemId);
+  const entry = getCloudEntry(itemId);
+  entry.gitNotes = {};
+  if (summary != null && sectionPlainLength(summary) > 0) {
+    entry.summary = summary;
+  }
+  persistCloudEntry(itemId, entry);
+  setGitCommittedSnapshot(itemId, {
+    gitSections: gitSections && typeof gitSections === "object" ? gitSections : {},
+    summary: entry.summary || getCommittedSummary(itemId),
+  });
+  markGitNotesArchivedToGit(itemId);
+
+  const uid = resolveUserId(userId);
+  if (!isSupabaseConfigured() || !uid) {
+    return { ok: true };
+  }
+  return pushCloudEntry(itemId, uid, entry, { force: true });
+}
+
 async function pushCloudEntry(itemId, userId, payload, { force = false } = {}) {
   const uid = resolveUserId(userId);
   if (!isSupabaseConfigured() || !uid) {

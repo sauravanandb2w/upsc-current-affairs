@@ -17,6 +17,9 @@ India is revising the WPI base year from 2011–12 to 2022–23 and gradually tr
 #### Inflation Indices in India
 
 #### - CPI → Consumer inflation
+### Inflation Indices in India
+
+- CPI → Consumer inflation
 
 - WPI → Wholesale inflation
 - PPI → Producer inflation
@@ -28,6 +31,13 @@ India is revising the WPI base year from 2011–12 to 2022–23 and gradually tr
 #### Why shift to PPI?
 
 #### - Better GDP deflator
+### Difference between WPI & PPI
+
+<table><thead><tr><th style="color: rgb(17, 24, 39); background: rgba(248, 250, 252, 0.9)">WPI</th><th style="color: rgb(17, 24, 39); background: rgba(248, 250, 252, 0.9)">PPI</th></tr></thead><tbody><tr><td>Wholesale prices</td><td>Producer prices</td></tr><tr><td>Includes taxes/trade distortions</td><td>Cleaner producer cost</td></tr><tr><td>Mainly goods</td><td>Goods + services</td></tr><tr><td>Older methodology</td><td>International standard</td></tr></tbody></table>
+
+### Why shift to PPI?
+
+- Better GDP deflator
 
 - More accurate inflation measurement
 - Globally accepted methodology
@@ -36,6 +46,7 @@ India is revising the WPI base year from 2011–12 to 2022–23 and gradually tr
 ## GS paper fit
 
 #### GS-3
+### GS-3
 
 - Inflation
 - Economic indicators
@@ -45,6 +56,7 @@ India is revising the WPI base year from 2011–12 to 2022–23 and gradually tr
 - Statistical reforms
 
 #### Prelims
+### Prelims
 
 - WPI vs CPI vs PPI
 - Base year revision
@@ -128,12 +140,14 @@ It is related to:
 ## Miscellaneous
 
 #### Easy Mnemonic
+### Easy Mnemonic
 
 - **CPI → Consumer**
 - **WPI → Wholesale**
 - **PPI → Producer**
 
 #### Important Concept
+### Important Concept
 
 PPI is considered superior because it:
 
@@ -142,6 +156,7 @@ PPI is considered superior because it:
 - aligns with IMF/OECD standards.
 
 #### Bigger Trend
+### Bigger Trend
 
 This news is part of India’s broader statistical modernization along with:
 
