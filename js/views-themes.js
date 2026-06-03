@@ -40,6 +40,7 @@ import {
   getCategoriesForPaper,
   getSubcategoriesForCategory,
   getThemesForSubcategory,
+  getThemesForCategory,
   countThemesInCategory,
   countThemesInSubcategory,
   isCustomCategory,
@@ -62,6 +63,35 @@ const PAPER_TABS = [
   { key: "4", label: "GS Paper IV", short: "GS IV" },
   { key: "essay", label: "Essay", short: "Essay" },
 ];
+
+function bindOpenThemeClicks(ctx, root = document) {
+  root.querySelectorAll("[data-open-theme]").forEach((btn) => {
+    btn.addEventListener("click", () => ctx.navigate("theme", btn.dataset.openTheme));
+  });
+}
+
+/** Scrollable list of user themes — shown on paper & category hubs. */
+function renderYourThemesPanel(themes, { title = "Your themes", compact = false, hidePath = false } = {}) {
+  if (!themes.length) return "";
+  return `
+    <section class="your-themes-panel${compact ? " your-themes-panel--compact" : ""}" aria-label="${escapeHtml(title)}">
+      <div class="your-themes-head">
+        <h3 class="your-themes-title">${escapeHtml(title)} <span class="your-themes-count">${themes.length}</span></h3>
+        <span class="muted small your-themes-hint">Scroll · tap to open</span>
+      </div>
+      <div class="your-themes-scroll" role="list">
+        ${themes
+          .map(
+            (t) => `
+          <button type="button" class="your-theme-row" data-open-theme="${escapeHtml(t.id)}" role="listitem">
+            <span class="your-theme-name">${escapeHtml(t.name)}</span>
+            ${hidePath ? "" : `<span class="your-theme-path muted small">${escapeHtml(t.category)} › ${escapeHtml(t.subcategoryName || t.subcategory)}</span>`}
+          </button>`
+          )
+          .join("")}
+      </div>
+    </section>`;
+}
 
 function renderPaperTabs(paperKey) {
   return `
@@ -337,6 +367,8 @@ function renderThemeCategoriesHub(ctx, paperKey, paperMeta) {
     ${renderPaperTabs(paperKey)}
     <p class="themes-breadcrumb muted small">${renderThemeBreadcrumb(paperMeta?.label || "", null, null)}</p>
     <p class="themes-paper-desc muted small">${categories.length} categories · ${totalThemes} your theme${totalThemes === 1 ? "" : "s"}</p>
+    ${renderYourThemesPanel(themesForPaper(paperKey), { title: "Your themes in this paper" })}
+    <h3 class="themes-section-label">Browse syllabus</h3>
     <div class="themes-category-grid theme-stagger-grid">
       ${categories
         .map((cat) => {
@@ -355,6 +387,7 @@ function renderThemeCategoriesHub(ctx, paperKey, paperMeta) {
     </div>`;
 
   bindPaperTabClicks(ctx, ctx.main);
+  bindOpenThemeClicks(ctx, ctx.main);
   ctx.main.querySelectorAll("[data-theme-category]").forEach((btn) => {
     btn.addEventListener("click", () => navThemes(ctx, paperKey, btn.dataset.themeCategory, null));
   });
@@ -363,6 +396,7 @@ function renderThemeCategoriesHub(ctx, paperKey, paperMeta) {
 
 function renderThemeSubcategoriesHub(ctx, paperKey, paperMeta, category) {
   const subcategories = getSubcategoriesForCategory(paperKey, category, themesIndex);
+  const categoryThemes = getThemesForCategory(paperKey, category, themesIndex);
 
   ctx.main.innerHTML = `
     <div class="themes-hub-panel theme-panel-enter" data-active-paper="${escapeHtml(paperKey)}">
@@ -374,7 +408,9 @@ function renderThemeSubcategoriesHub(ctx, paperKey, paperMeta, category) {
     </section>
     ${renderPaperTabs(paperKey)}
     <p class="themes-breadcrumb muted small">${renderThemeBreadcrumb(paperMeta?.label || "", category, null)}</p>
-    <p class="themes-paper-desc muted small">${subcategories.length} subcategories</p>
+    <p class="themes-paper-desc muted small">${subcategories.length} subcategories · ${categoryThemes.length} theme${categoryThemes.length === 1 ? "" : "s"} here</p>
+    ${renderYourThemesPanel(categoryThemes, { title: "Your themes in this category", compact: true })}
+    <h3 class="themes-section-label">Subcategories</h3>
     <div class="themes-category-grid theme-stagger-grid">
       ${subcategories
         .map((sub) => {
@@ -407,6 +443,7 @@ function renderThemeSubcategoriesHub(ctx, paperKey, paperMeta, category) {
 
   document.getElementById("themeCategoryBackBtn")?.addEventListener("click", () => navThemes(ctx, paperKey, null, null));
   bindPaperTabClicks(ctx, ctx.main);
+  bindOpenThemeClicks(ctx, ctx.main);
   ctx.main.querySelectorAll("[data-theme-subcategory]").forEach((btn) => {
     btn.addEventListener("click", () => navThemes(ctx, paperKey, category, btn.dataset.themeSubcategory));
   });
@@ -431,16 +468,7 @@ function renderThemesInSubcategoryHub(ctx, paperKey, paperMeta, category, subcat
     <p class="themes-paper-desc muted small">${themes.length} theme${themes.length === 1 ? "" : "s"}</p>
     ${
       themes.length
-        ? `<div class="themes-cards themes-cards--flat theme-stagger-grid">
-            ${themes
-              .map(
-                (t) => `
-              <button type="button" class="theme-card" data-open-theme="${escapeHtml(t.id)}">
-                <span class="theme-card-name">${escapeHtml(t.name)}</span>
-              </button>`
-              )
-              .join("")}
-          </div>`
+        ? renderYourThemesPanel(themes, { title: "Themes here", compact: true, hidePath: true })
         : `<p class="muted">No themes yet. Click <strong>+ Add theme</strong> to create one.</p>`
     }
     <dialog class="add-theme-dialog" id="addThemeDialog">
@@ -466,9 +494,7 @@ function renderThemesInSubcategoryHub(ctx, paperKey, paperMeta, category, subcat
 
   document.getElementById("themeSubcategoryBackBtn")?.addEventListener("click", () => navThemes(ctx, paperKey, category, null));
   bindPaperTabClicks(ctx, ctx.main);
-  ctx.main.querySelectorAll("[data-open-theme]").forEach((btn) => {
-    btn.addEventListener("click", () => ctx.navigate("theme", btn.dataset.openTheme));
-  });
+  bindOpenThemeClicks(ctx, ctx.main);
   bindAddThemeDialog(ctx, paperKey, category, subcategoryId);
 }
 

@@ -104,12 +104,44 @@ function normalizeCustomTheme(t) {
 
 /** User-created themes only. */
 export function getThemesForSubcategory(paperKey, category, subcategoryId, catalogIndex) {
-  const custom = (getCustomThemesByPaper()[paperKey] || []).map(normalizeCustomTheme);
-  return custom.filter((t) => t.category === category && t.subcategory === subcategoryId);
+  return sortUserThemes(
+    getCustomThemesByPaper()[paperKey] || [],
+    paperKey,
+    category,
+    subcategoryId,
+    catalogIndex
+  );
+}
+
+export function getThemesForCategory(paperKey, categoryName, catalogIndex) {
+  return sortUserThemes(getCustomThemesByPaper()[paperKey] || [], paperKey, categoryName, null, catalogIndex);
+}
+
+function sortUserThemes(rawList, paperKey, categoryFilter, subcategoryFilter, catalogIndex) {
+  const themes = rawList
+    .map(normalizeCustomTheme)
+    .filter((t) => {
+      if (categoryFilter && t.category !== categoryFilter) return false;
+      if (subcategoryFilter && t.subcategory !== subcategoryFilter) return false;
+      return true;
+    })
+    .map((t) => {
+      const sub = findSubcategoryById(paperKey, t.category, t.subcategory, catalogIndex);
+      return {
+        ...t,
+        subcategoryName: sub?.name || t.subcategoryName || t.subcategory,
+      };
+    });
+  themes.sort((a, b) => {
+    const pathA = `${a.category}\0${a.subcategoryName}\0${a.name}`;
+    const pathB = `${b.category}\0${b.subcategoryName}\0${b.name}`;
+    return pathA.localeCompare(pathB);
+  });
+  return themes;
 }
 
 export function getMergedThemesForPaper(paperKey, catalogIndex) {
-  return (getCustomThemesByPaper()[paperKey] || []).map(normalizeCustomTheme);
+  return sortUserThemes(getCustomThemesByPaper()[paperKey] || [], paperKey, null, null, catalogIndex);
 }
 
 export function findThemeById(themeId, catalogIndex, paperTabs) {
