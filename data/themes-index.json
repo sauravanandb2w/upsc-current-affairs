@@ -92,6 +92,13 @@
         "parent": "Indian Society",
         "keywords": "poverty inequality regional disparity underprivileged affirmative action equity social justice collaboration government ngos private sector socio-economic issues cultural diversities margin class inequalities eradication poverty programmes covid-19 pandemic"
       }
+    ],
+    "categories": [
+      "Indian Art & Culture",
+      "Indian History",
+      "World History & Geography",
+      "Geography",
+      "Indian Society"
     ]
   },
   "2": {
@@ -259,6 +266,12 @@
         "parent": "International Relations",
         "keywords": "diaspora scaled heights west america european countries south-east asian south east economic political benefits role economy society leader oppressed marginalised nations disappeared"
       }
+    ],
+    "categories": [
+      "Constitution & Polity",
+      "Governance & Administration",
+      "Social Justice & Welfare",
+      "International Relations"
     ]
   },
   "3": {
@@ -466,7 +479,14 @@
         "parent": "Internal Security"
       }
     ],
-    "source": "https://www.insightsonindia.com/upsc-mains-general-studies-3-pyq/"
+    "source": "https://www.insightsonindia.com/upsc-mains-general-studies-3-pyq/",
+    "categories": [
+      "Economy & Development",
+      "Agriculture & Food Security",
+      "Science & Technology",
+      "Environment & Biodiversity",
+      "Internal Security"
+    ]
   },
   "4": {
     "label": "GS Paper IV",
@@ -578,7 +598,13 @@
         "parent": "Ethics & Values"
       }
     ],
-    "source": "https://www.insightsonindia.com/upsc-mains-general-studies-4-pyq/"
+    "source": "https://www.insightsonindia.com/upsc-mains-general-studies-4-pyq/",
+    "categories": [
+      "Ethics & Values",
+      "Public Service & Governance",
+      "Applied & Corporate Ethics",
+      "Case Studies"
+    ]
   },
   "essay": {
     "label": "Essay",
@@ -586,33 +612,40 @@
       {
         "id": "philosophy-ethics",
         "name": "Philosophy & Ethics",
-        "parent": "Essay",
-        "keywords": "philosophy ethics values moral dilemma"
+        "parent": "Philosophy & Ethics",
+        "keywords": "philosophy ethics values moral dilemma quotation thinker"
       },
       {
         "id": "society-development",
         "name": "Society & Development",
-        "parent": "Essay",
-        "keywords": "society development inequality gender urbanization"
+        "parent": "Society & Development",
+        "keywords": "society development inequality gender urbanization women empowerment poverty"
       },
       {
         "id": "economy-environment",
         "name": "Economy & Environment",
-        "parent": "Essay",
-        "keywords": "economy environment climate sustainable growth"
+        "parent": "Economy & Environment",
+        "keywords": "economy environment climate sustainable growth green energy"
       },
       {
         "id": "science-technology",
         "name": "Science & Technology",
-        "parent": "Essay",
-        "keywords": "science technology innovation ai digital"
+        "parent": "Science & Technology",
+        "keywords": "science technology innovation ai digital space biotechnology"
       },
       {
         "id": "governance-democracy",
         "name": "Governance & Democracy",
-        "parent": "Essay",
-        "keywords": "governance democracy federalism accountability"
+        "parent": "Governance & Democracy",
+        "keywords": "governance democracy federalism accountability transparency federal polity"
       }
+    ],
+    "categories": [
+      "Philosophy & Ethics",
+      "Society & Development",
+      "Economy & Environment",
+      "Science & Technology",
+      "Governance & Democracy"
     ]
   }
 }

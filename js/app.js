@@ -174,6 +174,7 @@ const state = {
   pendingDraftId: null,
   drillIndex: 0,
   themePaper: "1",
+  themeParent: null,
   themeId: null,
 };
 
@@ -1544,7 +1545,7 @@ function bindSearch() {
   });
 }
 
-function navigate(view, targetId = null, themePaper = null) {
+function navigate(view, targetId = null, themePaper = null, themeParent = undefined) {
   if (state.view === "item" && state.itemId) {
     flushItemNoteEditorsFromDom();
   }
@@ -1556,17 +1557,25 @@ function navigate(view, targetId = null, themePaper = null) {
   if (view === "item") {
     state.itemId = targetId;
     state.themeId = null;
+    state.themeParent = null;
   } else if (view === "theme") {
     state.themeId = targetId;
     state.itemId = null;
     const t = themeById(targetId);
     if (t?.paperKey) state.themePaper = t.paperKey;
+    if (t?.parent) state.themeParent = t.parent;
+  } else if (view === "themes") {
+    state.itemId = null;
+    state.themeId = null;
+    if (themePaper != null) state.themePaper = themePaper;
+    state.themeParent = themeParent !== undefined ? themeParent : null;
   } else {
     state.itemId = null;
     state.themeId = null;
+    state.themeParent = null;
   }
 
-  if (themePaper != null) state.themePaper = themePaper;
+  if (themePaper != null && view !== "themes") state.themePaper = themePaper;
 
   document.querySelectorAll(".nav-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.view === view);
@@ -1604,6 +1613,7 @@ async function openThemeDetail() {
 function themeViewCtx() {
   return {
     paperKey: state.themePaper,
+    themeParent: state.themeParent,
     themeId: state.themeId,
     navigate,
     escapeHtml,
