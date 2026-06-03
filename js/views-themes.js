@@ -27,6 +27,11 @@ import {
 } from "./github-theme-notes.js";
 import { fetchThemeManifestFromGitHub } from "./github-upload.js";
 import { isGitHubConnected } from "./github-auth.js";
+import {
+  getMergedThemesForPaper,
+  findThemeById,
+  addCustomTheme,
+} from "./theme-catalog.js";
 
 const PAPER_TABS = [
   { key: "1", label: "GS Paper I", short: "GS I" },
@@ -50,10 +55,37 @@ function escapeHtml(text) {
 }
 
 export async function loadThemesIndex(url) {
-  const res = await fetch(url, { cache: "no-cache" });
-  if (!res.ok) throw new Error(`themes-index.json (${res.status})`);
-  themesIndex = await res.json();
-  return themesIndex;
+  const urls = [url];
+  const cdn = "https://cdn.jsdelivr.net/gh/sauravanandb2w/upsc-current-affairs@main/data/themes-index.json";
+  if (!urls.includes(cdn)) urls.push(cdn);
+
+  let lastErr = null;
+  for (const u of urls) {
+    try {
+      const res = await fetch(u, { cache: "no-cache" });
+      if (!res.ok) throw new Error(`themes-index.json (${res.status})`);
+      themesIndex = await res.json();
+      return themesIndex;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error("Could not load themes-index.json");
+}
+
+/** Load catalog if needed; show loading/error in main. Returns true when ready. */
+export async function ensureThemesCatalogLoaded(mainEl, indexUrl) {
+  if (themesIndex) return true;
+  if (mainEl) mainEl.innerHTML = `<p class="muted">Loading themes…</p>`;
+  try {
+    await loadThemesIndex(indexUrl);
+    return true;
+  } catch (err) {
+    if (mainEl) {
+      mainEl.innerHTML = `<p class="error">Could not load theme catalog — ${escapeHtml(err.message || String(err))}. Hard refresh (Cmd+Shift+R) to load v53+.</p>`;
+    }
+    return false;
+  }
 }
 
 export function getThemesIndex() {
@@ -61,17 +93,16 @@ export function getThemesIndex() {
 }
 
 export function themeById(themeId) {
-  if (!themesIndex) return null;
-  for (const paper of PAPER_TABS) {
-    const themes = themesIndex[paper.key]?.themes || [];
-    const t = themes.find((x) => x.id === themeId);
-    if (t) return { ...t, paperKey: paper.key, paperLabel: themesIndex[paper.key]?.label || paper.label };
-  }
-  return null;
+  return findThemeById(themeId, themesIndex, PAPER_TABS);
 }
 
 function themesForPaper(paperKey) {
-  return themesIndex?.[paperKey]?.themes || [];
+  return getMergedThemesForPaper(paperKey, themesIndex);
+}
+
+function parentGroupsForPaper(paperKey) {
+  const parents = new Set(themesForPaper(paperKey).map((t) => t.parent).filter(Boolean));
+  return [...parents].sort((a, b) => a.localeCompare(b));
 }
 
 function groupThemesByParent(themes) {
@@ -199,15 +230,22 @@ function renderLinkRibbon(links) {
  * @param {string|null} ctx.userId
  */
 export function renderThemesHub(ctx) {
+  if (!themesIndex) {
+    ctx.main.innerHTML = `<p class="muted">Loading themes…</p>`;
+    return;
+  }
+
   const paperKey = ctx.paperKey || "1";
   const paperMeta = themesIndex?.[paperKey];
   const themes = themesForPaper(paperKey);
   const groups = groupThemesByParent(themes);
+  const parentOptions = parentGroupsForPaper(paperKey);
 
   ctx.main.innerHTML = `
     <section class="themes-hero">
       <h2>Mains themes</h2>
       <p class="muted">Paper-wise syllabus themes — notes sync via Supabase; cuttings &amp; PDFs via GitHub (like CA items).</p>
+      <button type="button" class="btn-primary btn-sm" id="addThemeBtn">+ Add theme</button>
     </section>
     <nav class="paper-tabs themes-paper-tabs" aria-label="GS papers">
       ${PAPER_TABS.map(
@@ -215,8 +253,10 @@ export function renderThemesHub(ctx) {
           `<button type="button" class="paper-tab${p.key === paperKey ? " active" : ""}" data-theme-paper="${escapeHtml(p.key)}">${escapeHtml(p.short)}</button>`
       ).join("")}
     </nav>
-    <p class="themes-paper-desc muted small">${escapeHtml(paperMeta?.label || "")} — ${themes.length} themes</p>
-    <div class="themes-grid">
+    <p class="themes-paper-desc muted small">${escapeHtml(paperMeta?.label || "")} — ${themes.length} theme${themes.length === 1 ? "" : "s"}</p>
+    ${
+      themes.length
+        ? `<div class="themes-grid">
       ${groups
         .map(
           ([parent, items]) => `
@@ -227,7 +267,7 @@ export function renderThemesHub(ctx) {
               .map(
                 (t) => `
               <button type="button" class="theme-card" data-open-theme="${escapeHtml(t.id)}">
-                <span class="theme-card-name">${escapeHtml(t.name)}</span>
+                <span class="theme-card-name">${escapeHtml(t.name)}${t.custom ? ' <span class="theme-custom-badge">custom</span>' : ""}</span>
               </button>`
               )
               .join("")}
@@ -235,13 +275,63 @@ export function renderThemesHub(ctx) {
         </section>`
         )
         .join("")}
-    </div>`;
+    </div>`
+        : `<p class="muted">No themes in this paper yet. Click <strong>+ Add theme</strong> above.</p>`
+    }
+    <dialog class="add-theme-dialog" id="addThemeDialog">
+      <form method="dialog" class="add-theme-form" id="addThemeForm">
+        <h3>Add theme — ${escapeHtml(paperMeta?.label || paperKey)}</h3>
+        <p class="muted small">Custom themes stay on this browser until you add them to <code>data/themes-index.json</code> in git for all devices.</p>
+        <label class="add-theme-field">
+          <span>Theme name</span>
+          <input type="text" id="addThemeName" required placeholder="e.g. Temple architecture in news" />
+        </label>
+        <label class="add-theme-field">
+          <span>Subject group</span>
+          <input type="text" id="addThemeParent" required list="themeParentOptions" placeholder="e.g. Indian Art &amp; Culture" />
+          <datalist id="themeParentOptions">
+            ${parentOptions.map((p) => `<option value="${escapeHtml(p)}"></option>`).join("")}
+          </datalist>
+        </label>
+        <label class="add-theme-field">
+          <span>Keywords (optional)</span>
+          <input type="text" id="addThemeKeywords" placeholder="search tags…" />
+        </label>
+        <p class="add-theme-error hidden" id="addThemeError"></p>
+        <div class="add-theme-actions">
+          <button type="button" class="btn-ghost btn-sm" id="addThemeCancel">Cancel</button>
+          <button type="submit" class="btn-primary btn-sm">Add &amp; open</button>
+        </div>
+      </form>
+    </dialog>`;
 
   ctx.main.querySelectorAll("[data-theme-paper]").forEach((btn) => {
     btn.addEventListener("click", () => ctx.navigate("themes", null, btn.dataset.themePaper));
   });
   ctx.main.querySelectorAll("[data-open-theme]").forEach((btn) => {
     btn.addEventListener("click", () => ctx.navigate("theme", btn.dataset.openTheme));
+  });
+
+  const dialog = document.getElementById("addThemeDialog");
+  document.getElementById("addThemeBtn")?.addEventListener("click", () => dialog?.showModal());
+  document.getElementById("addThemeCancel")?.addEventListener("click", () => dialog?.close());
+  document.getElementById("addThemeForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById("addThemeError");
+    try {
+      const theme = addCustomTheme(paperKey, {
+        name: document.getElementById("addThemeName")?.value,
+        parent: document.getElementById("addThemeParent")?.value,
+        keywords: document.getElementById("addThemeKeywords")?.value,
+      }, themesIndex);
+      dialog?.close();
+      ctx.navigate("theme", theme.id);
+    } catch (err) {
+      if (errEl) {
+        errEl.textContent = err.message || String(err);
+        errEl.classList.remove("hidden");
+      }
+    }
   });
 }
 

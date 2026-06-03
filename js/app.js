@@ -97,6 +97,7 @@ import {
   renderThemesHub,
   renderThemeDetail,
   themeById,
+  ensureThemesCatalogLoaded,
 } from "./views-themes.js";
 import {
   hydrateThemesFromLocal,
@@ -1543,7 +1544,7 @@ function bindSearch() {
   });
 }
 
-function navigate(view, itemId = null, themePaper = null) {
+function navigate(view, targetId = null, themePaper = null) {
   if (state.view === "item" && state.itemId) {
     flushItemNoteEditorsFromDom();
   }
@@ -1552,15 +1553,20 @@ function navigate(view, itemId = null, themePaper = null) {
   }
 
   state.view = view;
-  state.itemId = itemId;
-  if (themePaper != null) state.themePaper = themePaper;
-  if (view === "theme" && itemId) {
-    state.themeId = itemId;
-    const t = themeById(itemId);
+  if (view === "item") {
+    state.itemId = targetId;
+    state.themeId = null;
+  } else if (view === "theme") {
+    state.themeId = targetId;
+    state.itemId = null;
+    const t = themeById(targetId);
     if (t?.paperKey) state.themePaper = t.paperKey;
-  } else if (view !== "theme") {
+  } else {
+    state.itemId = null;
     state.themeId = null;
   }
+
+  if (themePaper != null) state.themePaper = themePaper;
 
   document.querySelectorAll(".nav-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.view === view);
@@ -1576,9 +1582,23 @@ function navigate(view, itemId = null, themePaper = null) {
   else if (view === "drill") renderDrill(viewCtx());
   else if (view === "monthly") renderMonthly(viewCtx());
   else if (view === "tracker") renderTracker();
-  else if (view === "themes") renderThemesHub(themeViewCtx());
-  else if (view === "theme" && state.themeId) renderThemeDetail(themeViewCtx());
-  else if (view === "item" && itemId) renderItemDetail(itemId);
+  else if (view === "themes") void openThemesHub();
+  else if (view === "theme" && state.themeId) void openThemeDetail();
+  else if (view === "item" && state.itemId) renderItemDetail(state.itemId);
+}
+
+async function openThemesHub() {
+  const ok = await ensureThemesCatalogLoaded(el.main, assetUrl("data/themes-index.json"));
+  if (!ok || state.view !== "themes") return;
+  hydrateThemesFromLocal();
+  renderThemesHub(themeViewCtx());
+}
+
+async function openThemeDetail() {
+  const ok = await ensureThemesCatalogLoaded(el.main, assetUrl("data/themes-index.json"));
+  if (!ok || state.view !== "theme" || !state.themeId) return;
+  hydrateThemesFromLocal();
+  await renderThemeDetail(themeViewCtx());
 }
 
 function themeViewCtx() {
@@ -1768,7 +1788,7 @@ async function initAuthBackground() {
       const signInChanged = Boolean(prevUserId) !== Boolean(userId);
       if (signInChanged) {
         if (state.view === "item" && state.itemId) renderItemDetail(state.itemId);
-        else if (state.view === "theme" && state.themeId) renderThemeDetail(themeViewCtx());
+        else if (state.view === "theme" && state.themeId) void openThemeDetail();
         else navigate(state.view);
       }
     });

@@ -3231,3 +3231,67 @@ code {
   font-size: 0.85rem;
   margin-bottom: 0.25rem;
 }
+
+.themes-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
+.themes-hero .btn-primary {
+  margin-left: auto;
+}
+
+.theme-custom-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-left: 0.25rem;
+}
+
+.add-theme-dialog {
+  border: none;
+  border-radius: 12px;
+  padding: 1.25rem;
+  max-width: 28rem;
+  width: calc(100% - 2rem);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.add-theme-form h3 {
+  margin: 0 0 0.5rem;
+}
+
+.add-theme-field {
+  display: block;
+  margin: 0.75rem 0;
+}
+
+.add-theme-field span {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.add-theme-field input {
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--border, rgba(28, 25, 23, 0.12));
+  border-radius: 8px;
+  font: inherit;
+}
+
+.add-theme-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.add-theme-error {
+  color: #b91c1c;
+  font-size: 0.85rem;
+}
