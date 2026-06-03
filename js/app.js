@@ -82,11 +82,11 @@ import {
   setRichNoteLocked,
   noteHtmlToPlainText,
   noteStorageToEditorHtml,
-} from "./rich-notes.js?v=32";
+} from "./rich-notes.js?v=33";
 import { initTheme, bindThemeToggle, bindNoteSizeControl } from "./theme.js";
 import { bindExportButtons } from "./export-ca.js";
 import { loadFlashcards, loadFlashcardsLocal, generateFlashcardsFromItem, removeFlashcardsForItem } from "./flashcards.js";
-import { commitNotesMdToGitHub, fetchNotesMdFromGitHub } from "./github-notes.js?v=31";
+import { commitNotesMdToGitHub, fetchNotesMdFromGitHub } from "./github-notes.js?v=32";
 import {
   publishDraftToGitHub,
   savePublishedItemToGitHub,
@@ -1038,9 +1038,29 @@ async function renderItemDetail(itemId) {
       const editor = fieldEl.querySelector(".rich-note-editor");
       const sec = editor?.dataset.section;
       if (!sec) return;
-      live[sec] = readNoteFieldValue(fieldEl);
+      const read = readNoteFieldValue(fieldEl);
+      live[sec] = read.trim() ? read : gitSections[sec] || "";
     });
     return live;
+  }
+
+  function lockedSectionsWithUncommittedEdits() {
+    const blocked = [];
+    for (const sec of GIT_SECTIONS) {
+      const fid = fieldIdForSection(sec);
+      if (!isFieldLocked(itemId, fid)) continue;
+      const fieldEl = document.querySelector(`[data-field-id="${fid}"]`)?.closest(".note-field");
+      if (!fieldEl) continue;
+      const live = readNoteFieldValue(fieldEl);
+      const snap = getLockedSnapshot(itemId, fid);
+      if (
+        sectionPlainLength(live) > 0 &&
+        noteHtmlToPlainText(live) !== noteHtmlToPlainText(snap)
+      ) {
+        blocked.push(sec);
+      }
+    }
+    return blocked;
   }
 
   document.getElementById("genFlashBtn")?.addEventListener("click", async () => {
@@ -1062,6 +1082,13 @@ async function renderItemDetail(itemId) {
 
   document.getElementById("commitNotesBtn")?.addEventListener("click", async () => {
     try {
+      const lockedBlocked = lockedSectionsWithUncommittedEdits();
+      if (lockedBlocked.length) {
+        alert(
+          `These sections are locked — unlock them (padlock icon) or your edits will not go to GitHub:\n\n• ${lockedBlocked.join("\n• ")}`
+        );
+        return;
+      }
       flushItemNoteEditorsFromDom();
       const liveSections = readGitSectionsFromEditors();
       const summaryField = document.querySelector('[data-field-id="summary"]')?.closest(".note-field");

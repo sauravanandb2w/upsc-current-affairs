@@ -331,6 +331,39 @@ function blockPlainFromDiv(div) {
   return out.replace(/\n{3,}/g, "\n\n").replace(/\n+$/g, "").trim();
 }
 
+/** Editor read path — convert HTML to Markdown without dedupe (runs once at git save). */
+export function noteMarkdownFromEditorHtml(html) {
+  const md = noteValueToMarkdown(String(html ?? "")).trim();
+  if (!md) return "";
+  return convertEmbeddedHtmlToMarkdown(md);
+}
+
+export function notePlainLen(value) {
+  return String(value ?? "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/[#*_`>|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim().length;
+}
+
+/** Prepend plain lines visible in innerText but missing from converted markdown. */
+export function prependMissingPlainLines(plain, md) {
+  const plainLines = String(plain ?? "")
+    .split(/\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (!plainLines.length) return md;
+  const mdNorm = String(md ?? "").replace(/\s+/g, " ");
+  const prefix = [];
+  for (const line of plainLines) {
+    const norm = line.replace(/\s+/g, " ");
+    if (mdNorm.includes(norm)) break;
+    prefix.push(line);
+  }
+  if (!prefix.length) return md;
+  return `${prefix.join("\n\n")}${md ? `\n\n${md}` : ""}`;
+}
+
 /** Markdown-only storage for notes.md and Supabase (no HTML). */
 export function noteMarkdownForStorage(value) {
   let md = noteValueToMarkdown(value).trim();

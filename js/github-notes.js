@@ -20,7 +20,7 @@ import {
   isFieldLocked,
   getLockedSnapshot,
 } from "./ca-store.js";
-import { noteHtmlForGitStorage } from "./rich-notes.js?v=32";
+import { noteHtmlForGitStorage } from "./rich-notes.js?v=33";
 import { fieldIdForSection } from "./field-locks.js";
 import { manifestFromItem, syncSearchIndexForItem } from "./github-publish.js";
 
@@ -60,8 +60,12 @@ function sectionsForCommit(itemId, liveSections = null, summaryLive = null, exis
     const live = liveSections
       ? (liveSections[sec] ?? liveSections[fid] ?? "")
       : localRaw[sec] ?? "";
-    // Commit: live editor wins whenever it has text — never silently drop edits.
-    const val = String(live ?? "").trim() ? live : fromGit[sec] || "";
+    // Commit: live editor → local draft → existing Git (never drop non-empty drafts).
+    const val = String(live ?? "").trim()
+      ? live
+      : String(localRaw[sec] ?? "").trim()
+        ? localRaw[sec]
+        : fromGit[sec] || "";
     out[sec] = noteHtmlForGitStorage(val);
   }
 

@@ -8,6 +8,9 @@ import {
   noteValueToMarkdown,
   noteToPlainText as noteMarkdownToPlainText,
   noteMarkdownForStorage,
+  noteMarkdownFromEditorHtml,
+  prependMissingPlainLines,
+  notePlainLen,
 } from "./note-markdown.js";
 
 const ALLOWED_TAGS = new Set([
@@ -149,16 +152,23 @@ export function setRichNoteContent(editor, raw) {
 
 export function getRichNoteContent(editor) {
   if (!editor) return "";
+  return readEditorMarkdown(editor);
+}
+
+/** Read visible editor content as Markdown (no dedupe — safe for typing + commit). */
+export function readEditorMarkdown(editor) {
+  if (!editor) return "";
   const html = editor.innerHTML.trim();
   if (!html || html === "<br>") return "";
+  const plain = String(editor.innerText || "").replace(/\u00a0/g, " ").trim();
+  if (!plain) return "";
   const sanitized = sanitizeNoteHtml(html);
-  const visible = sanitized.replace(/<[^>]*>/g, "").replace(/\u00a0/g, " ").trim();
-  if (!visible) return "";
-  const md = noteMarkdownForStorage(sanitized);
-  if (md.trim()) return md;
-  const soft = noteValueToMarkdown(sanitized).trim();
-  if (soft) return soft;
-  return visible;
+  let md = noteMarkdownFromEditorHtml(sanitized).trim();
+  if (!md) return plain;
+  if (notePlainLen(plain) > notePlainLen(md) + 2) {
+    md = prependMissingPlainLines(plain, md);
+  }
+  return md;
 }
 
 export function renderRichNoteToolbar() {
@@ -275,7 +285,7 @@ export function bindRichNoteEditor(editor, { onInput } = {}) {
 
 export function setRichNoteLocked(editor, locked) {
   if (!editor) return;
-  editor.setAttribute("contenteditable", "true");
+  editor.setAttribute("contenteditable", locked ? "false" : "true");
   editor.classList.toggle("rich-note-editor--locked", locked);
   editor.closest(".note-field")?.classList.toggle("note-field--locked", locked);
 }
@@ -287,10 +297,7 @@ export function syncRichNoteLockState(fieldEl, locked) {
 export function readNoteFieldValue(fieldEl) {
   const editor = fieldEl?.querySelector(".rich-note-editor");
   if (!editor) return "";
-  const md = getRichNoteContent(editor);
-  if (md.trim()) return md;
-  const plain = String(editor.innerText || "").replace(/\u00a0/g, " ").trim();
-  return plain;
+  return readEditorMarkdown(editor);
 }
 
 export function writeNoteFieldValue(fieldEl, value) {
