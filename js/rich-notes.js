@@ -16,6 +16,8 @@ const ALLOWED_TAGS = new Set([
   "h1", "h2", "h3", "h4",
 ]);
 
+const ALLOWED_CELL_STYLES = new Set(["background-color", "color", "background"]);
+
 export function looksLikeNoteHtml(value) {
   return /<[a-z][\s\S]*>/i.test(String(value ?? ""));
 }
@@ -33,6 +35,38 @@ export function sanitizeNoteHtml(dirty) {
   tpl.innerHTML = String(dirty ?? "");
   const out = document.createElement("div");
 
+  function copySafeStyles(fromEl, toEl) {
+    const raw = String(fromEl.getAttribute("style") || "");
+    if (!raw.trim()) return;
+    const kept = raw
+      .split(";")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .filter((part) => {
+        const key = part.split(":")[0]?.trim().toLowerCase();
+        return ALLOWED_CELL_STYLES.has(key);
+      });
+    if (kept.length) toEl.setAttribute("style", kept.join("; "));
+  }
+
+  function spanSemanticTag(node) {
+    const style = String(node.getAttribute("style") || "");
+    const weight = node.style?.fontWeight || "";
+    const isBold =
+      weight === "bold" ||
+      Number(weight) >= 600 ||
+      /font-weight:\s*(bold|[6-9]00)/i.test(style);
+    const isItalic =
+      node.style?.fontStyle === "italic" || /font-style:\s*italic/i.test(style);
+    const isUnderline =
+      String(node.style?.textDecoration || "").includes("underline") ||
+      /text-decoration:[^;]*underline/i.test(style);
+    if (isBold) return "strong";
+    if (isItalic) return "em";
+    if (isUnderline) return "u";
+    return null;
+  }
+
   function appendClean(parent, node) {
     if (node.nodeType === Node.TEXT_NODE) {
       if (node.textContent) parent.appendChild(document.createTextNode(node.textContent));
@@ -40,13 +74,30 @@ export function sanitizeNoteHtml(dirty) {
     }
     if (node.nodeType !== Node.ELEMENT_NODE) return;
     const tag = node.tagName.toLowerCase();
+
+    if (tag === "span") {
+      const semantic = spanSemanticTag(node);
+      if (semantic) {
+        const el = document.createElement(semantic);
+        node.childNodes.forEach((child) => appendClean(el, child));
+        if (el.childNodes.length) parent.appendChild(el);
+        return;
+      }
+      node.childNodes.forEach((child) => appendClean(parent, child));
+      return;
+    }
+
     if (!ALLOWED_TAGS.has(tag)) {
       node.childNodes.forEach((child) => appendClean(parent, child));
       return;
     }
+
     const el = document.createElement(tag);
+    if (tag === "td" || tag === "th") copySafeStyles(node, el);
     node.childNodes.forEach((child) => appendClean(el, child));
-    if (tag === "br" || el.childNodes.length || tag === "li") parent.appendChild(el);
+    if (tag === "br" || el.childNodes.length || tag === "li" || tag === "td" || tag === "th") {
+      parent.appendChild(el);
+    }
   }
 
   tpl.content.childNodes.forEach((child) => appendClean(out, child));
@@ -100,8 +151,8 @@ export function getRichNoteContent(editor) {
   const html = editor.innerHTML.trim();
   if (!html || html === "<br>") return "";
   const sanitized = sanitizeNoteHtml(html);
-  const plain = noteMarkdownToPlainText(sanitized, sanitizeNoteHtml);
-  if (!plain.trim()) return "";
+  const visible = sanitized.replace(/<[^>]*>/g, "").replace(/\u00a0/g, " ").trim();
+  if (!visible) return "";
   return noteValueToMarkdown(sanitized);
 }
 

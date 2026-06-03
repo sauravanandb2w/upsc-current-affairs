@@ -26,11 +26,17 @@ export function looksLikeMarkdown(value) {
   return /(^|\n)(#{1,6}\s|[-*+]\s|\d+\.\s|>\s|```|\|.+\|)/m.test(s);
 }
 
-/** Normalize any stored note body to Markdown. */
+function hasMarkdownSyntax(s) {
+  return /(\*\*[^*]+\*\*|__[^_]+__|^#{1,6}\s|^[-*+]\s+\S|^\d+\.\s+\S|^>\s|```|^\|.+\|)/m.test(
+    String(s ?? "")
+  );
+}
+
+/** Normalize any stored note body to Markdown (never plain text). */
 export function noteValueToMarkdown(value) {
   const s = String(value ?? "").trim();
   if (!s) return "";
-  if (looksLikeNoteHtml(s)) return htmlToMarkdown(s);
+  if (looksLikeNoteHtml(s) && !hasMarkdownSyntax(s)) return htmlToMarkdown(s);
   return s;
 }
 
@@ -38,6 +44,14 @@ export function noteValueToMarkdown(value) {
 export function markdownToEditorHtml(value, sanitizeHtml) {
   const s = String(value ?? "").trim();
   if (!s) return "";
+  const legacyHtmlOnly = looksLikeNoteHtml(s) && !hasMarkdownSyntax(s);
+  if (!legacyHtmlOnly && markedParse) {
+    try {
+      return sanitizeHtml ? sanitizeHtml(markedParse(s)) : markedParse(s);
+    } catch {
+      /* fall through */
+    }
+  }
   if (looksLikeNoteHtml(s)) {
     return sanitizeHtml ? sanitizeHtml(s) : s;
   }
@@ -124,6 +138,15 @@ function htmlToMarkdown(html) {
       return inner ? `*${inner}*` : "";
     }
 
+    if (tag === "u") {
+      const inner = walkChildren(node).trim();
+      return inner ? `<u>${inner}</u>` : "";
+    }
+
+    if (tag === "span") {
+      return spanToMarkdown(node);
+    }
+
     if (tag === "h1" || tag === "h2" || tag === "h3" || tag === "h4") {
       const level = Number(tag.slice(1));
       const inner = walkChildren(node).trim();
@@ -163,14 +186,71 @@ function htmlToMarkdown(html) {
   return md;
 }
 
+function spanToMarkdown(node) {
+  const style = String(node.getAttribute("style") || "");
+  const weight = node.style?.fontWeight || "";
+  const isBold =
+    weight === "bold" ||
+    Number(weight) >= 600 ||
+    /font-weight:\s*(bold|[6-9]00)/i.test(style);
+  const isItalic =
+    node.style?.fontStyle === "italic" || /font-style:\s*italic/i.test(style);
+  const isUnderline =
+    String(node.style?.textDecoration || "").includes("underline") ||
+    /text-decoration:[^;]*underline/i.test(style);
+  if (!isBold && !isItalic && !isUnderline) {
+    return walkInlineChildren(node);
+  }
+  let inner = walkInlineChildren(node).trim();
+  if (!inner) return "";
+  if (isBold) inner = `**${inner}**`;
+  if (isItalic) inner = `*${inner}*`;
+  if (isUnderline) inner = `<u>${inner}</u>`;
+  return inner;
+}
+
+function walkInline(node) {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return (node.textContent || "").replace(/\u00a0/g, " ");
+  }
+  if (node.nodeType !== Node.ELEMENT_NODE) return "";
+  const tag = node.tagName.toLowerCase();
+  if (tag === "strong" || tag === "b") {
+    const inner = walkInlineChildren(node).trim();
+    return inner ? `**${inner}**` : "";
+  }
+  if (tag === "em" || tag === "i") {
+    const inner = walkInlineChildren(node).trim();
+    return inner ? `*${inner}*` : "";
+  }
+  if (tag === "u") {
+    const inner = walkInlineChildren(node).trim();
+    return inner ? `<u>${inner}</u>` : "";
+  }
+  if (tag === "span") return spanToMarkdown(node);
+  if (tag === "br") return "\n";
+  return walkInlineChildren(node);
+}
+
+function walkInlineChildren(node) {
+  let out = "";
+  for (const child of node.childNodes) out += walkInline(child);
+  return out;
+}
+
 function tableToMarkdown(table) {
+  const hasStyle = Boolean(table.querySelector("[style]"));
+  if (hasStyle) {
+    return `\n\n${table.outerHTML}\n\n`;
+  }
+
   const rows = [...table.querySelectorAll("tr")];
   if (!rows.length) return "";
 
   const lines = [];
   rows.forEach((tr, idx) => {
     const cells = [...tr.querySelectorAll("th,td")].map((cell) =>
-      inlineMd(cell.textContent || "")
+      cellMarkdownInline(cell)
     );
     if (!cells.length) return;
     lines.push(`| ${cells.join(" | ")} |`);
@@ -178,6 +258,12 @@ function tableToMarkdown(table) {
   });
 
   return lines.length ? `${lines.join("\n")}\n\n` : "";
+}
+
+function cellMarkdownInline(cell) {
+  let out = "";
+  for (const child of cell.childNodes) out += walkInline(child);
+  return out.replace(/\|/g, "\\|").replace(/\n/g, " ").trim();
 }
 
 /** Plain text for search, flashcards, activity (strips Markdown/HTML). */
