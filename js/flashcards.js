@@ -122,7 +122,97 @@ export function cardThemeIndex(card) {
   return h;
 }
 
-/** Front = prompt; back = full fact (never identical unless line is empty). */
+/** Parse Exam angle notes: question line, answer line(s) below; blank line between pairs. */
+export function splitExamAngleToFlashcards(text) {
+  const plain = noteHtmlToPlainText(text).trim();
+  if (!plain) return [];
+
+  const pairs = [];
+  const blocks = plain.split(/\n\s*\n+/).filter((b) => b.trim());
+
+  for (const block of blocks) {
+    const pair = parseExamQaBlock(block);
+    if (pair) pairs.push(pair);
+  }
+  if (pairs.length) return dedupeFlashcardPairs(pairs);
+
+  return dedupeFlashcardPairs(parseExamQaByQuestionLines(plain));
+}
+
+function cleanExamLine(line) {
+  return String(line || "")
+    .replace(/^[-*•]\d*[.)]\s*/, "")
+    .replace(/^[-*•]\s*/, "")
+    .trim();
+}
+
+function normalizeExamQuestion(question) {
+  const q = String(question || "").trim().replace(/\?+\s*$/, "").trim();
+  if (!q) return "";
+  return `${q}?`;
+}
+
+function parseExamQaBlock(block) {
+  const lines = block
+    .split(/\n/)
+    .map(cleanExamLine)
+    .filter(Boolean);
+  if (lines.length < 2) return null;
+
+  const question = normalizeExamQuestion(lines[0]);
+  const answer = lines.slice(1).join("\n").trim();
+  if (!question || question.length < 4 || !answer || answer.length < 2) return null;
+
+  return { question, answer };
+}
+
+function looksLikeExamQuestion(line) {
+  const s = cleanExamLine(line);
+  if (!s) return false;
+  if (s.endsWith("?")) return true;
+  return /^(what|why|how|when|where|which|who|explain|discuss|define|compare|list|name)\b/i.test(s);
+}
+
+function parseExamQaByQuestionLines(plain) {
+  const lines = plain.split(/\n/).map(cleanExamLine).filter(Boolean);
+  const pairs = [];
+  let question = null;
+  let answerLines = [];
+
+  const flush = () => {
+    if (!question || !answerLines.length) return;
+    const q = normalizeExamQuestion(question);
+    const answer = answerLines.join("\n").trim();
+    if (q.length >= 4 && answer.length >= 2) pairs.push({ question: q, answer });
+    question = null;
+    answerLines = [];
+  };
+
+  for (const line of lines) {
+    if (looksLikeExamQuestion(line)) {
+      flush();
+      question = line.replace(/\?+\s*$/, "").trim();
+      continue;
+    }
+    if (question) answerLines.push(line);
+  }
+  flush();
+  return pairs;
+}
+
+function dedupeFlashcardPairs(pairs) {
+  const seen = new Set();
+  const out = [];
+  for (const pair of pairs) {
+    const key = pair.question.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(pair);
+  }
+  return out.slice(0, 24);
+}
+
+/** @deprecated Legacy auto-prompt generator — Exam angle cards use explicit Q/A pairs now. */
 export function makeFlashcardPair(factLine) {
   const answer = String(factLine || "").trim().replace(/\?+\s*$/, "").trim();
   if (!answer) return { question: "", answer: "" };
@@ -157,52 +247,13 @@ export function makeFlashcardPair(factLine) {
   };
 }
 
-export function splitFactsToCards(text) {
-  const plain = noteHtmlToPlainText(text).trim();
-  if (!plain) return [];
-
-  const lines = [];
-  for (const block of plain.split(/\n+/)) {
-    let line = block.replace(/^[-*•]\d+[.)]\s*/, "").replace(/^[-*•]\s*/, "").trim();
-    if (!line || line === "-") continue;
-
-    if (line.length > 10) {
-      lines.push(line);
-      continue;
-    }
-
-    // Paragraph-style notes: split into sentences
-    for (const sentence of line.split(/(?<=[.!?])\s+/)) {
-      const s = sentence.trim();
-      if (s.length > 10) lines.push(s);
-    }
-  }
-
-  return [...new Set(lines)];
-}
-
 export async function generateFlashcardsFromItem(userId, item, sections) {
-  const sources = [
-    ["Facts", sections.Facts || sections.facts || ""],
-    ["Exam angle", sections["Exam angle"] || sections.exam_angle || ""],
-    ["Static connection", sections["Static connection"] || ""],
-    ["GS paper fit", sections["GS paper fit"] || ""],
-  ];
+  const examText = sections["Exam angle"] || sections.exam_angle || "";
+  const pairs = splitExamAngleToFlashcards(examText);
 
-  const lines = [];
-  for (const [, text] of sources) {
-    lines.push(...splitFactsToCards(text));
-  }
-
-  const unique = [...new Set(lines)].slice(0, 12);
   const month = (effectiveItemDate(item) || "").slice(0, 7);
   const created = [];
-  for (const line of unique) {
-    let { question, answer } = makeFlashcardPair(line);
-    if (!question || !answer) continue;
-    if (question === answer) {
-      question = `${line.slice(0, Math.min(48, line.length))}… — recall the full fact.`;
-    }
+  for (const { question, answer } of pairs) {
     const card = {
       id: `local-${crypto.randomUUID()}`,
       itemId: item.id,
