@@ -5,6 +5,7 @@ import { GIT_SECTIONS, sectionPlainLength } from "./notes-md.js";
 const LS_CLOUD_PREFIX = "ca-cloud:";
 const LS_GIT_PREFIX = "ca-git-notes:";
 const LS_GIT_ARCHIVED_PREFIX = "ca-git-archived:";
+const LS_GIT_COMMITTED_PREFIX = "ca-git-committed:";
 const LS_META_PREFIX = "ca-meta:";
 const DEBOUNCE_MS = 700;
 
@@ -156,7 +157,7 @@ function mergeCloudEntryWithLocal(itemId, local, remote, hasPendingSave) {
   if (hasPendingSave) {
     return {
       ...remoteEntry,
-      summary: coalesceNoteText(localEntry.summary, remoteEntry.summary),
+      summary: coalesceNoteText(localEntry.summary, remoteEntry.summary, getCommittedSummary(itemId)),
       links: localEntry.links?.length ? localEntry.links : remoteEntry.links,
       sources: localEntry.sources?.length ? localEntry.sources : remoteEntry.sources,
       gitNotes,
@@ -165,7 +166,7 @@ function mergeCloudEntryWithLocal(itemId, local, remote, hasPendingSave) {
   }
 
   return {
-    summary: coalesceNoteText(localEntry.summary, remoteEntry.summary),
+    summary: coalesceNoteText(localEntry.summary, remoteEntry.summary, getCommittedSummary(itemId)),
     links: localEntry.links?.length ? localEntry.links : remoteEntry.links,
     sources: localEntry.sources?.length ? localEntry.sources : remoteEntry.sources,
     gitNotes,
@@ -186,6 +187,46 @@ export function markGitNotesArchivedToGit(itemId) {
 export function markGitNotesDraftDirty(itemId) {
   if (!itemId) return;
   localStorage.removeItem(LS_GIT_ARCHIVED_PREFIX + itemId);
+  clearGitCommittedSnapshot(itemId);
+}
+
+/** Session snapshot after Commit notes.md — survives Supabase clear + token refresh. */
+export function setGitCommittedSnapshot(itemId, { gitSections = {}, summary = "" } = {}) {
+  if (!itemId) return;
+  localStorage.setItem(
+    LS_GIT_COMMITTED_PREFIX + itemId,
+    JSON.stringify({
+      at: new Date().toISOString(),
+      gitSections: gitSections && typeof gitSections === "object" ? gitSections : {},
+      summary: String(summary ?? ""),
+    })
+  );
+}
+
+export function getGitCommittedSnapshot(itemId) {
+  if (!itemId) return null;
+  try {
+    const raw = localStorage.getItem(LS_GIT_COMMITTED_PREFIX + itemId);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    return {
+      gitSections: parsed.gitSections && typeof parsed.gitSections === "object" ? parsed.gitSections : {},
+      summary: String(parsed.summary ?? ""),
+      at: parsed.at || null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function getCommittedSummary(itemId) {
+  return getGitCommittedSnapshot(itemId)?.summary || "";
+}
+
+export function clearGitCommittedSnapshot(itemId) {
+  if (!itemId) return;
+  localStorage.removeItem(LS_GIT_COMMITTED_PREFIX + itemId);
 }
 
 function cancelPendingCloudSave(itemId) {
@@ -211,7 +252,10 @@ function persistCloudEntry(itemId, entry) {
  * After notes.md is committed to GitHub, drop deep-section drafts from Supabase.
  * Summary, links, sources, and locks stay synced; Facts etc. reload from Git on other devices.
  */
-export async function clearGitNotesDraftAfterCommit(itemId, userId) {
+export async function clearGitNotesDraftAfterCommit(itemId, userId, snapshot = null) {
+  if (snapshot?.gitSections) {
+    setGitCommittedSnapshot(itemId, snapshot);
+  }
   cancelPendingCloudSave(itemId);
   const entry = getCloudEntry(itemId);
   entry.gitNotes = {};
@@ -389,6 +433,12 @@ export function gitVisibleNoteValue(itemId, fieldId, liveValue) {
 }
 
 export function getGitNotesFromLocal(itemId) {
+  if (isGitNotesArchivedToGit(itemId)) {
+    const snap = getGitCommittedSnapshot(itemId);
+    if (snap?.gitSections && Object.keys(snap.gitSections).length) {
+      return { ...snap.gitSections };
+    }
+  }
   const cloud = getCloudEntry(itemId);
   if (cloud.gitNotes && Object.keys(cloud.gitNotes).length) {
     return { ...cloud.gitNotes };
@@ -406,6 +456,11 @@ export function saveGitNotesToLocal(itemId, sections, userId = null) {
   entry.gitNotes = { ...sections };
   cloudCache[itemId] = entry;
   if (isGitNotesArchivedToGit(itemId)) {
+    const prev = getGitCommittedSnapshot(itemId);
+    setGitCommittedSnapshot(itemId, {
+      gitSections: sections,
+      summary: entry.summary || prev?.summary || "",
+    });
     return;
   }
   localStorage.setItem(LS_GIT_PREFIX + itemId, JSON.stringify(sections));
@@ -596,6 +651,7 @@ export async function removeItemFromCloud(itemId, userId) {
   localStorage.removeItem(LS_CLOUD_PREFIX + itemId);
   localStorage.removeItem(LS_GIT_PREFIX + itemId);
   localStorage.removeItem(LS_GIT_ARCHIVED_PREFIX + itemId);
+  localStorage.removeItem(LS_GIT_COMMITTED_PREFIX + itemId);
   localStorage.removeItem(LS_META_PREFIX + itemId);
   cancelPendingCloudSave(itemId);
   if (!userId || !isSupabaseConfigured()) return;

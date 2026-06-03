@@ -34,7 +34,7 @@ import {
   syncNotesToCloud,
   getLastCloudSyncError,
   clearGitNotesDraftAfterCommit,
-  markGitNotesDraftDirty,
+  getCommittedSummary,
 } from "./ca-store.js";
 import {
   initSupabase,
@@ -988,7 +988,11 @@ async function renderItemDetail(itemId) {
     });
   }
 
-  const summaryVal = pickNoteValue(itemId, "summary", cloud.summary || item.summary || "");
+  const summaryVal = pickNoteValue(
+    itemId,
+    "summary",
+    cloud.summary || getCommittedSummary(itemId) || item.summary || ""
+  );
   writeNoteFieldValue(document.querySelector('[data-field-id="summary"]')?.closest(".note-field"), summaryVal);
   bindRichNoteEditor(document.querySelector('[data-field-id="summary"]'), {
     onInput: (val) => {
@@ -1053,9 +1057,14 @@ async function renderItemDetail(itemId) {
   document.getElementById("commitNotesBtn")?.addEventListener("click", async () => {
     try {
       const liveSections = readGitSectionsFromEditors();
-      const { path, searchEntry } = await commitNotesMdToGitHub(itemId, merged, liveSections);
+      const summaryField = document.querySelector('[data-field-id="summary"]')?.closest(".note-field");
+      const summaryLive = summaryField ? readNoteFieldValue(summaryField) : cloud.summary || "";
+      const { path, searchEntry } = await commitNotesMdToGitHub(itemId, merged, liveSections, summaryLive);
       if (searchEntry) setSearchIndexEntry(itemId, searchEntry);
-      const clearResult = await clearGitNotesDraftAfterCommit(itemId, userId);
+      const clearResult = await clearGitNotesDraftAfterCommit(itemId, userId, {
+        gitSections: liveSections,
+        summary: summaryLive,
+      });
       if (!clearResult.ok) {
         alert(
           `Committed ${path} to GitHub.\n\nSupabase clear failed: ${clearResult.error}\n\nStay signed in and tap Commit again (or Sync) to empty git_notes_json.`
@@ -1665,20 +1674,23 @@ async function initAuthBackground() {
       await withTimeout(loadFlashcards(state.session.user.id), 8000, undefined);
     }
     onAuthStateChange(async (session) => {
+      const prevUserId = state.session?.user?.id || null;
       state.session = session;
       setCloudSyncUserId(session?.user?.id || null);
       updateAuthUi();
-      if (state.view === "item" && state.itemId) {
-        flushItemNoteEditorsFromDom();
+      const userId = session?.user?.id || null;
+      if (userId) {
+        if (state.view === "item" && state.itemId) flushItemNoteEditorsFromDom();
+        await flushPendingCloudSavesNow();
+        await syncNotesToCloud(userId, state.items.map((i) => i.id));
+        await loadAllCloudNotes(userId);
+        await loadFlashcards(userId);
       }
-      await flushPendingCloudSavesNow();
-      if (session?.user?.id) {
-        await syncNotesToCloud(session.user.id, state.items.map((i) => i.id));
-        await loadAllCloudNotes(session.user.id);
-        await loadFlashcards(session.user.id);
+      const signInChanged = Boolean(prevUserId) !== Boolean(userId);
+      if (signInChanged) {
+        if (state.view === "item" && state.itemId) renderItemDetail(state.itemId);
+        else navigate(state.view);
       }
-      if (state.view === "item" && state.itemId) renderItemDetail(state.itemId);
-      else navigate(state.view);
     });
     updateAuthUi();
   } catch (err) {
