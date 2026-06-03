@@ -14,14 +14,22 @@ India is revising the WPI base year from 2011–12 to 2022–23 and gradually tr
 
 ## Static connection
 
-Inflation Indices in India
+### Inflation Indices in India
 
 - CPI → Consumer inflation
 - WPI → Wholesale inflation
-- PPI → Producer inflation Difference between WPI & PPI| WPI | PPI | | --- | --- | | Wholesale prices | Producer prices | | Includes taxes/trade distortions | Cleaner producer cost | | Mainly goods | Goods + services | | Older methodology | International standard | | Why shift to PPI? |  |
-- Better GDP deflator Difference between WPI & PPI| WPI | PPI | | --- | --- | | Wholesale prices | Producer prices | | Includes taxes/trade distortions | Cleaner producer cost | | Mainly goods | Goods + services | | Older methodology | International standard |
+- PPI → Producer inflation
 
-Why shift to PPI?
+### Difference between WPI & PPI
+
+| WPI | PPI |
+| --- | --- |
+| Wholesale prices | Producer prices |
+| Includes taxes/trade distortions | Cleaner producer cost |
+| Mainly goods | Goods + services |
+| Older methodology | International standard |
+
+### Why shift to PPI?
 
 - Better GDP deflator
 - More accurate inflation measurement
@@ -30,8 +38,7 @@ Why shift to PPI?
 
 ## GS paper fit
 
-GS-3
-GS-3
+### GS-3
 
 - Inflation
 - Economic indicators
@@ -40,8 +47,7 @@ GS-3
 - Industrial economy
 - Statistical reforms
 
-Prelims
-Prelims
+### Prelims
 
 - WPI vs CPI vs PPI
 - Base year revision
@@ -53,22 +59,27 @@ Relevant economy PYQs repeatedly focus on inflation and methodology reforms.
 ## Exam angle
 
 ### Q1. What is the recent WPI news?
+
 **Answer:**
 India revised the WPI base year from **2011–12 to 2022–23** and will experimentally introduce PPI.
 
 ### Q2. What is WPI?
+
 **Answer:**
 Wholesale Price Index measures changes in wholesale prices in the economy.
 
 ### Q3. How frequently is WPI released?
+
 **Answer:**
 WPI is released **monthly**.
 
 ### Q4. Which organization releases WPI?
+
 **Answer:**
 Office of Economic Adviser under the Commerce Ministry.
 
 ### Q5. What is PPI?
+
 **Answer:**
 Producer Price Index measures prices received by producers for their output.
 
@@ -91,10 +102,12 @@ Number of items increased:
 ]
 
 ### Q8. Which component has highest weight in WPI?
+
 **Answer:**
 Manufactured products (~63%).
 
 ### Q9. Which inflation index does RBI mainly use?
+
 **Answer:**
 Consumer Price Index (CPI).
 
@@ -121,23 +134,22 @@ It is related to:
 
 ## Miscellaneous
 
-Easy Mnemonic
-Easy Mnemonic
+### Easy Mnemonic
 
 - **CPI → Consumer**
 - **WPI → Wholesale**
 - **PPI → Producer**
 
-Important Concept
-Important Concept
+### Important Concept
+
 PPI is considered superior because it:
 
 - excludes distortions,
 - better captures producer costs,
 - aligns with IMF/OECD standards.
 
-Bigger Trend
-Bigger Trend
+### Bigger Trend
+
 This news is part of India’s broader statistical modernization along with:
 
 - IIP base revision,

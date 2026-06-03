@@ -143,7 +143,8 @@ export function setRichNoteContent(editor, raw) {
     editor.innerHTML = "";
     return;
   }
-  editor.innerHTML = noteStorageToEditorHtml(s);
+  const md = noteMarkdownForStorage(s);
+  editor.innerHTML = markdownToEditorHtml(md, sanitizeNoteHtml);
 }
 
 export function getRichNoteContent(editor) {

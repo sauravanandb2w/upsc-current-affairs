@@ -20,7 +20,7 @@ import {
   isFieldLocked,
   getLockedSnapshot,
 } from "./ca-store.js";
-import { noteHtmlForGitStorage } from "./rich-notes.js?v=30";
+import { noteHtmlForGitStorage } from "./rich-notes.js?v=31";
 import { fieldIdForSection } from "./field-locks.js";
 import { manifestFromItem, syncSearchIndexForItem } from "./github-publish.js";
 

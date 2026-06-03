@@ -124,7 +124,9 @@ function htmlToMarkdown(html) {
     }
 
     if (tag === "li") {
-      return walkChildren(node).replace(/^\n+|\n+$/g, "").replace(/\n/g, " ").trim();
+      const inner = walkChildren(node).replace(/^\n+|\n+$/g, "");
+      if (/\n/.test(inner) || /\|/.test(inner)) return `${inner}\n`;
+      return inner.replace(/\n/g, " ").trim();
     }
 
     if (tag === "p" || tag === "div") {
@@ -340,12 +342,65 @@ export function noteMarkdownForStorage(value) {
 /** Final pass: one ### block per title, no plain-line duplicates of headings. */
 export function canonicalizeSectionMarkdown(md) {
   if (!String(md || "").trim()) return "";
-  let out = promotePlainHeadings(String(md).trim());
+  let out = String(md).trim();
+  out = expandCollapsedPipeTables(out);
+  out = dedupeConsecutiveLines(out);
+  out = promotePlainHeadings(out);
+  out = promoteSubheadingLines(out);
   out = collapseInSectionHeadings(out);
   out = dedupeSectionMarkdown(out);
   out = stripPlainHeadingDuplicates(out);
+  out = dedupeConsecutiveLines(out);
   out = dedupeSectionMarkdown(out);
   return out.trim();
+}
+
+/** Fix table rows collapsed onto one line: "| a | b | | --- |" → separate lines. */
+function expandCollapsedPipeTables(md) {
+  return md.replace(/(\|[^|\n]+(?:\|[^|\n]+)+\|)(?:\s*\|\s*\|)/g, "$1\n|");
+}
+
+function dedupeConsecutiveLines(md) {
+  const lines = md.split(/\r?\n/);
+  const out = [];
+  for (const line of lines) {
+    const t = line.trim();
+    if (t && out.length && out[out.length - 1].trim() === t) continue;
+    out.push(line);
+  }
+  return out.join("\n");
+}
+
+function isSubheadingLine(text) {
+  const t = String(text || "").trim();
+  if (!t || t.length > 72) return false;
+  if (/^[#|*-]/.test(t)) return false;
+  if (/^\*\*/.test(t)) return false;
+  if (/^(Relevant|PPI is|This news is|Because PPI|Number of items|It is related|\*\*Answer)/i.test(t)) {
+    return false;
+  }
+  if (t.endsWith(".") && t.length > 55) return false;
+  return true;
+}
+
+/** Plain title line before bullets/table → ### heading. */
+function promoteSubheadingLines(md) {
+  const lines = md.split(/\r?\n/);
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const t = lines[i].trim();
+    if (isSubheadingLine(t) && !/^#{1,6}\s/.test(t)) {
+      let j = i + 1;
+      while (j < lines.length && !lines[j].trim()) j++;
+      const next = lines[j]?.trim() || "";
+      if (next.startsWith("-") || next.startsWith("|") || /^Q\d+\./.test(next)) {
+        out.push(`### ${t}`);
+        continue;
+      }
+    }
+    out.push(lines[i]);
+  }
+  return out.join("\n");
 }
 
 function promotePlainHeadings(md) {
