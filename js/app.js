@@ -1,5 +1,10 @@
 import { assetUrl, repoBase } from "./paths.js";
 import {
+  initNoteMarkdown,
+  noteValueToMarkdown,
+  noteToPlainText,
+} from "./note-markdown.js";
+import {
   parseNotesMd,
   GIT_SECTIONS,
   emptyGitSections,
@@ -70,11 +75,11 @@ import {
   setRichNoteLocked,
   noteHtmlToPlainText,
   noteStorageToEditorHtml,
-} from "./rich-notes.js?v=27";
+} from "./rich-notes.js?v=28";
 import { initTheme, bindThemeToggle, bindNoteSizeControl } from "./theme.js";
 import { bindExportButtons } from "./export-ca.js";
 import { loadFlashcards, loadFlashcardsLocal, generateFlashcardsFromItem, removeFlashcardsForItem } from "./flashcards.js";
-import { commitNotesMdToGitHub, fetchNotesMdFromGitHub } from "./github-notes.js?v=27";
+import { commitNotesMdToGitHub, fetchNotesMdFromGitHub } from "./github-notes.js?v=28";
 import {
   publishDraftToGitHub,
   savePublishedItemToGitHub,
@@ -379,30 +384,27 @@ async function fetchNotesMd(itemId) {
   }
 }
 
-function parsedNotesToHtmlSections(parsed) {
-  const out = {};
-  for (const sec of GIT_SECTIONS) {
-    out[sec] = noteStorageToEditorHtml(parsed[sec] || "");
-  }
-  return out;
-}
-
-/** Keep local / locked-private text when git pull would overwrite it. */
 function mergePulledGitWithLocal(parsed, local, itemId) {
-  const htmlSections = parsedNotesToHtmlSections(parsed);
-  if (!local || typeof local !== "object") return htmlSections;
+  const merged = { ...emptyGitSections(), ...parsed };
+  if (!local || typeof local !== "object") {
+    for (const sec of GIT_SECTIONS) {
+      merged[sec] = noteValueToMarkdown(parsed[sec] || "");
+    }
+    return merged;
+  }
   for (const sec of GIT_SECTIONS) {
-    const gitPlain = noteHtmlToPlainText(htmlSections[sec] || "");
+    const fromGit = noteValueToMarkdown(parsed[sec] || "");
     const fid = fieldIdForSection(sec);
     const localVal = local[sec] ?? local[fid] ?? "";
-    const localPlain = noteHtmlToPlainText(localVal);
+    const localMd = noteValueToMarkdown(localVal);
     if (itemId && isFieldLocked(itemId, fid)) {
-      htmlSections[sec] = localPlain.trim() ? localVal : noteStorageToEditorHtml(getLockedSnapshot(itemId, fid));
+      merged[sec] = localMd.trim() ? localMd : noteValueToMarkdown(getLockedSnapshot(itemId, fid));
       continue;
     }
-    if (!gitPlain.trim() && localPlain.trim()) htmlSections[sec] = localVal;
+    if (!noteToPlainText(fromGit).trim() && localMd.trim()) merged[sec] = localMd;
+    else merged[sec] = fromGit.trim() ? fromGit : localMd;
   }
-  return htmlSections;
+  return merged;
 }
 
 function getGitSections(itemId, mdText) {
@@ -916,7 +918,7 @@ async function renderItemDetail(itemId) {
           <span class="git-zone-badge git-zone-badge--notes">Commit notes.md → GitHub</span>
           <span class="git-zone-hint muted small">Summary, Facts, Exam angle, etc. → notes.md</span>
         </div>
-        <p class="note-locks-help muted small">Toolbar: <strong>bold</strong>, lists. <strong>Padlock</strong> = you can still edit, but changes after lock won't go to GitHub (Supabase sync still works). Facts etc. auto-save to <strong>Supabase as drafts</strong> while you type; after <strong>Commit notes.md</strong> they live in Git and are cleared from Supabase. Summary/links/sources keep syncing. Box height: <strong>S/M/L</strong> in header.</p>
+        <p class="note-locks-help muted small">Toolbar: <strong>bold</strong>, lists, tables (paste). Notes save as <strong>Markdown</strong> in Supabase and notes.md. <strong>Padlock</strong> = edits after lock won't go to GitHub. Facts etc. are Supabase drafts until <strong>Commit notes.md</strong>. Box height: <strong>S/M/L</strong> in header.</p>
         <div class="note-field git-notes-field${isFieldLocked(itemId, "summary") ? " note-field--locked" : ""}" data-field="summary">
           ${renderNoteLabelRow("Summary", itemId, "summary", userId)}
           ${renderRichNoteEditorHtml({ "data-field-id": "summary" }, { placeholder: "What happened — story angle", rows: 4 })}
@@ -1078,9 +1080,9 @@ async function renderItemDetail(itemId) {
       const localBefore = getGitNotesFromLocal(itemId);
       saveGitNotesToLocal(itemId, mergePulledGitWithLocal(fromGit, localBefore, itemId), userId);
       if (fromGit[SUMMARY_SECTION]?.trim()) {
-        const summaryHtml = noteStorageToEditorHtml(fromGit[SUMMARY_SECTION]);
+        const summaryMd = noteValueToMarkdown(fromGit[SUMMARY_SECTION]);
         if (!isFieldLocked(itemId, "summary")) {
-          updateCloudField(itemId, userId, "summary", summaryHtml);
+          updateCloudField(itemId, userId, "summary", summaryMd);
         }
       }
       alert("Loaded notes from GitHub into this browser.");
@@ -1684,6 +1686,7 @@ async function initAuthBackground() {
 async function init() {
   try {
     initTheme();
+    await initNoteMarkdown();
     bindThemeToggle(el.themeToggle);
     bindNoteSizeControl(el.noteSizeControl);
     bindExportButtons(el.exportJsonBtn, el.exportMdBtn, () => mergedItems());

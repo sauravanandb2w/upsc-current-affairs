@@ -6,7 +6,7 @@ import { getGitHubToken, getGitHubRepo, isGitHubUploadAllowed } from "./github-a
 import { getRepoFile, putRepoFile } from "./github-upload.js";
 import { serializeNotesMd, GIT_SECTIONS } from "./notes-md.js";
 import { getCloudEntry, getGitNotesFromLocal, gitVisibleNoteValue } from "./ca-store.js";
-import { noteHtmlForGitStorage } from "./rich-notes.js?v=27";
+import { noteHtmlForGitStorage } from "./rich-notes.js?v=28";
 import { fieldIdForSection } from "./field-locks.js";
 import { manifestFromItem, syncSearchIndexForItem } from "./github-publish.js";
 

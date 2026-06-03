@@ -11,7 +11,7 @@ import {
   rateFlashcard,
   removeFlashcard,
 } from "./flashcards.js";
-import { noteHtmlToPlainText } from "./rich-notes.js?v=27";
+import { noteHtmlToPlainText } from "./rich-notes.js?v=28";
 import { GIT_SECTIONS } from "./notes-md.js";
 import { mountMonthPicker, formatDisplayDate, formatDisplayMonth, effectiveItemDate, isValidIsoDate } from "./date-picker.js";
 import { exportCaAsMarkdown } from "./export-ca.js";

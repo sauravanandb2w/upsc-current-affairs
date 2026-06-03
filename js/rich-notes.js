@@ -1,10 +1,19 @@
 /**
- * Lightweight rich text for synced note fields (stores sanitized HTML).
+ * Lightweight rich text for synced note fields (stores Markdown).
  * Ported from upsc-mains-pyq — CA uses separate localStorage key.
  */
 
+import {
+  markdownToEditorHtml,
+  noteValueToMarkdown,
+  noteToPlainText as noteMarkdownToPlainText,
+  noteMarkdownForStorage,
+} from "./note-markdown.js";
+
 const ALLOWED_TAGS = new Set([
   "b", "strong", "i", "em", "u", "s", "strike", "br", "p", "div", "ul", "ol", "li",
+  "table", "thead", "tbody", "tr", "th", "td", "blockquote", "pre", "code", "hr",
+  "h1", "h2", "h3", "h4",
 ]);
 
 export function looksLikeNoteHtml(value) {
@@ -12,36 +21,7 @@ export function looksLikeNoteHtml(value) {
 }
 
 export function noteHtmlToPlainText(html) {
-  const s = String(html ?? "");
-  if (!s.trim()) return "";
-  if (!looksLikeNoteHtml(s)) return s;
-  const div = document.createElement("div");
-  div.innerHTML = sanitizeNoteHtml(s);
-
-  const BLOCK_TAGS = new Set(["p", "div", "li"]);
-
-  function nodeToPlain(node) {
-    if (node.nodeType === Node.TEXT_NODE) {
-      return (node.textContent || "").replace(/\u00a0/g, " ");
-    }
-    if (node.nodeType !== Node.ELEMENT_NODE) return "";
-
-    const tag = node.tagName.toLowerCase();
-    if (tag === "br") return "\n";
-
-    let inner = "";
-    for (const child of node.childNodes) {
-      inner += nodeToPlain(child);
-    }
-    if (BLOCK_TAGS.has(tag)) return `${inner}\n`;
-    return inner;
-  }
-
-  let out = "";
-  for (const child of div.childNodes) {
-    out += nodeToPlain(child);
-  }
-  return out.replace(/\n{3,}/g, "\n\n").replace(/\n+$/g, "");
+  return noteMarkdownToPlainText(html, sanitizeNoteHtml);
 }
 
 export function noteValueHasContent(value) {
@@ -91,21 +71,19 @@ export function plainTextToNoteHtml(text) {
     .join("");
 }
 
-/** Normalize stored note (plain or HTML) for the rich editor. */
+/** Normalize stored note (Markdown or legacy HTML) for the rich editor. */
 export function noteStorageToEditorHtml(raw) {
-  const s = String(raw ?? "");
-  if (!s.trim()) return "";
-  if (looksLikeNoteHtml(s)) return sanitizeNoteHtml(s);
-  return plainTextToNoteHtml(s);
+  const s = String(raw ?? "").trim();
+  if (!s) return "";
+  return markdownToEditorHtml(raw, sanitizeNoteHtml);
 }
 
-/** Sanitized HTML for notes.md — keeps bold/italic/lists through git round-trip. */
+/** Markdown for notes.md and Supabase — keeps formatting on round-trip. */
 export function noteHtmlForGitStorage(html) {
-  const s = String(html ?? "").trim();
-  if (!s) return "";
-  if (looksLikeNoteHtml(s)) return sanitizeNoteHtml(s);
-  return plainTextToNoteHtml(s);
+  return noteMarkdownForStorage(html);
 }
+
+export { noteMarkdownForStorage, noteValueToMarkdown };
 
 export function setRichNoteContent(editor, raw) {
   if (!editor) return;
@@ -121,9 +99,10 @@ export function getRichNoteContent(editor) {
   if (!editor) return "";
   const html = editor.innerHTML.trim();
   if (!html || html === "<br>") return "";
-  const plain = noteHtmlToPlainText(html);
+  const sanitized = sanitizeNoteHtml(html);
+  const plain = noteMarkdownToPlainText(sanitized, sanitizeNoteHtml);
   if (!plain.trim()) return "";
-  return sanitizeNoteHtml(html);
+  return noteValueToMarkdown(sanitized);
 }
 
 export function renderRichNoteToolbar() {

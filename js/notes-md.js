@@ -15,6 +15,7 @@ export const SUMMARY_SECTION = "Summary / story";
 export function sectionPlainLength(value) {
   return String(value || "")
     .replace(/<[^>]*>/g, " ")
+    .replace(/[*_~`#>|]/g, " ")
     .replace(/\s+/g, " ")
     .trim().length;
 }
