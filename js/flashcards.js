@@ -122,81 +122,74 @@ export function cardThemeIndex(card) {
   return h;
 }
 
-/** Parse Exam angle notes: question line, answer line(s) below; blank line between pairs. */
+/** Parse Exam angle: Q1 / Q2 … then Answer: … (standard pattern). */
 export function splitExamAngleToFlashcards(text) {
   const plain = noteHtmlToPlainText(text).trim();
   if (!plain) return [];
-
-  const pairs = [];
-  const blocks = plain.split(/\n\s*\n+/).filter((b) => b.trim());
-
-  for (const block of blocks) {
-    const pair = parseExamQaBlock(block);
-    if (pair) pairs.push(pair);
-  }
-  if (pairs.length) return dedupeFlashcardPairs(pairs);
-
-  return dedupeFlashcardPairs(parseExamQaByQuestionLines(plain));
-}
-
-function cleanExamLine(line) {
-  return String(line || "")
-    .replace(/^[-*•]\d*[.)]\s*/, "")
-    .replace(/^[-*•]\s*/, "")
-    .trim();
+  return dedupeFlashcardPairs(parseExamAngleStructured(plain));
 }
 
 function normalizeExamQuestion(question) {
-  const q = String(question || "").trim().replace(/\?+\s*$/, "").trim();
+  const q = String(question || "")
+    .trim()
+    .replace(/^Q\s*\d+\s*[.:)]?\s*/i, "")
+    .replace(/\?+\s*$/, "")
+    .trim();
   if (!q) return "";
   return `${q}?`;
 }
 
-function parseExamQaBlock(block) {
-  const lines = block
-    .split(/\n/)
-    .map(cleanExamLine)
-    .filter(Boolean);
-  if (lines.length < 2) return null;
-
-  const question = normalizeExamQuestion(lines[0]);
-  const answer = lines.slice(1).join("\n").trim();
-  if (!question || question.length < 4 || !answer || answer.length < 2) return null;
-
-  return { question, answer };
-}
-
-function looksLikeExamQuestion(line) {
-  const s = cleanExamLine(line);
-  if (!s) return false;
-  if (s.endsWith("?")) return true;
-  return /^(what|why|how|when|where|which|who|explain|discuss|define|compare|list|name)\b/i.test(s);
-}
-
-function parseExamQaByQuestionLines(plain) {
-  const lines = plain.split(/\n/).map(cleanExamLine).filter(Boolean);
+/** Q1. Question text / Q1 + question on next line(s), then Answer: … */
+function parseExamAngleStructured(plain) {
+  const segments = plain.replace(/\r\n/g, "\n").split(/(?=^\s*Q\s*\d+\s*[.:)]?\s*)/im);
   const pairs = [];
-  let question = null;
-  let answerLines = [];
 
-  const flush = () => {
-    if (!question || !answerLines.length) return;
-    const q = normalizeExamQuestion(question);
-    const answer = answerLines.join("\n").trim();
-    if (q.length >= 4 && answer.length >= 2) pairs.push({ question: q, answer });
-    question = null;
-    answerLines = [];
-  };
+  for (const segment of segments) {
+    if (!segment.trim()) continue;
 
-  for (const line of lines) {
-    if (looksLikeExamQuestion(line)) {
-      flush();
-      question = line.replace(/\?+\s*$/, "").trim();
-      continue;
+    const rawLines = segment.replace(/\r\n/g, "\n").split("\n");
+    let startIdx = 0;
+    while (startIdx < rawLines.length && !rawLines[startIdx].trim()) startIdx += 1;
+    if (startIdx >= rawLines.length) continue;
+
+    const headerMatch = rawLines[startIdx].trim().match(/^Q\s*(\d+)\s*[.:)]?\s*(.*)$/i);
+    if (!headerMatch) continue;
+
+    const questionParts = [];
+    if (headerMatch[2].trim()) questionParts.push(headerMatch[2].trim());
+
+    const answerParts = [];
+    let inAnswer = false;
+
+    for (let i = startIdx + 1; i < rawLines.length; i += 1) {
+      const trimmed = rawLines[i].trim();
+      if (/^Q\s*\d+\s*[.:)]?\s*/i.test(trimmed)) break;
+
+      const answerMatch = trimmed.match(/^Answer\s*:\s*(.*)$/i);
+      if (answerMatch) {
+        inAnswer = true;
+        if (answerMatch[1].trim()) answerParts.push(answerMatch[1].trim());
+        continue;
+      }
+
+      if (!inAnswer) {
+        if (trimmed) questionParts.push(trimmed);
+      } else {
+        answerParts.push(trimmed);
+      }
     }
-    if (question) answerLines.push(line);
+
+    const question = normalizeExamQuestion(questionParts.join(" ").replace(/\s+/g, " ").trim());
+    const answer = answerParts
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+
+    if (question.length >= 4 && answer.length >= 2) {
+      pairs.push({ question, answer });
+    }
   }
-  flush();
+
   return pairs;
 }
 

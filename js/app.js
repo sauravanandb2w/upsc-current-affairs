@@ -928,7 +928,7 @@ async function renderItemDetail(itemId) {
           const fid = fieldIdForSection(sec);
           const placeholder =
             sec === "Exam angle"
-              ? "Question on one line, answer on the next line(s). Blank line between each Q/A pair."
+              ? "Q1. Why is the base year revised?\nAnswer: To reflect structural changes…\n\nQ2. What was removed?\nAnswer: Kerosene, CFL…"
               : sec;
           return `<div class="note-field git-notes-field${isFieldLocked(itemId, fid) ? " note-field--locked" : ""}" data-field="${fid}">
             ${renderNoteLabelRow(sec, itemId, fid, userId)}
@@ -937,7 +937,7 @@ async function renderItemDetail(itemId) {
         }).join("")}
 
         <div class="item-tool-row item-tool-row--neutral">
-          <button type="button" class="btn-ghost btn-sm" id="genFlashBtn" title="From Exam angle only — question then answer below">Generate flashcards</button>
+          <button type="button" class="btn-ghost btn-sm" id="genFlashBtn" title="From Exam angle — Q1, Q2… then Answer:">Generate flashcards</button>
           <button type="button" class="btn-ghost btn-sm" id="markRevisedBtn">Mark revised today</button>
         </div>
         ${
@@ -1038,7 +1038,7 @@ async function renderItemDetail(itemId) {
     const n = await generateFlashcardsFromItem(userId, item, liveSections);
     if (!n.length) {
       alert(
-        "No flashcards created.\n\nIn **Exam angle**, write each pair like this:\n\nWhy is the base year revised?\nTo reflect structural changes in the economy\n\n(blank line before the next pair)\n\nWhat sectors were added?\nCCTV, vaccines, aircraft parts…"
+        "No flashcards created.\n\nIn **Exam angle**, use this pattern:\n\nQ1. Why is the base year revised?\nAnswer: To reflect structural changes in the economy\n\nQ2. What sectors were added to IIP?\nAnswer: CCTV, vaccines, aircraft parts…"
       );
       return;
     }

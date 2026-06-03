@@ -270,7 +270,7 @@ export function renderDrill(ctx) {
         <p class="drill-empty-title">No cards yet</p>
         <ol class="drill-empty-steps">
           <li>Open any CA item</li>
-          <li>In <strong>Exam angle</strong>, write a question, then the answer on the line(s) below</li>
+          <li>In <strong>Exam angle</strong>, use <strong>Q1.</strong> question then <strong>Answer:</strong> … (Q2, Q3… same pattern)</li>
           <li>Click <strong>Generate flashcards</strong></li>
         </ol>
       </div>`;
