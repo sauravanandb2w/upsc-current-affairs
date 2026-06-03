@@ -79,7 +79,7 @@ import {
 import { initTheme, bindThemeToggle, bindNoteSizeControl } from "./theme.js";
 import { bindExportButtons } from "./export-ca.js";
 import { loadFlashcards, loadFlashcardsLocal, generateFlashcardsFromItem, removeFlashcardsForItem } from "./flashcards.js";
-import { commitNotesMdToGitHub, fetchNotesMdFromGitHub } from "./github-notes.js?v=29";
+import { commitNotesMdToGitHub, fetchNotesMdFromGitHub } from "./github-notes.js?v=30";
 import {
   publishDraftToGitHub,
   savePublishedItemToGitHub,

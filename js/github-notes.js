@@ -4,30 +4,76 @@
 
 import { getGitHubToken, getGitHubRepo, isGitHubUploadAllowed } from "./github-auth.js";
 import { getRepoFile, putRepoFile } from "./github-upload.js";
-import { serializeNotesMd, GIT_SECTIONS, sectionPlainLength, defaultNotesTemplate } from "./notes-md.js";
-import { getCloudEntry, getGitNotesFromLocal, gitVisibleNoteValue } from "./ca-store.js";
+import {
+  serializeNotesMd,
+  parseNotesMd,
+  mergeGitSectionsWithLocal,
+  emptyGitSections,
+  GIT_SECTIONS,
+  SUMMARY_SECTION,
+  sectionPlainLength,
+  defaultNotesTemplate,
+} from "./notes-md.js";
+import {
+  getCloudEntry,
+  getGitNotesFromLocal,
+  gitVisibleNoteValue,
+  isFieldLocked,
+  getLockedSnapshot,
+} from "./ca-store.js";
 import { noteHtmlForGitStorage } from "./rich-notes.js?v=29";
 import { fieldIdForSection } from "./field-locks.js";
 import { manifestFromItem, syncSearchIndexForItem } from "./github-publish.js";
 
-function sectionsForCommit(itemId, liveSections = null, summaryLive = null) {
+function localSectionsRaw(itemId, liveSections = null, summaryLive = null) {
   const git = getGitNotesFromLocal(itemId) || getCloudEntry(itemId).gitNotes || {};
-  const out = {};
+  const sections = {};
   for (const sec of GIT_SECTIONS) {
     const fid = fieldIdForSection(sec);
     const live = liveSections
       ? (liveSections[sec] ?? liveSections[fid] ?? git[sec] ?? git[fid] ?? "")
       : (git[sec] ?? git[fid] ?? "");
-    out[sec] = noteHtmlForGitStorage(gitVisibleNoteValue(itemId, fid, live));
+    sections[sec] = gitVisibleNoteValue(itemId, fid, live);
   }
   const summarySource =
     summaryLive ??
     (liveSections
-      ? (liveSections.summary ?? liveSections["Summary / story"] ?? getCloudEntry(itemId).summary ?? "")
+      ? (liveSections.summary ?? liveSections[SUMMARY_SECTION] ?? getCloudEntry(itemId).summary ?? "")
       : getCloudEntry(itemId).summary || "");
-  const summary = noteHtmlForGitStorage(gitVisibleNoteValue(itemId, "summary", summarySource));
-  if (summary.trim()) out["Summary / story"] = summary;
+  return {
+    sections,
+    summary: gitVisibleNoteValue(itemId, "summary", summarySource),
+  };
+}
+
+/** Merge live editor values with existing notes.md so empty fields keep GitHub content (partial commit). */
+function sectionsForCommit(itemId, liveSections = null, summaryLive = null, existingGitText = null) {
+  const fromGit = existingGitText ? parseNotesMd(existingGitText) : { ...emptyGitSections(), [SUMMARY_SECTION]: "" };
+  const { sections: localRaw, summary: localSummary } = localSectionsRaw(itemId, liveSections, summaryLive);
+  const merged = mergeGitSectionsWithLocal(fromGit, localRaw);
+
+  const out = {};
+  for (const sec of GIT_SECTIONS) {
+    const fid = fieldIdForSection(sec);
+    const val = isFieldLocked(itemId, fid) ? getLockedSnapshot(itemId, fid) : merged[sec];
+    out[sec] = noteHtmlForGitStorage(val);
+  }
+
+  const summaryMerged =
+    sectionPlainLength(localSummary) > 0
+      ? localSummary
+      : isFieldLocked(itemId, "summary")
+        ? getLockedSnapshot(itemId, "summary")
+        : fromGit[SUMMARY_SECTION] || "";
+  const summary = noteHtmlForGitStorage(summaryMerged);
+  if (sectionPlainLength(summary) > 0) out[SUMMARY_SECTION] = summary;
   return out;
+}
+
+function localSectionsHaveContent(itemId, liveSections = null, summaryLive = null) {
+  const { sections, summary } = localSectionsRaw(itemId, liveSections, summaryLive);
+  if (sectionPlainLength(summary) > 0) return true;
+  return Object.values(sections).some((v) => sectionPlainLength(v) > 0);
 }
 
 function sectionsHaveContent(sections) {
@@ -62,13 +108,18 @@ export async function commitNotesMdToGitHub(itemId, item, liveSections = null, s
   if (!token || !owner || !name) throw new Error("Connect GitHub first.");
 
   const path = `study/items/${itemId}/notes.md`;
-  const sections = sectionsForCommit(itemId, liveSections, summaryLive);
-  const body = serializeNotesMd(sections, { includeSummary: Boolean(sections["Summary / story"]) });
-
   const existing = await getRepoFile(path);
-  if (notesBodyIsEmpty(body, sections) && existing?.text && sectionPlainLength(existing.text) > 40) {
+  const sections = sectionsForCommit(itemId, liveSections, summaryLive, existing?.text ?? null);
+  const body = serializeNotesMd(sections, { includeSummary: Boolean(sections[SUMMARY_SECTION]) });
+
+  if (
+    notesBodyIsEmpty(body, sections) &&
+    !localSectionsHaveContent(itemId, liveSections, summaryLive) &&
+    existing?.text &&
+    sectionPlainLength(existing.text) > 40
+  ) {
     throw new Error(
-      "Notes look empty on this screen — refusing to overwrite GitHub. Hard-refresh, open the item again, or re-type, then commit."
+      "Every note section is empty on this screen — refusing to overwrite GitHub. Hard-refresh, open the item again, or re-type, then commit. Partial commits (some sections filled, others empty) are fine."
     );
   }
 
