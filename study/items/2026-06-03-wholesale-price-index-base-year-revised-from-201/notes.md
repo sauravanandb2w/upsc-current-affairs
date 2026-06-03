@@ -16,17 +16,19 @@ India is revising the WPI base year from 2011–12 to 2022–23 and gradually tr
 
 ## Inflation Indices in India
 
-- CPI → Consumer inflation
+## - CPI → Consumer inflation
+
 - WPI → Wholesale inflation
 - PPI → Producer inflation
 
 ## Difference between WPI & PPI
 
-<table><thead><tr><th style="color: rgb(17, 24, 39); background: rgba(248, 250, 252, 0.9)">WPI</th><th style="color: rgb(17, 24, 39); background: rgba(248, 250, 252, 0.9)">PPI</th></tr></thead><tbody><tr><td>Wholesale prices</td><td>Producer prices</td></tr><tr><td>Includes taxes/trade distortions</td><td>Cleaner producer cost</td></tr><tr><td>Mainly goods</td><td>Goods + services</td></tr><tr><td>Older methodology</td><td>International standard</td></tr></tbody></table>
+## <table><thead><tr><th style="color: rgb(17, 24, 39); background: rgba(248, 250, 252, 0.9)">WPI</th><th style="color: rgb(17, 24, 39); background: rgba(248, 250, 252, 0.9)">PPI</th></tr></thead><tbody><tr><td>Wholesale prices</td><td>Producer prices</td></tr><tr><td>Includes taxes/trade distortions</td><td>Cleaner producer cost</td></tr><tr><td>Mainly goods</td><td>Goods + services</td></tr><tr><td>Older methodology</td><td>International standard</td></tr></tbody></table>
 
 ## Why shift to PPI?
 
-- Better GDP deflator
+## - Better GDP deflator
+
 - More accurate inflation measurement
 - Globally accepted methodology
 - Better reflects producer costs
@@ -145,4 +147,4 @@ This news is part of India’s broader statistical modernization along with:
 
 - IIP base revision,
 - GDP methodology improvements,
-- modern inflation tracking systems.
+- modern inflation tracking systems

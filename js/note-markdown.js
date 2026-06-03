@@ -150,7 +150,9 @@ function htmlToMarkdown(html) {
     if (tag === "h1" || tag === "h2" || tag === "h3" || tag === "h4") {
       const level = Number(tag.slice(1));
       const inner = walkChildren(node).trim();
-      return inner ? `${"#".repeat(level)} ${inner}\n\n` : "";
+      // notes.md reserves ## for the six fixed section titles — use ###+ inside fields.
+      const mdLevel = Math.min(6, level + 2);
+      return inner ? `${"#".repeat(mdLevel)} ${inner}\n\n` : "";
     }
 
     if (tag === "blockquote") {

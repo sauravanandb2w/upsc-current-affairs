@@ -12,6 +12,8 @@ export const GIT_SECTIONS = [
 
 export const SUMMARY_SECTION = "Summary / story";
 
+const NOTES_MD_SECTION_HEADERS = new Set([SUMMARY_SECTION, ...GIT_SECTIONS]);
+
 export function sectionPlainLength(value) {
   return String(value || "")
     .replace(/<[^>]*>/g, " ")
@@ -57,11 +59,14 @@ export function parseNotesMd(text) {
 
   for (const line of String(text || "").split(/\r?\n/)) {
     if (line.startsWith("## ")) {
-      flush();
-      current = line.slice(3).trim();
-    } else if (current != null) {
-      buf.push(line);
+      const header = line.slice(3).trim();
+      if (NOTES_MD_SECTION_HEADERS.has(header)) {
+        flush();
+        current = header;
+        continue;
+      }
     }
+    if (current != null) buf.push(line);
   }
   flush();
   return sections;
