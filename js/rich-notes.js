@@ -153,7 +153,7 @@ export function getRichNoteContent(editor) {
   const sanitized = sanitizeNoteHtml(html);
   const visible = sanitized.replace(/<[^>]*>/g, "").replace(/\u00a0/g, " ").trim();
   if (!visible) return "";
-  return noteValueToMarkdown(sanitized);
+  return noteMarkdownForStorage(sanitized);
 }
 
 export function renderRichNoteToolbar() {

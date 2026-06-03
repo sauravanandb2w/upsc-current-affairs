@@ -52,27 +52,28 @@ Relevant economy PYQs repeatedly focus on inflation and methodology reforms.
 
 ## Exam angle
 
-Q1. What is the recent WPI news?
+### Q1. What is the recent WPI news?
 **Answer:**
 India revised the WPI base year from **2011–12 to 2022–23** and will experimentally introduce PPI.
 
-Q2. What is WPI?
+### Q2. What is WPI?
 **Answer:**
 Wholesale Price Index measures changes in wholesale prices in the economy.
 
-Q3. How frequently is WPI released?
+### Q3. How frequently is WPI released?
 **Answer:**
 WPI is released **monthly**.
 
-Q4. Which organization releases WPI?
+### Q4. Which organization releases WPI?
 **Answer:**
 Office of Economic Adviser under the Commerce Ministry.
 
-Q5. What is PPI?
+### Q5. What is PPI?
 **Answer:**
 Producer Price Index measures prices received by producers for their output.
 
-Q6. Why is India shifting toward PPI?
+### Q6. Why is India shifting toward PPI?
+
 **Answer:**
 Because PPI:
 
@@ -81,22 +82,24 @@ Because PPI:
 - aligns with global standards,
 - is more accurate than WPI.
 
-Q7. What major change happened in WPI basket?
+### Q7. What major change happened in WPI basket?
+
 **Answer:**
 Number of items increased:
 [
 697 \rightarrow 957
 ]
 
-Q8. Which component has highest weight in WPI?
+### Q8. Which component has highest weight in WPI?
 **Answer:**
 Manufactured products (~63%).
 
-Q9. Which inflation index does RBI mainly use?
+### Q9. Which inflation index does RBI mainly use?
 **Answer:**
 Consumer Price Index (CPI).
 
-Q10. What is the major difference between WPI and PPI?
+### Q10. What is the major difference between WPI and PPI?
+
 **Answer:**
 
 | WPI | PPI |
@@ -105,7 +108,8 @@ Q10. What is the major difference between WPI and PPI?
 | Older method | International standard |
 | Mainly goods | Goods + services |
 
-Q11. Why is this news important for UPSC?
+### Q11. Why is this news important for UPSC?
+
 **Answer:**
 It is related to:
 

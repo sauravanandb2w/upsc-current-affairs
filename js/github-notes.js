@@ -7,7 +7,6 @@ import { getRepoFile, putRepoFile } from "./github-upload.js";
 import {
   serializeNotesMd,
   parseNotesMd,
-  mergeGitSectionsWithLocal,
   emptyGitSections,
   GIT_SECTIONS,
   SUMMARY_SECTION,
@@ -21,7 +20,7 @@ import {
   isFieldLocked,
   getLockedSnapshot,
 } from "./ca-store.js";
-import { noteHtmlForGitStorage } from "./rich-notes.js?v=29";
+import { noteHtmlForGitStorage } from "./rich-notes.js?v=30";
 import { fieldIdForSection } from "./field-locks.js";
 import { manifestFromItem, syncSearchIndexForItem } from "./github-publish.js";
 
@@ -46,16 +45,22 @@ function localSectionsRaw(itemId, liveSections = null, summaryLive = null) {
   };
 }
 
-/** Merge live editor values with existing notes.md so empty fields keep GitHub content (partial commit). */
+/** Editor wins when non-empty; Git fills only blank sections (partial commit). */
 function sectionsForCommit(itemId, liveSections = null, summaryLive = null, existingGitText = null) {
   const fromGit = existingGitText ? parseNotesMd(existingGitText) : { ...emptyGitSections(), [SUMMARY_SECTION]: "" };
   const { sections: localRaw, summary: localSummary } = localSectionsRaw(itemId, liveSections, summaryLive);
-  const merged = mergeGitSectionsWithLocal(fromGit, localRaw);
 
   const out = {};
   for (const sec of GIT_SECTIONS) {
     const fid = fieldIdForSection(sec);
-    const val = isFieldLocked(itemId, fid) ? getLockedSnapshot(itemId, fid) : merged[sec];
+    if (isFieldLocked(itemId, fid)) {
+      out[sec] = noteHtmlForGitStorage(getLockedSnapshot(itemId, fid));
+      continue;
+    }
+    const live = liveSections
+      ? (liveSections[sec] ?? liveSections[fid] ?? "")
+      : localRaw[sec] ?? "";
+    const val = sectionPlainLength(live) > 0 ? live : fromGit[sec] || "";
     out[sec] = noteHtmlForGitStorage(val);
   }
 
@@ -136,5 +141,10 @@ export async function commitNotesMdToGitHub(itemId, item, liveSections = null, s
     includeNoteText: true,
   });
 
-  return { path, searchEntry };
+  return {
+    path,
+    searchEntry,
+    gitSections: Object.fromEntries(GIT_SECTIONS.map((sec) => [sec, sections[sec] || ""])),
+    summary: sections[SUMMARY_SECTION] || "",
+  };
 }

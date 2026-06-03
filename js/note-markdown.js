@@ -331,54 +331,73 @@ function blockPlainFromDiv(div) {
 
 /** Markdown-only storage for notes.md and Supabase (no HTML). */
 export function noteMarkdownForStorage(value) {
-  const md = normalizeGitSectionMarkdown(noteValueToMarkdown(value));
-  return convertEmbeddedHtmlToMarkdown(md);
+  let md = noteValueToMarkdown(value).trim();
+  if (!md) return "";
+  md = convertEmbeddedHtmlToMarkdown(md);
+  return canonicalizeSectionMarkdown(md);
 }
 
-/**
- * Clean in-section markdown: canonical ### subheadings, no duplicate blocks.
- * ## inside a section body (legacy) becomes ###; ####/##### collapse to ###.
- */
-export function normalizeGitSectionMarkdown(body) {
-  const md = noteValueToMarkdown(body).trim();
-  if (!md) return "";
+/** Final pass: one ### block per title, no plain-line duplicates of headings. */
+export function canonicalizeSectionMarkdown(md) {
+  if (!String(md || "").trim()) return "";
+  let out = promotePlainHeadings(String(md).trim());
+  out = collapseInSectionHeadings(out);
+  out = dedupeSectionMarkdown(out);
+  out = stripPlainHeadingDuplicates(out);
+  out = dedupeSectionMarkdown(out);
+  return out.trim();
+}
+
+function promotePlainHeadings(md) {
+  return md
+    .split(/\r?\n/)
+    .map((line) => {
+      const t = line.trim();
+      const q = t.match(/^Q(\d+)\.\s*(.+)$/);
+      if (q) return `### Q${q[1]}. ${q[2].trim()}`;
+      return line;
+    })
+    .join("\n");
+}
+
+function collapseInSectionHeadings(md) {
   const lines = md.split(/\r?\n/);
   const out = [];
-
   for (const line of lines) {
     const heading = line.match(/^(#{1,6})\s+(.*)$/);
     if (heading) {
-      const level = heading[1].length;
       const rest = heading[2].trim();
-      if (level === 2) {
-        if (rest.startsWith("- ")) {
-          out.push(rest);
-          continue;
-        }
-        if (rest.startsWith("<")) {
-          continue;
-        }
-        if (!rest) continue;
-        out.push(`### ${rest}`);
+      if (rest.startsWith("- ")) {
+        out.push(rest);
         continue;
       }
-      if (level >= 3) {
-        if (rest.startsWith("- ")) {
-          out.push(rest);
-          continue;
-        }
-        if (rest.startsWith("<")) {
-          continue;
-        }
-        if (!rest) continue;
-        out.push(`### ${rest}`);
-        continue;
-      }
+      if (!rest) continue;
+      out.push(`### ${rest}`);
+      continue;
     }
     out.push(line);
   }
+  return out.join("\n").trim();
+}
 
-  return dedupeSectionMarkdown(out.join("\n").trim());
+/** Remove plain-text lines that repeat a ### heading title (editor round-trip artefact). */
+function stripPlainHeadingDuplicates(md) {
+  const titles = new Set([...md.matchAll(/^###\s+(.+)$/gm)].map((m) => m[1].trim()));
+  return md
+    .split(/\r?\n/)
+    .filter((line) => {
+      const t = line.trim();
+      if (!t || /^#/.test(t)) return true;
+      return !titles.has(t);
+    })
+    .join("\n");
+}
+
+/**
+ * Clean in-section markdown (legacy entry — prefer noteMarkdownForStorage).
+ */
+export function normalizeGitSectionMarkdown(body) {
+  return canonicalizeSectionMarkdown(noteValueToMarkdown(body));
 }
 
 /** Split section body into ###-headed blocks; keep one block per title (longest body wins). */

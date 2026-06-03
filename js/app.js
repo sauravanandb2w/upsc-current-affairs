@@ -82,7 +82,7 @@ import {
   setRichNoteLocked,
   noteHtmlToPlainText,
   noteStorageToEditorHtml,
-} from "./rich-notes.js?v=29";
+} from "./rich-notes.js?v=30";
 import { initTheme, bindThemeToggle, bindNoteSizeControl } from "./theme.js";
 import { bindExportButtons } from "./export-ca.js";
 import { loadFlashcards, loadFlashcardsLocal, generateFlashcardsFromItem, removeFlashcardsForItem } from "./flashcards.js";
@@ -1065,11 +1065,12 @@ async function renderItemDetail(itemId) {
       const liveSections = readGitSectionsFromEditors();
       const summaryField = document.querySelector('[data-field-id="summary"]')?.closest(".note-field");
       const summaryLive = summaryField ? readNoteFieldValue(summaryField) : cloud.summary || "";
-      const { path, searchEntry } = await commitNotesMdToGitHub(itemId, merged, liveSections, summaryLive);
+      const { path, searchEntry, gitSections: committedSections, summary: committedSummary } =
+        await commitNotesMdToGitHub(itemId, merged, liveSections, summaryLive);
       if (searchEntry) setSearchIndexEntry(itemId, searchEntry);
       const clearResult = await clearGitNotesDraftAfterCommit(itemId, userId, {
-        gitSections: liveSections,
-        summary: summaryLive,
+        gitSections: committedSections,
+        summary: committedSummary || summaryLive,
       });
       if (!clearResult.ok) {
         alert(
@@ -1077,9 +1078,8 @@ async function renderItemDetail(itemId) {
         );
         return;
       }
-      alert(
-        `Committed ${path} to GitHub.\n\nDeep notes cleared from Supabase (Git is the archive). This screen still shows your text. On another device use “Refresh notes from GitHub”. New edits here become Supabase drafts again until the next commit.`
-      );
+      alert(`Committed ${path} to GitHub.`);
+      navigate("item", itemId);
     } catch (err) {
       alert(err.message || String(err));
     }
