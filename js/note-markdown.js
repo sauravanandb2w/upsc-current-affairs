@@ -148,11 +148,9 @@ function htmlToMarkdown(html) {
     }
 
     if (tag === "h1" || tag === "h2" || tag === "h3" || tag === "h4") {
-      const level = Number(tag.slice(1));
       const inner = walkChildren(node).trim();
-      // notes.md reserves ## for the six fixed section titles — use ###+ inside fields.
-      const mdLevel = Math.min(6, level + 2);
-      return inner ? `${"#".repeat(mdLevel)} ${inner}\n\n` : "";
+      // notes.md reserves ## for the six fixed section titles — subheadings are always ###.
+      return inner ? `### ${inner}\n\n` : "";
     }
 
     if (tag === "blockquote") {
@@ -320,30 +318,96 @@ export function noteMarkdownForStorage(value) {
 }
 
 /**
- * Clean in-section lines that wrongly use ## (reserved for notes.md section titles).
- * Legacy commits and rich-text headings produced ## bullets/subheads inside a section.
+ * Clean in-section markdown: canonical ### subheadings, no duplicate blocks.
+ * ## inside a section body (legacy) becomes ###; ####/##### collapse to ###.
  */
 export function normalizeGitSectionMarkdown(body) {
   const md = noteValueToMarkdown(body).trim();
   if (!md) return "";
   const lines = md.split(/\r?\n/);
   const out = [];
+
   for (const line of lines) {
-    if (line.startsWith("## ") && !line.startsWith("###")) {
-      const rest = line.slice(3).trim();
-      if (rest.startsWith("- ")) {
-        out.push(rest);
+    const heading = line.match(/^(#{1,6})\s+(.*)$/);
+    if (heading) {
+      const level = heading[1].length;
+      const rest = heading[2].trim();
+      if (level === 2) {
+        if (rest.startsWith("- ")) {
+          out.push(rest);
+          continue;
+        }
+        if (rest.startsWith("<")) {
+          out.push(rest);
+          continue;
+        }
+        if (!rest) continue;
+        out.push(`### ${rest}`);
         continue;
       }
-      if (rest.startsWith("<")) {
-        out.push(rest);
+      if (level >= 3) {
+        if (rest.startsWith("- ")) {
+          out.push(rest);
+          continue;
+        }
+        if (rest.startsWith("<")) {
+          out.push(rest);
+          continue;
+        }
+        if (!rest) continue;
+        out.push(`### ${rest}`);
         continue;
       }
-      if (!rest) continue;
-      out.push(`### ${rest}`);
-      continue;
     }
     out.push(line);
   }
-  return out.join("\n").trim();
+
+  return dedupeSectionMarkdown(out.join("\n").trim());
+}
+
+/** Split section body into ###-headed blocks; keep one block per title (longest body wins). */
+function parseSubheadingBlocks(md) {
+  const blocks = [];
+  let current = { title: null, lines: [] };
+
+  for (const line of md.split(/\r?\n/)) {
+    const m = line.match(/^###\s+(.+)$/);
+    if (m) {
+      if (current.lines.length) blocks.push(current);
+      current = { title: m[1].trim(), lines: [line] };
+    } else {
+      current.lines.push(line);
+    }
+  }
+  if (current.lines.length) blocks.push(current);
+  return blocks;
+}
+
+function dedupeSectionMarkdown(md) {
+  if (!md) return "";
+  const blocks = parseSubheadingBlocks(md);
+  const best = new Map();
+  const order = [];
+  const out = [];
+
+  for (const block of blocks) {
+    if (!block.title) {
+      out.push(...block.lines);
+      continue;
+    }
+    const body = block.lines.slice(1).join("\n").trim();
+    if (!best.has(block.title)) {
+      order.push(block.title);
+      best.set(block.title, { body, lines: block.lines });
+    } else {
+      const prev = best.get(block.title);
+      if (body.length > prev.body.length) best.set(block.title, { body, lines: block.lines });
+    }
+  }
+
+  for (const title of order) {
+    const entry = best.get(title);
+    if (entry) out.push(...entry.lines);
+  }
+  return out.join("\n").trim().replace(/\n{3,}/g, "\n\n");
 }
