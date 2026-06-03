@@ -169,36 +169,216 @@ code {
   cursor: pointer;
 }
 
-/* Nav */
+/* Nav — classy pill bar (matches Themes GS tabs) */
 .main-nav {
   display: flex;
-  gap: 0.35rem;
+  gap: 0.4rem;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 1rem 0.75rem;
+  padding: 0 1rem 0.85rem;
   overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(28, 25, 23, 0.15) transparent;
+}
+
+.main-nav-bar {
+  flex-wrap: nowrap;
+  padding: 0.45rem;
+  margin-bottom: 0.15rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(248, 250, 252, 0.92));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 2px 14px rgba(15, 23, 42, 0.07);
+  border: 1px solid rgba(148, 163, 184, 0.22);
 }
 
 .nav-btn {
+  position: relative;
+  overflow: hidden;
   font: inherit;
-  border: none;
-  background: transparent;
-  padding: 0.45rem 0.85rem;
+  border: 1.5px solid transparent;
+  background: rgba(255, 255, 255, 0.5);
+  padding: 0.48rem 0.9rem;
   border-radius: 999px;
   cursor: pointer;
   color: var(--ink-muted);
   white-space: nowrap;
-  transition: background 0.15s, color 0.15s;
+  font-weight: 650;
+  font-size: 0.84rem;
+  letter-spacing: 0.01em;
+  transition:
+    transform 0.26s cubic-bezier(0.34, 1.4, 0.64, 1),
+    box-shadow 0.26s ease,
+    background 0.26s ease,
+    color 0.26s ease,
+    border-color 0.26s ease;
+}
+
+.nav-btn::after {
+  content: "";
+  position: absolute;
+  inset: -40% auto -40% -60%;
+  width: 42%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+  transform: skewX(-18deg) translateX(-120%);
+  transition: transform 0.5s ease;
+  pointer-events: none;
+}
+
+.nav-btn:hover::after {
+  transform: skewX(-18deg) translateX(280%);
 }
 
 .nav-btn:hover {
-  background: var(--paper-deep);
+  transform: translateY(-2px) scale(1.03);
   color: var(--ink);
 }
 
+.nav-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
 .nav-btn.active {
-  background: var(--ink);
-  color: var(--paper);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 18px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+.nav-btn.active::after {
+  animation: tab-shimmer 2.8s ease-in-out infinite;
+}
+
+/* Today — warm accent */
+.nav-btn--today:hover {
+  background: linear-gradient(135deg, #fff7ed, #ffedd5);
+  color: #9a3412;
+  border-color: rgba(154, 52, 18, 0.2);
+}
+.nav-btn--today.active {
+  background: linear-gradient(135deg, #fb923c 0%, #ea580c 48%, #9a3412 100%);
+  border-color: rgba(255, 237, 213, 0.5);
+  box-shadow: 0 5px 18px rgba(234, 88, 12, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* All items — navy */
+.nav-btn--timeline:hover {
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+  color: #1e3a5f;
+  border-color: rgba(30, 58, 95, 0.2);
+}
+.nav-btn--timeline.active {
+  background: linear-gradient(135deg, #64748b 0%, #475569 45%, #1e3a5f 100%);
+  border-color: rgba(226, 232, 240, 0.5);
+  box-shadow: 0 5px 18px rgba(30, 58, 95, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* Revise — amber */
+.nav-btn--revise:hover {
+  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+  color: #b45309;
+  border-color: rgba(180, 83, 9, 0.2);
+}
+.nav-btn--revise.active {
+  background: linear-gradient(135deg, #fcd34d 0%, #f59e0b 45%, #b45309 100%);
+  border-color: rgba(254, 243, 199, 0.55);
+  box-shadow: 0 5px 18px rgba(245, 158, 11, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* Drill — coral red */
+.nav-btn--drill:hover {
+  background: linear-gradient(135deg, #fef2f2, #fee2e2);
+  color: #b91c1c;
+  border-color: rgba(185, 28, 28, 0.2);
+}
+.nav-btn--drill.active {
+  background: linear-gradient(135deg, #f87171 0%, #ef4444 45%, #b91c1c 100%);
+  border-color: rgba(254, 226, 226, 0.55);
+  box-shadow: 0 5px 18px rgba(239, 68, 68, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+/* Calendar — teal */
+.nav-btn--calendar:hover {
+  background: linear-gradient(135deg, #f0fdfa, #ccfbf1);
+  color: #0f766e;
+  border-color: rgba(15, 118, 110, 0.2);
+}
+.nav-btn--calendar.active {
+  background: linear-gradient(135deg, #2dd4bf 0%, #14b8a6 45%, #0f766e 100%);
+  border-color: rgba(204, 251, 241, 0.55);
+  box-shadow: 0 5px 18px rgba(20, 184, 166, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+/* Monthly — indigo */
+.nav-btn--monthly:hover {
+  background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+  color: #4338ca;
+  border-color: rgba(67, 56, 202, 0.2);
+}
+.nav-btn--monthly.active {
+  background: linear-gradient(135deg, #818cf8 0%, #6366f1 45%, #4338ca 100%);
+  border-color: rgba(224, 231, 255, 0.55);
+  box-shadow: 0 5px 18px rgba(99, 102, 241, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+/* Themes — violet */
+.nav-btn--themes:hover {
+  background: linear-gradient(135deg, #faf5ff, #f3e8ff);
+  color: #7e22ce;
+  border-color: rgba(126, 34, 206, 0.2);
+}
+.nav-btn--themes.active {
+  background: linear-gradient(135deg, #c084fc 0%, #a855f7 45%, #7e22ce 100%);
+  border-color: rgba(243, 232, 255, 0.55);
+  box-shadow: 0 5px 18px rgba(168, 85, 247, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+/* Topic — emerald */
+.nav-btn--topic:hover {
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+  color: #047857;
+  border-color: rgba(4, 120, 87, 0.2);
+}
+.nav-btn--topic.active {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 45%, #047857 100%);
+  border-color: rgba(209, 250, 229, 0.55);
+  box-shadow: 0 5px 18px rgba(16, 185, 129, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+/* Thread — sky */
+.nav-btn--thread:hover {
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  color: #0369a1;
+  border-color: rgba(3, 105, 161, 0.2);
+}
+.nav-btn--thread.active {
+  background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 45%, #0369a1 100%);
+  border-color: rgba(224, 242, 254, 0.55);
+  box-shadow: 0 5px 18px rgba(14, 165, 233, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+/* Tracker — rose */
+.nav-btn--tracker:hover {
+  background: linear-gradient(135deg, #fff1f2, #ffe4e6);
+  color: #be123c;
+  border-color: rgba(190, 18, 60, 0.2);
+}
+.nav-btn--tracker.active {
+  background: linear-gradient(135deg, #fb7185 0%, #f43f5e 45%, #be123c 100%);
+  border-color: rgba(255, 228, 230, 0.55);
+  box-shadow: 0 5px 18px rgba(244, 63, 94, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+/* Status — slate */
+.nav-btn--desk:hover {
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+  color: #475569;
+  border-color: rgba(71, 85, 105, 0.2);
+}
+.nav-btn--desk.active {
+  background: linear-gradient(135deg, #94a3b8 0%, #64748b 45%, #475569 100%);
+  border-color: rgba(241, 245, 249, 0.55);
+  box-shadow: 0 5px 18px rgba(100, 116, 139, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.32);
 }
 
 /* Main */
@@ -1458,7 +1638,13 @@ code {
   }
 
   .main-nav {
-    padding-bottom: 0.5rem;
+    padding: 0 0.65rem 0.65rem;
+  }
+
+  .main-nav-bar {
+    border-radius: 16px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
   }
 }
 
@@ -1752,6 +1938,25 @@ code {
 
 [data-theme="dark"] .site-header {
   background: rgba(28, 25, 23, 0.95);
+}
+
+[data-theme="dark"] .main-nav-bar {
+  background: linear-gradient(135deg, rgba(41, 37, 36, 0.95), rgba(28, 25, 23, 0.98));
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 2px 14px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="dark"] .nav-btn {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.65);
+}
+
+[data-theme="dark"] .nav-btn:hover {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+[data-theme="dark"] .nav-btn.active {
+  color: #fff;
 }
 
 .theme-toggle {
@@ -3392,17 +3597,22 @@ code {
   .theme-panel-enter,
   .theme-back-enter,
   .theme-stagger-grid > *,
-  .paper-tab {
+  .paper-tab,
+  .nav-btn {
     animation: none !important;
     transition: none !important;
   }
   .paper-tab::after,
-  .paper-tab.active::after {
+  .paper-tab.active::after,
+  .nav-btn::after,
+  .nav-btn.active::after {
     animation: none !important;
     transition: none !important;
   }
   .paper-tab:hover,
-  .paper-tab.active {
+  .paper-tab.active,
+  .nav-btn:hover,
+  .nav-btn.active {
     transform: none;
   }
   .theme-category-card:hover,
