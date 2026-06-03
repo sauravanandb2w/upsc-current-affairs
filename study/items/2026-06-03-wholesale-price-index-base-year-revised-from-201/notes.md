@@ -4,8 +4,6 @@ India is revising the WPI base year from 2011–12 to 2022–23 and gradually tr
 
 ## Facts
 
-test test **testtest**
-
 - WPI basket expanded:  - **697 → 957 items**
 - Weight structure broadly unchanged:  - Manufactured products still have highest weight (~63%).
 - Government will experimentally introduce:  - Producer Price Index (PPI)
@@ -99,9 +97,7 @@ Because PPI:
 
 **Answer:**
 Number of items increased:
-[
-697 \rightarrow 957
-]
+697 -> 957
 
 ### Q8. Which component has highest weight in WPI?
 
