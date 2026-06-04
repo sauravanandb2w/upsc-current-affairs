@@ -10,6 +10,7 @@ import {
   cardThemeIndex,
   rateFlashcard,
   removeFlashcard,
+  removeFlashcards,
 } from "./flashcards.js";
 import { noteHtmlToPlainText } from "./rich-notes.js?v=29";
 import { GIT_SECTIONS } from "./notes-md.js";
@@ -289,6 +290,10 @@ export function renderDrill(ctx) {
       ? `<p class="drill-practice-note">All caught up — still practicing the full deck (${total} cards).</p>`
       : "";
 
+  const selectMode = Boolean(ctx.state.drillSelectMode);
+  const selectedSet = new Set(ctx.state.drillSelectedIds || []);
+  const selectedCount = selectedSet.size;
+
   ctx.state.drillCardId = card.id;
   ctx.el.main.innerHTML = `
     <section class="view-head drill-head">
@@ -338,26 +343,51 @@ export function renderDrill(ctx) {
       <p class="drill-flip-prompt muted" id="drillFlipPrompt">Flip the card to see the answer, then rate yourself.</p>
     </div>
 
-    <section class="drill-deck-section">
-      <h3 class="drill-deck-title">Your deck</h3>
+    <section class="drill-deck-section${selectMode ? " drill-deck-section--select" : ""}">
+      <div class="drill-deck-head">
+        <h3 class="drill-deck-title">Your deck</h3>
+        <div class="drill-deck-toolbar">
+          <button type="button" class="btn-ghost btn-sm" id="drillSelectToggle" aria-pressed="${selectMode ? "true" : "false"}">
+            ${selectMode ? "Done" : "Select"}
+          </button>
+          ${
+            selectMode
+              ? `<button type="button" class="btn-ghost btn-sm" id="drillSelectAll">All</button>
+                 <button type="button" class="btn-ghost btn-sm" id="drillSelectNone"${selectedCount ? "" : " disabled"}>None</button>
+                 <button type="button" class="btn-ghost btn-sm drill-delete-selected-btn" id="drillDeleteSelected"${selectedCount ? "" : " disabled"}>
+                   Delete${selectedCount ? ` (${selectedCount})` : ""}
+                 </button>`
+              : ""
+          }
+        </div>
+      </div>
       <div class="drill-deck-strip" role="list">
         ${deck
           .map((c, i) => {
-            const active = i === ctx.state.drillIndex % deck.length;
+            const active = !selectMode && i === ctx.state.drillIndex % deck.length;
             const chipDue = isCardDue(c);
             const ti = cardThemeIndex(c);
             const short = c.answer.slice(0, 42) + (c.answer.length > 42 ? "…" : "");
-            return `<div class="drill-deck-chip-wrap" role="listitem">
+            const isSelected = selectedSet.has(c.id);
+            return `<div class="drill-deck-chip-wrap${isSelected ? " drill-deck-chip-wrap--selected" : ""}" role="listitem" data-drill-card-id="${ctx.escapeHtml(c.id)}">
+              ${
+                selectMode
+                  ? `<label class="drill-deck-check" title="Select card">
+                      <input type="checkbox" class="drill-deck-check-input" data-drill-select="${ctx.escapeHtml(c.id)}"${isSelected ? " checked" : ""} />
+                    </label>`
+                  : ""
+              }
               <button
               type="button"
-              class="drill-deck-chip drill-deck-chip--theme-${ti}${active ? " active" : ""}${chipDue ? " due" : ""}"
+              class="drill-deck-chip drill-deck-chip--theme-${ti}${active ? " active" : ""}${chipDue ? " due" : ""}${isSelected ? " drill-deck-chip--selected" : ""}"
               data-drill-pick="${i}"
+              data-drill-card-id="${ctx.escapeHtml(c.id)}"
               title="${ctx.escapeHtml(c.question)}"
             >
               <span class="drill-deck-chip-num">${i + 1}</span>
               <span class="drill-deck-chip-text">${ctx.escapeHtml(short)}</span>
             </button>
-            <button type="button" class="drill-deck-chip-delete" data-drill-delete="${ctx.escapeHtml(c.id)}" title="Remove card" aria-label="Remove flashcard">×</button>
+            ${selectMode ? "" : `<button type="button" class="drill-deck-chip-delete" data-drill-delete="${ctx.escapeHtml(c.id)}" title="Remove card" aria-label="Remove flashcard">×</button>`}
             </div>`;
           })
           .join("")}
@@ -379,6 +409,49 @@ export function renderDrill(ctx) {
   async function deleteFlashcardById(cardId) {
     if (!confirm("Remove this flashcard from your deck?")) return;
     await removeFlashcard(cardId, ctx.state.session?.user?.id);
+    ctx.state.drillSelectedIds = (ctx.state.drillSelectedIds || []).filter((id) => id !== cardId);
+    const remaining = getDrillDeck();
+    if (!remaining.length) {
+      ctx.state.drillSelectMode = false;
+      ctx.state.drillSelectedIds = [];
+      renderDrill(ctx);
+      return;
+    }
+    if (ctx.state.drillIndex >= remaining.length) ctx.state.drillIndex = 0;
+    renderDrill(ctx);
+  }
+
+  function toggleDrillSelection(cardId, on) {
+    const set = new Set(ctx.state.drillSelectedIds || []);
+    if (on) set.add(cardId);
+    else set.delete(cardId);
+    ctx.state.drillSelectedIds = [...set];
+    renderDrill(ctx);
+  }
+
+  document.getElementById("drillSelectToggle")?.addEventListener("click", () => {
+    ctx.state.drillSelectMode = !ctx.state.drillSelectMode;
+    if (!ctx.state.drillSelectMode) ctx.state.drillSelectedIds = [];
+    renderDrill(ctx);
+  });
+
+  document.getElementById("drillSelectAll")?.addEventListener("click", () => {
+    ctx.state.drillSelectedIds = deck.map((c) => c.id);
+    renderDrill(ctx);
+  });
+
+  document.getElementById("drillSelectNone")?.addEventListener("click", () => {
+    ctx.state.drillSelectedIds = [];
+    renderDrill(ctx);
+  });
+
+  document.getElementById("drillDeleteSelected")?.addEventListener("click", async () => {
+    const ids = ctx.state.drillSelectedIds || [];
+    if (!ids.length) return;
+    if (!confirm(`Remove ${ids.length} flashcard${ids.length === 1 ? "" : "s"} from your deck?`)) return;
+    await removeFlashcards(ids, ctx.state.session?.user?.id);
+    ctx.state.drillSelectedIds = [];
+    ctx.state.drillSelectMode = false;
     const remaining = getDrillDeck();
     if (!remaining.length) {
       renderDrill(ctx);
@@ -386,7 +459,13 @@ export function renderDrill(ctx) {
     }
     if (ctx.state.drillIndex >= remaining.length) ctx.state.drillIndex = 0;
     renderDrill(ctx);
-  }
+  });
+
+  ctx.el.main.querySelectorAll(".drill-deck-check-input").forEach((input) => {
+    input.addEventListener("change", () => {
+      toggleDrillSelection(input.dataset.drillSelect, input.checked);
+    });
+  });
 
   flashEl?.addEventListener("click", (e) => {
     if (e.target.closest(".flash-card-source, .flash-card-delete")) return;
@@ -421,6 +500,12 @@ export function renderDrill(ctx) {
 
   ctx.el.main.querySelectorAll("[data-drill-pick]").forEach((btn) => {
     btn.addEventListener("click", () => {
+      if (ctx.state.drillSelectMode) {
+        const cardId = btn.dataset.drillCardId;
+        const selected = selectedSet.has(cardId);
+        toggleDrillSelection(cardId, !selected);
+        return;
+      }
       ctx.state.drillIndex = Number(btn.dataset.drillPick);
       renderDrill(ctx);
     });

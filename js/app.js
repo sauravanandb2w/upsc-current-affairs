@@ -174,6 +174,8 @@ const state = {
   monthlyMode: "last30",
   pendingDraftId: null,
   drillIndex: 0,
+  drillSelectMode: false,
+  drillSelectedIds: [],
   themePaper: "1",
   themeCategory: null,
   themeSubcategory: null,

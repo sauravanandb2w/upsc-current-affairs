@@ -2612,6 +2612,66 @@ code {
   margin-top: 0.5rem;
 }
 
+.drill-deck-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.drill-deck-head .drill-deck-title {
+  margin: 0;
+}
+
+.drill-deck-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.drill-delete-selected-btn:not(:disabled) {
+  color: #991b1b;
+  border-color: rgba(185, 28, 28, 0.35);
+  background: #fef2f2;
+}
+
+.drill-delete-selected-btn:not(:disabled):hover {
+  background: #fee2e2;
+}
+
+.drill-deck-section--select .drill-deck-chip-wrap {
+  outline: 2px solid transparent;
+  outline-offset: 1px;
+}
+
+.drill-deck-chip-wrap--selected {
+  outline-color: color-mix(in srgb, var(--accent) 55%, transparent) !important;
+}
+
+.drill-deck-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.35rem;
+  background: #fff;
+  border-right: 1px solid rgba(28, 25, 23, 0.08);
+  cursor: pointer;
+}
+
+.drill-deck-check-input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.drill-deck-chip--selected {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
 .drill-deck-title {
   font-size: 0.85rem;
   font-weight: 600;
