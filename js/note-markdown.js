@@ -114,6 +114,72 @@ function plainLinesToHtml(text) {
     .join("");
 }
 
+function parsePipeTableRow(line) {
+  const t = String(line ?? "").trim();
+  if (!t.startsWith("|") || !t.endsWith("|")) return null;
+  return t
+    .slice(1, -1)
+    .split("|")
+    .map((cell) => cell.trim());
+}
+
+function isPipeTableSeparatorRow(cells) {
+  return cells.length > 0 && cells.every((cell) => /^:?-{3,}:?$/.test(cell));
+}
+
+function inlineMarkdownToHtml(text) {
+  return escapeHtml(String(text ?? ""))
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+}
+
+function splitMarkdownBlocks(md) {
+  const lines = String(md ?? "").split(/\n/);
+  const blocks = [];
+  let i = 0;
+  while (i < lines.length) {
+    if (/^\s*\|/.test(lines[i])) {
+      const rows = [];
+      while (i < lines.length && /^\s*\|/.test(lines[i])) {
+        rows.push(lines[i]);
+        i += 1;
+      }
+      blocks.push({ type: "table", rows });
+      continue;
+    }
+    const textLines = [];
+    while (i < lines.length && !/^\s*\|/.test(lines[i])) {
+      textLines.push(lines[i]);
+      i += 1;
+    }
+    const content = textLines.join("\n").trim();
+    if (content) blocks.push({ type: "text", content });
+  }
+  return blocks;
+}
+
+function pipeTableLinesToHtml(rows) {
+  const parsed = rows.map(parsePipeTableRow).filter(Boolean);
+  if (parsed.length < 2) return plainLinesToHtml(rows.join("\n"));
+
+  let header = parsed[0];
+  let bodyStart = 1;
+  if (parsed.length > 1 && isPipeTableSeparatorRow(parsed[1])) bodyStart = 2;
+  const body = parsed.slice(bodyStart);
+  if (!body.length) return plainLinesToHtml(rows.join("\n"));
+
+  let html = "<table><thead><tr>";
+  for (const cell of header) html += `<th>${inlineMarkdownToHtml(cell)}</th>`;
+  html += "</tr></thead><tbody>";
+  for (const row of body) {
+    html += "<tr>";
+    for (const cell of row) html += `<td>${inlineMarkdownToHtml(cell)}</td>`;
+    html += "</tr>";
+  }
+  html += "</tbody></table>";
+  return html;
+}
+
 function escapeHtml(text) {
   return String(text ?? "")
     .replace(/&/g, "&amp;")
@@ -413,9 +479,37 @@ export function canonicalizeSectionMarkdown(md) {
   return out.trim();
 }
 
-/** Fix table rows collapsed onto one line: "| a | b | | --- |" → separate lines. */
-function expandCollapsedPipeTables(md) {
-  return md.replace(/(\|[^|\n]+(?:\|[^|\n]+)+\|)(?:\s*\|\s*\|)/g, "$1\n|");
+/** Fix table rows collapsed onto one line: "| a | b | | c | d |" → separate lines. */
+export function expandCollapsedPipeTables(md) {
+  return String(md ?? "")
+    .split(/\n/)
+    .map((line) => {
+      const t = line.trim();
+      if (!t.includes("|")) return line;
+      const pipeCount = (t.match(/\|/g) || []).length;
+      if (pipeCount < 4) return line;
+      let expanded = t.replace(/(\|(?:[^|]+\|)+?)\s+(?=\|)/g, "$1\n");
+      if (expanded === t) {
+        expanded = t.replace(/(\|[^|\n]+(?:\|[^|\n]+)+\|)(?:\s*\|\s*\|)/g, "$1\n|");
+      }
+      return expanded;
+    })
+    .join("\n");
+}
+
+/** Markdown → sanitized HTML for read-only display (flashcards, previews). */
+export function renderMarkdownToSafeHtml(value, sanitizeHtml) {
+  const expanded = expandCollapsedPipeTables(String(value ?? "").trim());
+  if (!expanded) return "";
+
+  const html = splitMarkdownBlocks(expanded)
+    .map((block) => {
+      if (block.type === "table") return pipeTableLinesToHtml(block.rows);
+      return markdownToEditorHtml(block.content, sanitizeHtml);
+    })
+    .join("");
+
+  return sanitizeHtml ? sanitizeHtml(html) : html;
 }
 
 function dedupeConsecutiveLines(md) {

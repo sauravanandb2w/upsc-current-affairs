@@ -2504,6 +2504,47 @@ code {
   color: #1c1917;
 }
 
+.flash-card-text--rich {
+  font-size: 1rem;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.flash-card-text--rich p {
+  margin: 0 0 0.5rem;
+}
+
+.flash-card-text--rich p:last-child {
+  margin-bottom: 0;
+}
+
+.flash-card-text--rich ul,
+.flash-card-text--rich ol {
+  margin: 0.35rem 0 0.35rem 1.25rem;
+  padding: 0;
+}
+
+.flash-card-text--rich table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 0.82rem;
+  line-height: 1.35;
+  margin: 0.5rem 0;
+}
+
+.flash-card-text--rich th,
+.flash-card-text--rich td {
+  border: 1px solid rgba(28, 25, 23, 0.18);
+  padding: 0.35rem 0.5rem;
+  vertical-align: top;
+}
+
+.flash-card-text--rich th {
+  font-weight: 600;
+  background: rgba(28, 25, 23, 0.06);
+}
+
 .flash-card-hint {
   font-size: 0.78rem;
   color: rgba(28, 25, 23, 0.5);

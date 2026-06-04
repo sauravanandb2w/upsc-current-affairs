@@ -1,5 +1,6 @@
 import { getSupabase, isSupabaseConfigured } from "./supabase-client.js";
-import { noteHtmlToPlainText, looksLikeNoteHtml } from "./rich-notes.js?v=29";
+import { noteHtmlToPlainText, looksLikeNoteHtml } from "./rich-notes.js?v=34";
+import { expandCollapsedPipeTables } from "./note-markdown.js";
 import { effectiveItemDate } from "./date-picker.js";
 
 /** Spaced revision buckets (days) */
@@ -204,10 +205,12 @@ function parseExamAngleStructured(plain) {
     }
 
     const question = normalizeExamQuestion(questionParts.join(" ").replace(/\s+/g, " ").trim());
-    const answer = answerParts
-      .join("\n")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
+    const answer = expandCollapsedPipeTables(
+      answerParts
+        .join("\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim()
+    );
 
     if (question.length >= 4 && answer.length >= 2) {
       pairs.push({ question, answer });

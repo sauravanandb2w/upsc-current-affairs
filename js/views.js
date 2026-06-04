@@ -12,7 +12,7 @@ import {
   removeFlashcard,
   removeFlashcards,
 } from "./flashcards.js";
-import { noteHtmlToPlainText } from "./rich-notes.js?v=29";
+import { noteHtmlToPlainText, renderNoteMarkdownHtml } from "./rich-notes.js?v=34";
 import { GIT_SECTIONS } from "./notes-md.js";
 import { mountMonthPicker, formatDisplayDate, formatDisplayMonth, effectiveItemDate, isValidIsoDate } from "./date-picker.js";
 import { exportCaAsMarkdown } from "./export-ca.js";
@@ -323,7 +323,7 @@ export function renderDrill(ctx) {
           </div>
           <div class="flash-card-face flash-card-back">
             <span class="flash-card-label">Answer</span>
-            <p class="flash-card-text">${ctx.escapeHtml(card.answer)}</p>
+            <div class="flash-card-text flash-card-text--rich">${renderNoteMarkdownHtml(card.answer)}</div>
             <span class="flash-card-hint">Tap to hide</span>
           </div>
         </div>

@@ -9,6 +9,7 @@ import {
   noteToPlainText as noteMarkdownToPlainText,
   noteMarkdownForStorage,
   noteMarkdownFromEditorHtml,
+  renderMarkdownToSafeHtml,
 } from "./note-markdown.js";
 
 const ALLOWED_TAGS = new Set([
@@ -25,6 +26,11 @@ export function looksLikeNoteHtml(value) {
 
 export function noteHtmlToPlainText(html) {
   return noteMarkdownToPlainText(html, sanitizeNoteHtml);
+}
+
+/** Read-only markdown → safe HTML (tables, lists, bold). */
+export function renderNoteMarkdownHtml(value) {
+  return renderMarkdownToSafeHtml(value, sanitizeNoteHtml);
 }
 
 export function noteValueHasContent(value) {
