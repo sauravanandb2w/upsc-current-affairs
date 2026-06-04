@@ -1,5 +1,5 @@
 import { getSupabase, isSupabaseConfigured } from "./supabase-client.js";
-import { noteHtmlToPlainText } from "./rich-notes.js?v=29";
+import { noteHtmlToPlainText, looksLikeNoteHtml } from "./rich-notes.js?v=29";
 import { effectiveItemDate } from "./date-picker.js";
 
 /** Spaced revision buckets (days) */
@@ -122,9 +122,29 @@ export function cardThemeIndex(card) {
   return h;
 }
 
+/** Line-preserving plain text for Q/A parsing (noteHtmlToPlainText may collapse lines without marked). */
+function examAngleToParseablePlain(text) {
+  const s = String(text ?? "").trim();
+  if (!s) return "";
+  if (looksLikeNoteHtml(s)) return noteHtmlToPlainText(s).trim();
+  return normalizeExamAngleMarkdown(s);
+}
+
+/** Markdown from notes.md / editor: ### Q1. … and **Answer:** on its own line. */
+function normalizeExamAngleMarkdown(md) {
+  return String(md ?? "")
+    .replace(/\r\n/g, "\n")
+    .replace(/^#{1,6}\s+(?=Q\s*\d+\s*[.:)]?)/gim, "")
+    .replace(/^\s*\*\*Answer\s*:\*\*\s*$/gim, "Answer:")
+    .replace(/^\s*\*\*Answer\s*:\*\*\s+(.*)$/gim, "Answer: $1")
+    .replace(/\*\*([^*\n]+)\*\*/g, "$1")
+    .replace(/\*([^*\n]+)\*/g, "$1")
+    .trim();
+}
+
 /** Parse Exam angle: Q1 / Q2 … then Answer: … (standard pattern). */
 export function splitExamAngleToFlashcards(text) {
-  const plain = noteHtmlToPlainText(text).trim();
+  const plain = examAngleToParseablePlain(text);
   if (!plain) return [];
   return dedupeFlashcardPairs(parseExamAngleStructured(plain));
 }
@@ -139,9 +159,13 @@ function normalizeExamQuestion(question) {
   return `${q}?`;
 }
 
+const EXAM_Q_LINE =
+  /^\s*(?:#{1,6}\s*)?Q\s*(\d+)\s*[.:)]?\s*(.*)$/i;
+const EXAM_Q_SPLIT = /(?=^\s*(?:#{1,6}\s*)?Q\s*\d+\s*[.:)]?\s*)/im;
+
 /** Q1. Question text / Q1 + question on next line(s), then Answer: … */
 function parseExamAngleStructured(plain) {
-  const segments = plain.replace(/\r\n/g, "\n").split(/(?=^\s*Q\s*\d+\s*[.:)]?\s*)/im);
+  const segments = plain.replace(/\r\n/g, "\n").split(EXAM_Q_SPLIT);
   const pairs = [];
 
   for (const segment of segments) {
@@ -152,7 +176,7 @@ function parseExamAngleStructured(plain) {
     while (startIdx < rawLines.length && !rawLines[startIdx].trim()) startIdx += 1;
     if (startIdx >= rawLines.length) continue;
 
-    const headerMatch = rawLines[startIdx].trim().match(/^Q\s*(\d+)\s*[.:)]?\s*(.*)$/i);
+    const headerMatch = rawLines[startIdx].trim().match(EXAM_Q_LINE);
     if (!headerMatch) continue;
 
     const questionParts = [];
@@ -163,7 +187,7 @@ function parseExamAngleStructured(plain) {
 
     for (let i = startIdx + 1; i < rawLines.length; i += 1) {
       const trimmed = rawLines[i].trim();
-      if (/^Q\s*\d+\s*[.:)]?\s*/i.test(trimmed)) break;
+      if (EXAM_Q_LINE.test(trimmed)) break;
 
       const answerMatch = trimmed.match(/^Answer\s*:\s*(.*)$/i);
       if (answerMatch) {
