@@ -368,7 +368,7 @@ export function renderDrill(ctx) {
             const active = !selectMode && i === ctx.state.drillIndex % deck.length;
             const chipDue = isCardDue(c);
             const ti = cardThemeIndex(c);
-            const short = c.answer.slice(0, 42) + (c.answer.length > 42 ? "…" : "");
+            const short = c.question.slice(0, 42) + (c.question.length > 42 ? "…" : "");
             const isSelected = selectedSet.has(c.id);
             return `<div class="drill-deck-chip-wrap${isSelected ? " drill-deck-chip-wrap--selected" : ""}" role="listitem" data-drill-card-id="${ctx.escapeHtml(c.id)}">
               ${
