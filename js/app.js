@@ -1084,15 +1084,28 @@ async function renderItemDetail(itemId) {
   }
 
   document.getElementById("genFlashBtn")?.addEventListener("click", async () => {
-    const liveSections = readGitSectionsFromEditors();
-    const n = await generateFlashcardsFromItem(userId, item, liveSections);
-    if (!n.length) {
-      alert(
-        "No flashcards created.\n\nIn **Exam angle**, use this pattern:\n\nQ1. Why is the base year revised?\nAnswer: To reflect structural changes in the economy\n\nQ2. What sectors were added to IIP?\nAnswer: CCTV, vaccines, aircraft parts…"
-      );
-      return;
+    const btn = document.getElementById("genFlashBtn");
+    const prevLabel = btn?.textContent || "Generate flashcards";
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Generating…";
     }
-    alert(`Created ${n.length} flashcard${n.length === 1 ? "" : "s"}. Open Drill tab to revise.`);
+    try {
+      const liveSections = readGitSectionsFromEditors();
+      const n = await generateFlashcardsFromItem(userId, item, liveSections);
+      if (!n.length) {
+        alert(
+          "No flashcards created.\n\nIn **Exam angle**, use this pattern:\n\nQ1. Why is the base year revised?\nAnswer: To reflect structural changes in the economy\n\nQ2. What sectors were added to IIP?\nAnswer: CCTV, vaccines, aircraft parts…"
+        );
+        return;
+      }
+      alert(`Created ${n.length} flashcard${n.length === 1 ? "" : "s"}. Open Drill tab to revise.`);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = prevLabel;
+      }
+    }
   });
 
   document.getElementById("markRevisedBtn")?.addEventListener("click", () => {

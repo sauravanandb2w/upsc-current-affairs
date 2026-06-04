@@ -50,12 +50,7 @@ function rowToCard(row) {
   };
 }
 
-async function saveCard(userId, card) {
-  if (!userId || !isSupabaseConfigured()) {
-    persistFlashLocal();
-    return card;
-  }
-  const sb = getSupabase();
+function cardToPayload(userId, card) {
   const payload = {
     user_id: userId,
     item_id: card.itemId,
@@ -68,13 +63,41 @@ async function saveCard(userId, card) {
     interval_days: card.intervalDays,
   };
   if (card.id && !String(card.id).startsWith("local-")) payload.id = card.id;
-  const { data, error } = await sb.from("ca_flashcards").upsert(payload).select().single();
+  return payload;
+}
+
+async function saveCard(userId, card) {
+  if (!userId || !isSupabaseConfigured()) {
+    persistFlashLocal();
+    return card;
+  }
+  const sb = getSupabase();
+  const { data, error } = await sb
+    .from("ca_flashcards")
+    .upsert(cardToPayload(userId, card))
+    .select()
+    .single();
   if (error) {
     console.warn("ca_flashcards save", error);
     persistFlashLocal();
     return card;
   }
   return rowToCard(data);
+}
+
+async function saveCardsBatch(userId, cards) {
+  if (!cards.length) return [];
+  if (!userId || !isSupabaseConfigured()) return cards;
+  const sb = getSupabase();
+  const { data, error } = await sb
+    .from("ca_flashcards")
+    .upsert(cards.map((card) => cardToPayload(userId, card)))
+    .select();
+  if (error) {
+    console.warn("ca_flashcards batch save", error);
+    return cards;
+  }
+  return (data || []).map(rowToCard);
 }
 
 export function getFlashcards() {
@@ -272,25 +295,22 @@ export async function generateFlashcardsFromItem(userId, item, sections) {
   const pairs = splitExamAngleToFlashcards(examText);
 
   const month = (effectiveItemDate(item) || "").slice(0, 7);
-  const created = [];
-  for (const { question, answer } of pairs) {
-    const card = {
-      id: `local-${crypto.randomUUID()}`,
-      itemId: item.id,
-      question,
-      answer,
-      month,
-      tags: item.tags || [],
-      nextReviewAt: new Date().toISOString(),
-      ease: 2.5,
-      intervalDays: 0,
-    };
-    const saved = await saveCard(userId, card);
-    flashCache.push(saved);
-    created.push(saved);
-  }
+  const drafts = pairs.map(({ question, answer }) => ({
+    id: `local-${crypto.randomUUID()}`,
+    itemId: item.id,
+    question,
+    answer,
+    month,
+    tags: item.tags || [],
+    nextReviewAt: new Date().toISOString(),
+    ease: 2.5,
+    intervalDays: 0,
+  }));
+
+  const saved = await saveCardsBatch(userId, drafts);
+  for (const card of saved) flashCache.push(card);
   persistFlashLocal();
-  return created;
+  return saved;
 }
 
 export async function rateFlashcard(userId, cardId, quality) {
