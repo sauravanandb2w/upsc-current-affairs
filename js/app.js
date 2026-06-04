@@ -1052,6 +1052,14 @@ async function renderItemDetail(itemId) {
 
   bindNoteLocks(el.main, itemId, userId);
 
+  function readExamAngleForFlashcards() {
+    const cached = (gitSections["Exam angle"] || "").trim();
+    if (cached) return cached;
+    const fieldEl = document.querySelector('[data-field-id="exam_angle"]')?.closest(".note-field");
+    if (!fieldEl) return "";
+    return readNoteFieldValue(fieldEl).trim();
+  }
+
   function readGitSectionsFromEditors() {
     const live = { ...gitSections };
     document.querySelectorAll(".note-field[data-field]").forEach((fieldEl) => {
@@ -1091,8 +1099,8 @@ async function renderItemDetail(itemId) {
       btn.textContent = "Generating…";
     }
     try {
-      const liveSections = readGitSectionsFromEditors();
-      const n = await generateFlashcardsFromItem(userId, item, liveSections);
+      const examText = readExamAngleForFlashcards();
+      const n = generateFlashcardsFromItem(userId, item, { "Exam angle": examText });
       if (!n.length) {
         alert(
           "No flashcards created.\n\nIn **Exam angle**, use this pattern:\n\nQ1. Why is the base year revised?\nAnswer: To reflect structural changes in the economy\n\nQ2. What sectors were added to IIP?\nAnswer: CCTV, vaccines, aircraft parts…"

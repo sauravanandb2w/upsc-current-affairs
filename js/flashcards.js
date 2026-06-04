@@ -290,9 +290,10 @@ export function makeFlashcardPair(factLine) {
   };
 }
 
-export async function generateFlashcardsFromItem(userId, item, sections) {
+export function generateFlashcardsFromItem(userId, item, sections) {
   const examText = sections["Exam angle"] || sections.exam_angle || "";
   const pairs = splitExamAngleToFlashcards(examText);
+  if (!pairs.length) return [];
 
   const month = (effectiveItemDate(item) || "").slice(0, 7);
   const drafts = pairs.map(({ question, answer }) => ({
@@ -307,10 +308,22 @@ export async function generateFlashcardsFromItem(userId, item, sections) {
     intervalDays: 0,
   }));
 
-  const saved = await saveCardsBatch(userId, drafts);
-  for (const card of saved) flashCache.push(card);
+  for (const card of drafts) flashCache.push(card);
   persistFlashLocal();
-  return saved;
+
+  if (userId && isSupabaseConfigured()) {
+    void saveCardsBatch(userId, drafts)
+      .then((saved) => {
+        for (let i = 0; i < saved.length; i += 1) {
+          const idx = flashCache.findIndex((c) => c.id === drafts[i].id);
+          if (idx >= 0) flashCache[idx] = saved[i];
+        }
+        persistFlashLocal();
+      })
+      .catch((err) => console.warn("ca_flashcards background sync", err));
+  }
+
+  return drafts;
 }
 
 export async function rateFlashcard(userId, cardId, quality) {
