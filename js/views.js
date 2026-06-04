@@ -13,6 +13,7 @@ import {
   removeFlashcards,
 } from "./flashcards.js";
 import { noteHtmlToPlainText, renderNoteMarkdownHtml } from "./rich-notes.js?v=34";
+import { withLoading } from "./loading.js";
 import { GIT_SECTIONS } from "./notes-md.js";
 import { mountMonthPicker, formatDisplayDate, formatDisplayMonth, effectiveItemDate, isValidIsoDate } from "./date-picker.js";
 import { exportCaAsMarkdown } from "./export-ca.js";
@@ -408,7 +409,9 @@ export function renderDrill(ctx) {
 
   async function deleteFlashcardById(cardId) {
     if (!confirm("Remove this flashcard from your deck?")) return;
-    await removeFlashcard(cardId, ctx.state.session?.user?.id);
+    await withLoading("Removing card…", async () => {
+      await removeFlashcard(cardId, ctx.state.session?.user?.id);
+    });
     ctx.state.drillSelectedIds = (ctx.state.drillSelectedIds || []).filter((id) => id !== cardId);
     const remaining = getDrillDeck();
     if (!remaining.length) {
@@ -449,7 +452,9 @@ export function renderDrill(ctx) {
     const ids = ctx.state.drillSelectedIds || [];
     if (!ids.length) return;
     if (!confirm(`Remove ${ids.length} flashcard${ids.length === 1 ? "" : "s"} from your deck?`)) return;
-    await removeFlashcards(ids, ctx.state.session?.user?.id);
+    await withLoading(`Removing ${ids.length} card${ids.length === 1 ? "" : "s"}…`, async () => {
+      await removeFlashcards(ids, ctx.state.session?.user?.id);
+    });
     ctx.state.drillSelectedIds = [];
     ctx.state.drillSelectMode = false;
     const remaining = getDrillDeck();
@@ -492,7 +497,9 @@ export function renderDrill(ctx) {
 
   ctx.el.main.querySelectorAll("[data-rate]").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      await rateFlashcard(ctx.state.session?.user?.id, card.id, Number(btn.dataset.rate));
+      await withLoading("Saving rating…", async () => {
+        await rateFlashcard(ctx.state.session?.user?.id, card.id, Number(btn.dataset.rate));
+      });
       ctx.state.drillIndex = (ctx.state.drillIndex + 1) % deck.length;
       renderDrill(ctx);
     });

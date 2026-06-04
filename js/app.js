@@ -1,4 +1,5 @@
 import { assetUrl, repoBase } from "./paths.js";
+import { withLoading } from "./loading.js";
 import {
   initNoteMarkdown,
   noteValueToMarkdown,
@@ -475,17 +476,18 @@ function bindNoteLocks(root, itemId, userId) {
       const fieldId = btn.dataset.lockField;
       const field = btn.closest(".note-field");
       const locked = isFieldLocked(itemId, fieldId);
-      btn.disabled = true;
       try {
-        if (locked) {
-          await unlockNoteField(itemId, fieldId, userId);
-        } else {
-          const val = readNoteFieldValue(field);
-          await lockNoteField(itemId, fieldId, val, userId);
-        }
+        await withLoading(locked ? "Unlocking field…" : "Locking field…", async () => {
+          if (locked) {
+            await unlockNoteField(itemId, fieldId, userId);
+          } else {
+            const val = readNoteFieldValue(field);
+            await lockNoteField(itemId, fieldId, val, userId);
+          }
+        }, { button: btn });
         syncNoteLockUi(btn, itemId, fieldId);
-      } finally {
-        btn.disabled = false;
+      } catch (err) {
+        console.warn("note lock", err);
       }
     });
   });
@@ -828,7 +830,7 @@ async function renderItemDetail(itemId) {
 
   const merged = mergeCloudWithManifest(item);
   const cloud = getCloudEntry(itemId);
-  const mdText = await fetchNotesMd(itemId);
+  const mdText = await withLoading("Loading notes…", () => fetchNotesMd(itemId));
   if (renderSeq !== itemDetailRenderSeq || state.view !== "item" || state.itemId !== itemId) return;
   const sections = getGitSections(itemId, mdText);
   const userId = state.session?.user?.id || null;
@@ -1093,14 +1095,15 @@ async function renderItemDetail(itemId) {
 
   document.getElementById("genFlashBtn")?.addEventListener("click", async () => {
     const btn = document.getElementById("genFlashBtn");
-    const prevLabel = btn?.textContent || "Generate flashcards";
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = "Generating…";
-    }
     try {
-      const examText = readExamAngleForFlashcards();
-      const n = generateFlashcardsFromItem(userId, item, { "Exam angle": examText });
+      const n = await withLoading(
+        "Generating flashcards…",
+        async () => {
+          const examText = readExamAngleForFlashcards();
+          return generateFlashcardsFromItem(userId, item, { "Exam angle": examText });
+        },
+        { button: btn }
+      );
       if (!n.length) {
         alert(
           "No flashcards created.\n\nIn **Exam angle**, use this pattern:\n\nQ1. Why is the base year revised?\nAnswer: To reflect structural changes in the economy\n\nQ2. What sectors were added to IIP?\nAnswer: CCTV, vaccines, aircraft parts…"
@@ -1108,11 +1111,8 @@ async function renderItemDetail(itemId) {
         return;
       }
       alert(`Created ${n.length} flashcard${n.length === 1 ? "" : "s"}. Open Drill tab to revise.`);
-    } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = prevLabel;
-      }
+    } catch (err) {
+      alert(err.message || String(err));
     }
   });
 
@@ -1122,6 +1122,7 @@ async function renderItemDetail(itemId) {
   });
 
   document.getElementById("commitNotesBtn")?.addEventListener("click", async () => {
+    const btn = document.getElementById("commitNotesBtn");
     try {
       const lockedBlocked = lockedSectionsWithUncommittedEdits();
       if (lockedBlocked.length) {
@@ -1130,23 +1131,50 @@ async function renderItemDetail(itemId) {
         );
         return;
       }
-      flushItemNoteEditorsFromDom();
-      const liveSections = readGitSectionsFromEditors();
+      let path = "";
+      let searchEntry = null;
+      let committedSections = null;
+      let committedSummary = null;
       const summaryField = document.querySelector('[data-field-id="summary"]')?.closest(".note-field");
       const summaryLive = summaryField ? readNoteFieldValue(summaryField) : cloud.summary || "";
-      const { path, searchEntry, gitSections: committedSections, summary: committedSummary } =
-        await commitNotesMdToGitHub(itemId, merged, liveSections, summaryLive);
-      if (searchEntry) setSearchIndexEntry(itemId, searchEntry);
-      const clearResult = await clearGitNotesDraftAfterCommit(itemId, userId, {
-        gitSections: committedSections,
-        summary: committedSummary || summaryLive,
+
+      await withLoading("Committing notes…", async () => {}, {
+        button: btn,
+        steps: [
+          {
+            label: "Preparing notes…",
+            run: async () => {
+              flushItemNoteEditorsFromDom();
+            },
+          },
+          {
+            label: "Uploading to GitHub…",
+            run: async () => {
+              const liveSections = readGitSectionsFromEditors();
+              const result = await commitNotesMdToGitHub(itemId, merged, liveSections, summaryLive);
+              path = result.path;
+              searchEntry = result.searchEntry;
+              committedSections = result.gitSections;
+              committedSummary = result.summary;
+            },
+          },
+          {
+            label: "Updating this device…",
+            run: async () => {
+              if (searchEntry) setSearchIndexEntry(itemId, searchEntry);
+              const clearResult = await clearGitNotesDraftAfterCommit(itemId, userId, {
+                gitSections: committedSections,
+                summary: committedSummary || summaryLive,
+              });
+              if (!clearResult.ok) {
+                throw new Error(
+                  `Committed ${path} to GitHub, but Supabase clear failed: ${clearResult.error}\n\nStay signed in and tap Commit again (or Sync) to empty git_notes_json.`
+                );
+              }
+            },
+          },
+        ],
       });
-      if (!clearResult.ok) {
-        alert(
-          `Committed ${path} to GitHub.\n\nSupabase clear failed: ${clearResult.error}\n\nStay signed in and tap Commit again (or Sync) to empty git_notes_json.`
-        );
-        return;
-      }
       alert(`Committed ${path} to GitHub.`);
       navigate("item", itemId);
     } catch (err) {
@@ -1155,22 +1183,25 @@ async function renderItemDetail(itemId) {
   });
 
   document.getElementById("pullNotesBtn")?.addEventListener("click", async () => {
+    const btn = document.getElementById("pullNotesBtn");
     try {
-      const mdText = await fetchNotesMd(itemId);
-      if (!mdText) {
-        throw new Error(
-          isGitHubConnected()
-            ? "Could not load notes.md from GitHub. Commit first, or wait ~2 min for Pages if you are not signed in."
-            : "Connect GitHub to refresh notes, or wait ~2 min after commit for Pages to update."
-        );
-      }
-      const fromGit = parseNotesMd(mdText);
-      const gitSections = gitSectionsFromRemotePull(fromGit, itemId);
-      let summaryMd = null;
-      if (fromGit[SUMMARY_SECTION]?.trim() && !isFieldLocked(itemId, "summary")) {
-        summaryMd = noteValueToMarkdown(fromGit[SUMMARY_SECTION]);
-      }
-      await applyGitNotesFromRemote(itemId, userId, gitSections, { summary: summaryMd });
+      await withLoading("Loading notes from GitHub…", async () => {
+        const mdText = await fetchNotesMd(itemId);
+        if (!mdText) {
+          throw new Error(
+            isGitHubConnected()
+              ? "Could not load notes.md from GitHub. Commit first, or wait ~2 min for Pages if you are not signed in."
+              : "Connect GitHub to refresh notes, or wait ~2 min after commit for Pages to update."
+          );
+        }
+        const fromGit = parseNotesMd(mdText);
+        const gitSections = gitSectionsFromRemotePull(fromGit, itemId);
+        let summaryMd = null;
+        if (fromGit[SUMMARY_SECTION]?.trim() && !isFieldLocked(itemId, "summary")) {
+          summaryMd = noteValueToMarkdown(fromGit[SUMMARY_SECTION]);
+        }
+        await applyGitNotesFromRemote(itemId, userId, gitSections, { summary: summaryMd });
+      }, { button: btn });
       alert("Loaded notes from GitHub (Git is now the source for deep sections on this device).");
       navigate("item", itemId);
     } catch (err) {
@@ -1352,32 +1383,26 @@ function renderTracker() {
 
 async function handlePublishDraft(item) {
   const btn = document.getElementById("publishDraftBtn") || document.getElementById("publishGitHubBtn");
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = "Publishing…";
-  }
   try {
-    if (!isGitHubConnected()) {
-      throw new Error("Connect GitHub in the header first.");
-    }
-    const result = await publishDraftToGitHub(item);
-    const published = { ...item, _folder: item.id };
-    delete published._draft;
-    removeDraft(item.id);
-    await loadIndex();
-    if (!state.items.some((row) => row.id === item.id)) {
-      state.items.push(published);
-    }
-    if (result.searchEntry) setSearchIndexEntry(item.id, result.searchEntry);
-    el.draftExportDialog?.close();
+    await withLoading("Publishing to GitHub…", async () => {
+      if (!isGitHubConnected()) {
+        throw new Error("Connect GitHub in the header first.");
+      }
+      const result = await publishDraftToGitHub(item);
+      const published = { ...item, _folder: item.id };
+      delete published._draft;
+      removeDraft(item.id);
+      await loadIndex();
+      if (!state.items.some((row) => row.id === item.id)) {
+        state.items.push(published);
+      }
+      if (result.searchEntry) setSearchIndexEntry(item.id, result.searchEntry);
+      el.draftExportDialog?.close();
+    }, { button: btn });
     alert(`Published ${item.title} to git. Live on site in ~1–2 min after GitHub Pages deploys.`);
     navigate("item", item.id);
   } catch (err) {
     alert(err.message || String(err));
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = "Publish to GitHub";
-    }
   }
 }
 
@@ -1397,60 +1422,47 @@ async function handleDeleteItem(item, userId) {
   if (!confirm(message)) return;
 
   const btn = document.getElementById("deleteItemBtn");
-  if (btn) {
-    btn.disabled = true;
-    btn.setAttribute("aria-busy", "true");
-  }
   try {
-    if (!draft) {
-      await deletePublishedItemFromGitHub(item.id, item.title);
-    }
-    removeDraft(item.id);
-    clearStatusOverride(item.id);
-    await removeItemFromCloud(item.id, userId);
-    await removeFlashcardsForItem(item.id, userId);
-    removeSearchIndexEntry(item.id);
-    state.items = state.items.filter((row) => row.id !== item.id);
+    await withLoading(draft ? "Deleting draft…" : "Deleting item…", async () => {
+      if (!draft) {
+        await deletePublishedItemFromGitHub(item.id, item.title);
+      }
+      removeDraft(item.id);
+      clearStatusOverride(item.id);
+      await removeItemFromCloud(item.id, userId);
+      await removeFlashcardsForItem(item.id, userId);
+      removeSearchIndexEntry(item.id);
+      state.items = state.items.filter((row) => row.id !== item.id);
+    }, { button: btn });
     alert(draft ? "Draft deleted." : "Deleted from GitHub, Supabase, and this device.");
     navigate("today");
   } catch (err) {
     alert(err.message || String(err));
-    if (btn) {
-      btn.disabled = false;
-      btn.removeAttribute("aria-busy");
-    }
   }
 }
 
 async function handleSaveToGitHub(item) {
   const btn = document.getElementById("saveGitHubBtn");
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = "Saving…";
-  }
   try {
-    if (!isGitHubConnected()) {
-      throw new Error("Connect GitHub in the header first.");
-    }
-    const merged = mergeCloudWithManifest(item);
-    const { manifest, searchEntry } = await savePublishedItemToGitHub(merged);
-    clearStatusOverride(item.id);
-    const idx = state.items.findIndex((row) => row.id === item.id);
-    if (idx >= 0) {
-      state.items[idx] = { ...state.items[idx], ...manifest, _folder: item.id };
-    }
-    if (searchEntry) setSearchIndexEntry(item.id, searchEntry);
+    await withLoading("Saving to GitHub…", async () => {
+      if (!isGitHubConnected()) {
+        throw new Error("Connect GitHub in the header first.");
+      }
+      const merged = mergeCloudWithManifest(item);
+      const { manifest, searchEntry } = await savePublishedItemToGitHub(merged);
+      clearStatusOverride(item.id);
+      const idx = state.items.findIndex((row) => row.id === item.id);
+      if (idx >= 0) {
+        state.items[idx] = { ...state.items[idx], ...manifest, _folder: item.id };
+      }
+      if (searchEntry) setSearchIndexEntry(item.id, searchEntry);
+    }, { button: btn });
     alert(
       `Saved ${item.title} to GitHub (manifest + index only).\n\nNotes stay in Supabase until you click “Commit notes.md → GitHub”.`
     );
     navigate("item", item.id);
   } catch (err) {
     alert(err.message || String(err));
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = "Save to GitHub";
-    }
   }
 }
 
@@ -1719,16 +1731,19 @@ async function runCloudSync(showAlert = false) {
     return;
   }
   if (state.view === "item" && state.itemId) flushItemNoteEditorsFromDom();
-  el.syncBadge.textContent = "Syncing…";
-  const result = await syncNotesToCloud(
-    state.session.user.id,
-    mergedItems().map((i) => i.id)
-  );
-  updateAuthUi();
-  if (showAlert) {
-    if (result.error && !result.pushed) alert(`Sync failed: ${result.error}`);
-    else if (result.pushed) alert(`Synced ${result.pushed} item(s) to Supabase ca_item_notes.`);
-    else alert(result.error || "Nothing to sync yet — type notes in a CA item first.");
+  try {
+    const result = await withLoading("Syncing notes…", async () =>
+      syncNotesToCloud(state.session.user.id, mergedItems().map((i) => i.id))
+    );
+    updateAuthUi();
+    if (showAlert) {
+      if (result.error && !result.pushed) alert(`Sync failed: ${result.error}`);
+      else if (result.pushed) alert(`Synced ${result.pushed} item(s) to Supabase ca_item_notes.`);
+      else alert(result.error || "Nothing to sync yet — type notes in a CA item first.");
+    }
+  } catch (err) {
+    updateAuthUi();
+    if (showAlert) alert(err.message || String(err));
   }
 }
 
@@ -1781,12 +1796,15 @@ function bindAuth() {
     e.preventDefault();
     el.authError.classList.add("hidden");
     const mode = document.querySelector(".auth-tab.active")?.dataset.authTab || "signin";
+    const submitBtn = document.getElementById("authSubmitBtn");
     try {
-      if (mode === "signup") {
-        await signUpWithEmail(el.authEmail.value, el.authPassword.value);
-      } else {
-        await signInWithEmail(el.authEmail.value, el.authPassword.value);
-      }
+      await withLoading(mode === "signup" ? "Creating account…" : "Signing in…", async () => {
+        if (mode === "signup") {
+          await signUpWithEmail(el.authEmail.value, el.authPassword.value);
+        } else {
+          await signInWithEmail(el.authEmail.value, el.authPassword.value);
+        }
+      }, { button: submitBtn });
       el.authDialog.close();
     } catch (err) {
       el.authError.textContent = err.message || "Auth failed";

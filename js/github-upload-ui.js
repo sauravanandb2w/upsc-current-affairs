@@ -2,6 +2,7 @@
  * Connect GitHub + upload cuttings / PDFs from the CA app.
  */
 
+import { withLoading } from "./loading.js";
 import {
   isGitHubConnected,
   isGitHubUploadConfiguredSync,
@@ -165,15 +166,17 @@ export function bindGitHubUploadControl(root, onDone) {
     status.textContent = "Uploading…";
 
     try {
-      if (kind === "theme-pdf") {
-        await uploadThemePdf(themeId, file, fallback);
-      } else if (kind === "theme-image") {
-        await uploadThemeImage(themeId, file, fallback);
-      } else if (kind === "ca-pdf") {
-        await uploadCaItemPdf(itemId, file, fallback);
-      } else {
-        await uploadCaItemImage(itemId, file, fallback);
-      }
+      await withLoading(`Uploading ${file.name}…`, async () => {
+        if (kind === "theme-pdf") {
+          await uploadThemePdf(themeId, file, fallback);
+        } else if (kind === "theme-image") {
+          await uploadThemeImage(themeId, file, fallback);
+        } else if (kind === "ca-pdf") {
+          await uploadCaItemPdf(itemId, file, fallback);
+        } else {
+          await uploadCaItemImage(itemId, file, fallback);
+        }
+      });
       status.textContent = "Uploaded! Visible in ~1–2 min after Pages deploy.";
       onDone?.();
     } catch (err) {
@@ -199,11 +202,13 @@ export function bindCaGalleryDeletes(container, itemId, fallbackManifest, onDone
 
       btn.disabled = true;
       try {
-        if (kind === "pdf") {
-          await deleteCaItemPdf(itemId, file, fallbackManifest);
-        } else {
-          await deleteCaItemImage(itemId, file, fallbackManifest);
-        }
+        await withLoading("Deleting from GitHub…", async () => {
+          if (kind === "pdf") {
+            await deleteCaItemPdf(itemId, file, fallbackManifest);
+          } else {
+            await deleteCaItemImage(itemId, file, fallbackManifest);
+          }
+        });
         onDone?.();
       } catch (err) {
         window.alert(err.message || String(err));
@@ -235,8 +240,10 @@ export function bindThemeGalleryDeletes(container, themeId, fallbackManifest, on
       if (!file || !window.confirm(`Delete from git?\n\n${file}`)) return;
       btn.disabled = true;
       try {
-        if (kind === "pdf") await deleteThemePdf(themeId, file, fallbackManifest);
-        else await deleteThemeImage(themeId, file, fallbackManifest);
+        await withLoading("Deleting from GitHub…", async () => {
+          if (kind === "pdf") await deleteThemePdf(themeId, file, fallbackManifest);
+          else await deleteThemeImage(themeId, file, fallbackManifest);
+        });
         onDone?.();
       } catch (err) {
         window.alert(err.message || String(err));

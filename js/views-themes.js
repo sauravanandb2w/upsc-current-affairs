@@ -3,6 +3,7 @@
  */
 
 import { assetUrl } from "./paths.js";
+import { withLoading } from "./loading.js";
 import {
   THEME_SECTIONS,
   parseThemeNotesMd,
@@ -720,17 +721,34 @@ export async function renderThemeDetail(ctx) {
   });
 
   document.getElementById("themeCommitNotesBtn")?.addEventListener("click", async () => {
+    const btn = document.getElementById("themeCommitNotesBtn");
     try {
-      flushThemeNoteEditorsFromDom(themeId, userId);
-      await flushThemeSavesNow();
-      const commitSections = { ...emptyThemeSections() };
-      for (const sec of THEME_SECTIONS) {
-        const fid = themeFieldIdForSection(sec);
-        const fieldEl = ctx.main.querySelector(`[data-theme-section="${sec}"]`);
-        const live = fieldEl ? readNoteFieldValue(fieldEl) : liveNotes[sec];
-        commitSections[sec] = pickThemeNoteValue(themeId, fid, live, fromGit[sec] || "");
-      }
-      const { path } = await commitThemeNotesMdToGitHub(themeId, theme.name, commitSections);
+      let path = "";
+      await withLoading("Committing theme notes…", async () => {}, {
+        button: btn,
+        steps: [
+          {
+            label: "Preparing notes…",
+            run: async () => {
+              flushThemeNoteEditorsFromDom(themeId, userId);
+              await flushThemeSavesNow();
+            },
+          },
+          {
+            label: "Uploading to GitHub…",
+            run: async () => {
+              const commitSections = { ...emptyThemeSections() };
+              for (const sec of THEME_SECTIONS) {
+                const fid = themeFieldIdForSection(sec);
+                const fieldEl = ctx.main.querySelector(`[data-theme-section="${sec}"]`);
+                const live = fieldEl ? readNoteFieldValue(fieldEl) : liveNotes[sec];
+                commitSections[sec] = pickThemeNoteValue(themeId, fid, live, fromGit[sec] || "");
+              }
+              ({ path } = await commitThemeNotesMdToGitHub(themeId, theme.name, commitSections));
+            },
+          },
+        ],
+      });
       alert(`Committed ${path} to GitHub.`);
       reload();
     } catch (err) {
@@ -739,11 +757,14 @@ export async function renderThemeDetail(ctx) {
   });
 
   document.getElementById("themeRefreshNotesBtn")?.addEventListener("click", async () => {
+    const btn = document.getElementById("themeRefreshNotesBtn");
     try {
-      const fresh = await fetchThemeNotesMd(themeId);
-      if (!fresh) throw new Error("No notes.md on GitHub yet — commit first.");
-      const parsed = normalizeThemeSections(parseThemeNotesMd(fresh));
-      updateThemeNotes(themeId, parsed, userId);
+      await withLoading("Loading theme notes…", async () => {
+        const fresh = await fetchThemeNotesMd(themeId);
+        if (!fresh) throw new Error("No notes.md on GitHub yet — commit first.");
+        const parsed = normalizeThemeSections(parseThemeNotesMd(fresh));
+        updateThemeNotes(themeId, parsed, userId);
+      }, { button: btn });
       reload();
       alert("Loaded notes from GitHub.");
     } catch (err) {
