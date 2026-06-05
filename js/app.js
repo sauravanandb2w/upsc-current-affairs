@@ -104,6 +104,9 @@ import {
 import {
   hydrateThemesFromLocal,
   loadAllThemeNotes,
+  loadThemeCatalogFromCloud,
+  setThemeCatalogUserId,
+  flushThemeCatalogSavesNow,
   flushThemeSavesNow,
   setThemeSyncUserId,
 } from "./theme-store.js";
@@ -1835,13 +1838,16 @@ async function initAuthBackground() {
     state.session = await withTimeout(getSession(), 8000, null);
     setCloudSyncUserId(state.session?.user?.id || null);
     setThemeSyncUserId(state.session?.user?.id || null);
+    setThemeCatalogUserId(state.session?.user?.id || null);
     if (state.session?.user?.id) {
       if (state.view === "item" && state.itemId) flushItemNoteEditorsFromDom();
       await flushPendingCloudSavesNow();
       await flushThemeSavesNow();
+      await flushThemeCatalogSavesNow();
       await syncNotesToCloud(state.session.user.id, state.items.map((i) => i.id));
       await withTimeout(loadAllCloudNotes(state.session.user.id), 12000, undefined);
       await withTimeout(loadAllThemeNotes(state.session.user.id), 12000, undefined);
+      await withTimeout(loadThemeCatalogFromCloud(state.session.user.id), 8000, undefined);
       await withTimeout(loadFlashcards(state.session.user.id), 8000, undefined);
     }
     onAuthStateChange(async (session) => {
@@ -1849,15 +1855,18 @@ async function initAuthBackground() {
       state.session = session;
       setCloudSyncUserId(session?.user?.id || null);
       setThemeSyncUserId(session?.user?.id || null);
+      setThemeCatalogUserId(session?.user?.id || null);
       updateAuthUi();
       const userId = session?.user?.id || null;
       if (userId) {
         if (state.view === "item" && state.itemId) flushItemNoteEditorsFromDom();
         await flushPendingCloudSavesNow();
         await flushThemeSavesNow();
+        await flushThemeCatalogSavesNow();
         await syncNotesToCloud(userId, state.items.map((i) => i.id));
         await loadAllCloudNotes(userId);
         await loadAllThemeNotes(userId);
+        await loadThemeCatalogFromCloud(userId);
         await loadFlashcards(userId);
       }
       const signInChanged = Boolean(prevUserId) !== Boolean(userId);
