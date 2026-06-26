@@ -3,3 +3,5 @@ js/config.js
 .venv/
 __pycache__/
 *.pyc
+*.code-workspace
+supabase/.temp/
