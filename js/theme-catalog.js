@@ -2,6 +2,8 @@
  * Built-in category/subcategory tree (data/themes-index.json) + user themes (localStorage).
  */
 
+import { scheduleThemeCatalogCloudSave } from "./theme-store.js";
+
 const LS_CUSTOM = "ca-custom-themes-v2";
 const LS_CUSTOM_CATEGORIES = "ca-custom-categories-v1";
 const LS_CUSTOM_SUBCATEGORIES = "ca-custom-subcategories-v1";
@@ -54,6 +56,7 @@ export function getCustomThemesByPaper() {
 
 export function saveCustomThemesByPaper(byPaper) {
   localStorage.setItem(LS_CUSTOM, JSON.stringify(byPaper));
+  scheduleThemeCatalogCloudSave();
 }
 
 export function getCustomCategoriesByPaper() {
@@ -69,6 +72,7 @@ export function getCustomCategoriesByPaper() {
 
 export function saveCustomCategoriesByPaper(byPaper) {
   localStorage.setItem(LS_CUSTOM_CATEGORIES, JSON.stringify(byPaper));
+  scheduleThemeCatalogCloudSave();
 }
 
 export function getCustomSubcategoriesByPaper() {
@@ -84,6 +88,7 @@ export function getCustomSubcategoriesByPaper() {
 
 export function saveCustomSubcategoriesByPaper(byPaper) {
   localStorage.setItem(LS_CUSTOM_SUBCATEGORIES, JSON.stringify(byPaper));
+  scheduleThemeCatalogCloudSave();
 }
 
 export function isCustomCategory(paperKey, category) {

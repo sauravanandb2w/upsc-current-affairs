@@ -77,5 +77,36 @@ create policy "ca_theme_notes_update_own"
 create policy "ca_theme_notes_delete_own"
   on public.ca_theme_notes for delete using (auth.uid() = user_id);
 
+-- User-created theme catalog (custom categories, subcategories, themes)
+create table if not exists public.ca_theme_catalog (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  themes_json jsonb not null default '{}'::jsonb,
+  categories_json jsonb not null default '{}'::jsonb,
+  subcategories_json jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists ca_theme_catalog_updated_at on public.ca_theme_catalog;
+create trigger ca_theme_catalog_updated_at
+  before update on public.ca_theme_catalog
+  for each row execute function public.set_updated_at();
+
+alter table public.ca_theme_catalog enable row level security;
+
+drop policy if exists "ca_theme_catalog_select_own" on public.ca_theme_catalog;
+drop policy if exists "ca_theme_catalog_insert_own" on public.ca_theme_catalog;
+drop policy if exists "ca_theme_catalog_update_own" on public.ca_theme_catalog;
+drop policy if exists "ca_theme_catalog_delete_own" on public.ca_theme_catalog;
+
+create policy "ca_theme_catalog_select_own"
+  on public.ca_theme_catalog for select using (auth.uid() = user_id);
+create policy "ca_theme_catalog_insert_own"
+  on public.ca_theme_catalog for insert with check (auth.uid() = user_id);
+create policy "ca_theme_catalog_update_own"
+  on public.ca_theme_catalog for update
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "ca_theme_catalog_delete_own"
+  on public.ca_theme_catalog for delete using (auth.uid() = user_id);
+
 -- Refresh PostgREST schema cache so sync sees new columns immediately
 notify pgrst, 'reload schema';

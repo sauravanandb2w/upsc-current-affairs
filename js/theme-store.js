@@ -6,11 +6,17 @@ import { getSupabase, isSupabaseConfigured } from "./supabase-client.js";
 import { THEME_SECTIONS, sectionPlainLength, emptyThemeSections } from "./theme-notes-md.js";
 
 const LS_PREFIX = "ca-theme:";
+const LS_CATALOG_THEMES = "ca-custom-themes-v2";
+const LS_CATALOG_CATEGORIES = "ca-custom-categories-v1";
+const LS_CATALOG_SUBCATEGORIES = "ca-custom-subcategories-v1";
 const DEBOUNCE_MS = 700;
+const CATALOG_DEBOUNCE_MS = 700;
 
 const saveTimers = new Map();
 let syncUserId = null;
 let themeCache = {};
+let catalogSyncUserId = null;
+let catalogSaveTimer = null;
 
 export function setThemeSyncUserId(userId) {
   syncUserId = userId || null;
@@ -239,4 +245,132 @@ export function pickThemeNoteValue(themeId, fieldId, liveValue, gitValue = "") {
   const local = String(liveValue ?? "").trim();
   if (local) return liveValue;
   return gitValue || "";
+}
+
+// ——— Custom theme catalog (categories / subcategories / user themes) ———
+
+function readCatalogFromLocal() {
+  const read = (key) => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  };
+  const themes = read(LS_CATALOG_THEMES);
+  return {
+    themes: Object.keys(themes).length ? themes : read("ca-custom-themes-v1"),
+    categories: read(LS_CATALOG_CATEGORIES),
+    subcategories: read(LS_CATALOG_SUBCATEGORIES),
+  };
+}
+
+function writeCatalogToLocal(catalog) {
+  if (catalog.themes) localStorage.setItem(LS_CATALOG_THEMES, JSON.stringify(catalog.themes));
+  if (catalog.categories) localStorage.setItem(LS_CATALOG_CATEGORIES, JSON.stringify(catalog.categories));
+  if (catalog.subcategories) localStorage.setItem(LS_CATALOG_SUBCATEGORIES, JSON.stringify(catalog.subcategories));
+}
+
+function catalogHasContent(catalog) {
+  if (!catalog) return false;
+  if (Object.values(catalog.themes || {}).some((arr) => arr?.length)) return true;
+  if (Object.values(catalog.categories || {}).some((arr) => arr?.length)) return true;
+  return Object.values(catalog.subcategories || {}).some((byCat) =>
+    Object.values(byCat || {}).some((arr) => arr?.length)
+  );
+}
+
+function mergeCatalog(local, remote) {
+  const merged = {
+    themes: { ...(remote.themes || {}) },
+    categories: { ...(remote.categories || {}) },
+    subcategories: { ...(remote.subcategories || {}) },
+  };
+  for (const [paper, list] of Object.entries(local.themes || {})) {
+    const byId = new Map((merged.themes[paper] || []).map((t) => [t.id, t]));
+    for (const t of list || []) byId.set(t.id, t);
+    merged.themes[paper] = [...byId.values()];
+  }
+  for (const [paper, list] of Object.entries(local.categories || {})) {
+    const set = new Set([...(merged.categories[paper] || []), ...list]);
+    merged.categories[paper] = [...set];
+  }
+  for (const [paper, byCat] of Object.entries(local.subcategories || {})) {
+    merged.subcategories[paper] = { ...(merged.subcategories[paper] || {}) };
+    for (const [cat, list] of Object.entries(byCat || {})) {
+      const byId = new Map((merged.subcategories[paper][cat] || []).map((s) => [s.id, s]));
+      for (const s of list || []) byId.set(s.id, s);
+      merged.subcategories[paper][cat] = [...byId.values()];
+    }
+  }
+  return merged;
+}
+
+export function setThemeCatalogUserId(userId) {
+  catalogSyncUserId = userId || null;
+}
+
+export function scheduleThemeCatalogCloudSave() {
+  const uid = catalogSyncUserId;
+  if (!uid || !isSupabaseConfigured()) return;
+  if (catalogSaveTimer) clearTimeout(catalogSaveTimer);
+  catalogSaveTimer = setTimeout(() => {
+    catalogSaveTimer = null;
+    pushThemeCatalog(uid).catch((err) => console.warn("theme catalog save", err));
+  }, CATALOG_DEBOUNCE_MS);
+}
+
+export async function flushThemeCatalogSavesNow() {
+  if (catalogSaveTimer) {
+    clearTimeout(catalogSaveTimer);
+    catalogSaveTimer = null;
+  }
+  const uid = catalogSyncUserId;
+  if (uid) await pushThemeCatalog(uid);
+}
+
+async function pushThemeCatalog(userId) {
+  if (!isSupabaseConfigured()) return;
+  const sb = getSupabase();
+  const { data: sessionWrap } = await sb.auth.getSession();
+  if (!sessionWrap.session?.access_token) return;
+
+  const local = readCatalogFromLocal();
+  const { error } = await sb.from("ca_theme_catalog").upsert(
+    {
+      user_id: userId,
+      themes_json: local.themes,
+      categories_json: local.categories,
+      subcategories_json: local.subcategories,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" }
+  );
+  if (error) console.warn("ca_theme_catalog upsert", error);
+}
+
+export async function loadThemeCatalogFromCloud(userId) {
+  if (!isSupabaseConfigured() || !userId) return;
+  const sb = getSupabase();
+  const { data, error } = await sb.from("ca_theme_catalog").select("*").eq("user_id", userId).maybeSingle();
+  if (error) {
+    console.warn("ca_theme_catalog load", error);
+    return;
+  }
+  if (!data) return;
+
+  const remote = {
+    themes: data.themes_json || {},
+    categories: data.categories_json || {},
+    subcategories: data.subcategories_json || {},
+  };
+  const local = readCatalogFromLocal();
+  if (catalogHasContent(local) && catalogHasContent(remote)) {
+    writeCatalogToLocal(mergeCatalog(local, remote));
+  } else if (catalogHasContent(remote) && !catalogHasContent(local)) {
+    writeCatalogToLocal(remote);
+  }
 }
