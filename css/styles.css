@@ -4181,3 +4181,246 @@ body.ca-loading-active {
 }
 .study-voice-details { margin-top: 8px; }
 .study-voice-details > summary { cursor: pointer; font-size: 13px; font-weight: 600; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   UI OVERHAUL — voice widget + materials + card polish
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Voice Widget ─────────────────────────────────────────────────── */
+.voice-widget {
+  background: linear-gradient(135deg, #fffaf7 0%, #fff3ed 100%);
+  border: 1px solid rgba(154, 52, 18, 0.14);
+  border-radius: 14px;
+  padding: 18px 20px 14px;
+  margin-top: 12px;
+  position: relative;
+}
+
+.voice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.voice-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border: 1px solid rgba(154, 52, 18, 0.1);
+  border-radius: 10px;
+  padding: 8px 12px;
+  box-shadow: 0 1px 4px rgba(28, 25, 23, 0.06);
+  transition: box-shadow 0.15s;
+}
+
+.voice-entry:hover { box-shadow: 0 3px 10px rgba(28, 25, 23, 0.1); }
+
+.voice-chip {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--accent, #9a3412);
+  white-space: nowrap;
+  background: rgba(154, 52, 18, 0.08);
+  border-radius: 6px;
+  padding: 2px 8px;
+  letter-spacing: 0.01em;
+}
+
+.voice-player {
+  flex: 1;
+  min-width: 140px;
+  height: 30px;
+  border-radius: 6px;
+  accent-color: var(--accent, #9a3412);
+}
+
+.voice-del {
+  flex-shrink: 0;
+  color: #9ca3af;
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+}
+.voice-del:hover { background: #fee2e2; color: #dc2626; }
+
+/* Controls row */
+.voice-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Record button */
+.voice-rec {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: 24px;
+  background: var(--accent, #9a3412);
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(154, 52, 18, 0.28);
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.voice-rec:hover {
+  background: #7f2d0c;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 16px rgba(154, 52, 18, 0.36);
+}
+.voice-rec:active { transform: translateY(0); }
+
+/* Ticker during recording */
+.voice-ticker {
+  font-size: 14px;
+  font-weight: 700;
+  color: #dc2626;
+  letter-spacing: 0.05em;
+  animation: voice-pulse 1.2s ease-in-out infinite;
+  font-variant-numeric: tabular-nums;
+}
+@keyframes voice-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.voice-stop {
+  padding: 8px 16px;
+  border-radius: 24px;
+  background: #fee2e2;
+  color: #dc2626;
+  font-weight: 600;
+  font-size: 13px;
+  border: 1px solid #fca5a5;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.voice-stop:hover { background: #fecaca; }
+
+.voice-preview {
+  height: 30px;
+  flex: 1;
+  min-width: 160px;
+  border-radius: 6px;
+  accent-color: var(--accent, #9a3412);
+}
+
+.voice-upload {
+  padding: 8px 16px;
+  border-radius: 24px;
+  background: #166534;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(22, 101, 52, 0.28);
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.voice-upload:hover { background: #15803d; box-shadow: 0 4px 12px rgba(22, 101, 52, 0.36); }
+.voice-upload:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.voice-discard {
+  font-size: 12.5px;
+  color: #6b7280;
+  padding: 7px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  border: 1px solid #e5e7eb;
+  transition: background 0.15s;
+}
+.voice-discard:hover { background: #f3f4f6; }
+
+.voice-status {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 8px;
+  min-height: 16px;
+  font-style: italic;
+}
+
+/* Materials block polish */
+.materials-block {
+  border-radius: 10px;
+  transition: background 0.15s;
+}
+
+.materials-subhead {
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted, #57534e);
+  margin: 0 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* Git zone section headers polish */
+.git-zone-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+/* Item card elevation on hover */
+.item-card {
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.item-card:hover {
+  box-shadow: 0 8px 28px rgba(28, 25, 23, 0.12) !important;
+  transform: translateY(-1px);
+}
+
+/* Section badges pill */
+.git-zone-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-radius: 20px;
+  padding: 2px 9px;
+}
+
+/* Study details summary polish */
+.study-voice-details > summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+  color: var(--accent, #9a3412);
+  user-select: none;
+}
+.study-voice-details > summary::-webkit-details-marker { display: none; }
+.study-voice-details > summary::before {
+  content: "▶";
+  font-size: 9px;
+  transition: transform 0.2s;
+  display: inline-block;
+}
+.study-voice-details[open] > summary::before { transform: rotate(90deg); }
+
+/* Better btn-sm sizing */
+.btn-sm { font-size: 13px; padding: 6px 13px; }
+
+/* Smooth open/close on details */
+details.git-zone[open] { animation: fadeInDown 0.2s ease; }
+@keyframes fadeInDown {
+  from { opacity: 0.6; transform: translateY(-4px); }
+  to   { opacity: 1;   transform: translateY(0); }
+}
