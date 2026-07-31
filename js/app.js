@@ -75,7 +75,7 @@ import {
   bindAllMaterialsUploads,
 } from "./github-upload-ui.js";
 import { renderVoiceWidget, bindVoiceWidget } from "./voice-recorder.js";
-import { uploadCaItemVoice, deleteCaItemVoice } from "./github-upload.js";
+import { uploadCaItemVoice, deleteCaItemVoice, fetchCaItemVoices } from "./github-upload.js";
 import { fieldIdForSection } from "./field-locks.js";
 import {
   renderRichNoteEditorHtml,
