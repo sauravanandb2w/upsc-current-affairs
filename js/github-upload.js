@@ -412,3 +412,101 @@ export async function fetchThemeManifestFromGitHub(themeId) {
     return null;
   }
 }
+
+// ─── Voice notes ──────────────────────────────────────────────────────────────
+
+async function blobToBase64(blob) {
+  const buf   = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let bin     = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+
+/** Upload a recorded voice blob to study/items/{id}/{filename} and update manifest.voices */
+export async function uploadCaItemVoice(itemId, blob, filename, durationSecs, fallbackManifest) {
+  await assertUploadAllowed();
+  const folder   = `study/items/${itemId}`;
+  const filePath = `${folder}/${filename}`;
+
+  const manifest = await loadCaManifest(itemId, stripDraftFields(fallbackManifest || {}));
+  manifest.data.voices = manifest.data.voices || [];
+  const already = manifest.data.voices.some(
+    (v) => (typeof v === "string" ? v : v?.file) === filename
+  );
+  if (!already) {
+    manifest.data.voices.push({
+      file:     filename,
+      duration: Math.round(durationSecs || 0),
+      date:     new Date().toISOString().slice(0, 10),
+    });
+  }
+
+  const b64 = await blobToBase64(blob);
+  await putRepoFile(filePath, b64, `Add voice note ${itemId}/${filename}`);
+  await saveManifest(manifest.path, manifest.sha, manifest.data, `Update manifest ${itemId}`);
+  return { path: filePath, name: filename };
+}
+
+/** Delete a voice recording from study/items/{id}/{filename} and remove from manifest.voices */
+export async function deleteCaItemVoice(itemId, filename, fallbackManifest) {
+  await assertUploadAllowed();
+  const folder   = `study/items/${itemId}`;
+  const filePath = `${folder}/${filename}`;
+
+  const fileSha = await getRepoFileSha(filePath);
+  if (!fileSha) throw new Error("Voice file not found in repo.");
+
+  const manifest = await loadCaManifest(itemId, stripDraftFields(fallbackManifest || {}));
+  manifest.data.voices = (manifest.data.voices || []).filter(
+    (v) => (typeof v === "string" ? v : v?.file) !== filename
+  );
+
+  await deleteRepoFile(filePath, fileSha, `Remove voice note ${itemId}/${filename}`);
+  await saveManifest(manifest.path, manifest.sha, manifest.data, `Update manifest ${itemId}`);
+  return { name: filename };
+}
+
+/** Upload a voice blob to study/themes/{themeId}/{filename} and update manifest.voices */
+export async function uploadThemeVoice(themeId, blob, filename, durationSecs, fallbackManifest) {
+  await assertUploadAllowed();
+  const folder   = `study/themes/${themeId}`;
+  const filePath = `${folder}/${filename}`;
+
+  const manifest = await loadThemeManifest(themeId, fallbackManifest || {});
+  manifest.data.voices = manifest.data.voices || [];
+  const already = manifest.data.voices.some(
+    (v) => (typeof v === "string" ? v : v?.file) === filename
+  );
+  if (!already) {
+    manifest.data.voices.push({
+      file:     filename,
+      duration: Math.round(durationSecs || 0),
+      date:     new Date().toISOString().slice(0, 10),
+    });
+  }
+
+  const b64 = await blobToBase64(blob);
+  await putRepoFile(filePath, b64, `Add voice note ${themeId}/${filename}`);
+  await saveManifest(manifest.path, manifest.sha, manifest.data, `Update theme manifest ${themeId}`);
+  return { path: filePath, name: filename };
+}
+
+/** Delete a voice recording from study/themes/{themeId}/{filename} */
+export async function deleteThemeVoice(themeId, filename, fallbackManifest) {
+  await assertUploadAllowed();
+  const folder   = `study/themes/${themeId}`;
+  const filePath = `${folder}/${filename}`;
+
+  const fileSha = await getRepoFileSha(filePath);
+  if (!fileSha) throw new Error("Voice file not found in repo.");
+
+  const manifest = await loadThemeManifest(themeId, fallbackManifest || {});
+  manifest.data.voices = (manifest.data.voices || []).filter(
+    (v) => (typeof v === "string" ? v : v?.file) !== filename
+  );
+
+  await deleteRepoFile(filePath, fileSha, `Remove voice note ${themeId}/${filename}`);
+  await saveManifest(manifest.path, manifest.sha, manifest.data, `Update theme manifest ${themeId}`);
+  return { name: filename };
+}

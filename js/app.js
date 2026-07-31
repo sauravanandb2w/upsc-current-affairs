@@ -74,6 +74,8 @@ import {
   bindGitHubHeaderButton,
   bindAllMaterialsUploads,
 } from "./github-upload-ui.js";
+import { renderVoiceWidget, bindVoiceWidget } from "./voice-recorder.js";
+import { uploadCaItemVoice, deleteCaItemVoice } from "./github-upload.js";
 import { fieldIdForSection } from "./field-locks.js";
 import {
   renderRichNoteEditorHtml,
@@ -935,6 +937,14 @@ async function renderItemDetail(itemId) {
             ${renderGitHubUploadButton("ca-pdf", { "item-id": itemId, "item-manifest": manifestJson })}
           </div>
         </div>
+
+        <div class="materials-block">
+          <h4 class="materials-subhead">Voice notes <span class="git-zone-badge git-zone-badge--manifest git-zone-badge--inline">Git upload</span></h4>
+          <p class="muted small">Record in-browser. Uploaded as .webm/.m4a to this item's folder. Delete anytime to keep the repo lean.</p>
+          <div class="voice-section" data-item-id="${itemId}">
+            ${renderVoiceWidget(`study/items/${itemId}`, item.voices)}
+          </div>
+        </div>
         ${
           !draft
             ? `<div class="git-zone-actions git-zone-actions--manifest">
@@ -1229,6 +1239,17 @@ async function renderItemDetail(itemId) {
   bindAllMaterialsUploads(materialsPanel, itemId, manifestJsonForUpload(item), () => {
     setTimeout(() => renderItemDetail(itemId), 1500);
   });
+
+  const voiceSection = materialsPanel.querySelector(".voice-section");
+  if (voiceSection) {
+    const mf = manifestJsonForUpload(item);
+    bindVoiceWidget(
+      voiceSection,
+      (blob, name, secs) => uploadCaItemVoice(itemId, blob, name, secs, mf),
+      (name)             => deleteCaItemVoice(itemId, name, mf),
+      ()                 => setTimeout(() => renderItemDetail(itemId), 1500)
+    );
+  }
 }
 
 function mountLinksEditor(itemId, userId, draft, links) {
