@@ -126,10 +126,8 @@ export function bindVoiceWidget(root, uploadFn, deleteFn, fetchFn) {
   }
 
   // ── Load existing voices from manifest (async, non-blocking) ────────────
-  if (typeof fetchFn === "function" && isGitHubConnected()) {
-    setStatus("Loading…");
+  if (typeof fetchFn === "function") {
     fetchFn().then((voices) => {
-      setStatus("");
       if (!voices?.length) return;
       const studyFolder = w.dataset.studyFolder || "";
       voices.forEach((v) => {
@@ -140,7 +138,7 @@ export function bindVoiceWidget(root, uploadFn, deleteFn, fetchFn) {
         const date = typeof v === "object" && v?.date ? v.date : "";
         addEntryToList(file, src, dur, date, false);
       });
-    }).catch(() => setStatus(""));
+    }).catch(() => {});
   }
 
   // ── Record ───────────────────────────────────────────────────────────────
