@@ -1247,7 +1247,7 @@ async function renderItemDetail(itemId) {
       voiceSection,
       (blob, name, secs) => uploadCaItemVoice(itemId, blob, name, secs, mf),
       (name)             => deleteCaItemVoice(itemId, name, mf),
-      ()                 => setTimeout(() => renderItemDetail(itemId), 1500)
+      ()                 => fetchCaItemVoices(itemId)
     );
   }
 }
