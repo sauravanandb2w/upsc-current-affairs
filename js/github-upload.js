@@ -425,6 +425,19 @@ async function blobToBase64(blob) {
   return btoa(bin);
 }
 
+/** localStorage key for per-item voice cache */
+function voiceLsKey(itemId) { return `ca_voices_${itemId}`; }
+
+/** Read cached voices from localStorage */
+function readVoiceCache(itemId) {
+  try { return JSON.parse(localStorage.getItem(voiceLsKey(itemId)) || "[]"); } catch { return []; }
+}
+
+/** Write voices to localStorage */
+function writeVoiceCache(itemId, voices) {
+  try { localStorage.setItem(voiceLsKey(itemId), JSON.stringify(voices)); } catch {}
+}
+
 /** Upload a recorded voice blob to study/items/{id}/{filename} and update manifest.voices */
 export async function uploadCaItemVoice(itemId, blob, filename, durationSecs, fallbackManifest) {
   await assertUploadAllowed();
@@ -433,20 +446,20 @@ export async function uploadCaItemVoice(itemId, blob, filename, durationSecs, fa
 
   const manifest = await loadCaManifest(itemId, stripDraftFields(fallbackManifest || {}));
   manifest.data.voices = manifest.data.voices || [];
-  const already = manifest.data.voices.some(
-    (v) => (typeof v === "string" ? v : v?.file) === filename
-  );
-  if (!already) {
-    manifest.data.voices.push({
-      file:     filename,
-      duration: Math.round(durationSecs || 0),
-      date:     new Date().toISOString().slice(0, 10),
-    });
-  }
+  const entry = { file: filename, duration: Math.round(durationSecs || 0), date: new Date().toISOString().slice(0, 10) };
+  const already = manifest.data.voices.some((v) => (typeof v === "string" ? v : v?.file) === filename);
+  if (!already) manifest.data.voices.push(entry);
 
   const b64 = await blobToBase64(blob);
   await putRepoFile(filePath, b64, `Add voice note ${itemId}/${filename}`);
   await saveManifest(manifest.path, manifest.sha, manifest.data, `Update manifest ${itemId}`);
+
+  // Save to localStorage so voices appear instantly on next page load
+  const cached = readVoiceCache(itemId);
+  if (!cached.some((v) => (typeof v === "string" ? v : v?.file) === filename)) {
+    writeVoiceCache(itemId, [...cached, entry]);
+  }
+
   return { path: filePath, name: filename };
 }
 
@@ -466,6 +479,12 @@ export async function deleteCaItemVoice(itemId, filename, fallbackManifest) {
 
   await deleteRepoFile(filePath, fileSha, `Remove voice note ${itemId}/${filename}`);
   await saveManifest(manifest.path, manifest.sha, manifest.data, `Update manifest ${itemId}`);
+
+  // Remove from localStorage cache
+  writeVoiceCache(itemId, readVoiceCache(itemId).filter(
+    (v) => (typeof v === "string" ? v : v?.file) !== filename
+  ));
+
   return { name: filename };
 }
 
@@ -513,11 +532,16 @@ export async function deleteThemeVoice(themeId, filename, fallbackManifest) {
   return { name: filename };
 }
 
-/** Fetch existing voice entries for a CA item from its manifest.json */
+/** Fetch voice entries — localStorage first (instant), then sync from GitHub in background */
 export async function fetchCaItemVoices(itemId) {
-  try {
-    const file = await getRepoFile(`study/items/${itemId}/manifest.json`);
-    if (!file?.text) return [];
-    return JSON.parse(file.text)?.voices || [];
-  } catch { return []; }
+  const cached = readVoiceCache(itemId);
+
+  // Background sync from GitHub to keep cache fresh
+  getRepoFile(`study/items/${itemId}/manifest.json`).then((file) => {
+    if (!file?.text) return;
+    const voices = JSON.parse(file.text)?.voices || [];
+    if (voices.length) writeVoiceCache(itemId, voices);
+  }).catch(() => {});
+
+  return cached;
 }
