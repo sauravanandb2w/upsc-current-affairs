@@ -1,26 +1,7 @@
 {
-  "generatedAt": "2026-07-31T17:09:53Z",
-  "count": 5,
+  "generatedAt": "2026-07-31T17:11:23Z",
+  "count": 4,
   "items": [
-    {
-      "id": "2026-07-31-rbi",
-      "date": "2026-07-31",
-      "title": "rbi",
-      "status": "to-study",
-      "gsPapers": [
-        3
-      ],
-      "tags": [
-        "IIP"
-      ],
-      "threads": [
-        "base year economy"
-      ],
-      "images": [],
-      "sources": [],
-      "links": [],
-      "_folder": "2026-07-31-rbi"
-    },
     {
       "id": "2026-06-03-wholesale-price-index-base-year-revised-from-201",
       "date": "2026-06-03",
