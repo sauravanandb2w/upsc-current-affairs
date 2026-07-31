@@ -87,60 +87,17 @@ export function renderVoiceWidget(studyFolder, voices = []) {
 /**
  * Binds recording / upload / delete behaviour to a rendered voice widget.
  *
- * @param {HTMLElement} root          Element that contains (or is) .voice-widget
- * @param {Function}    uploadFn      async (blob: Blob, filename: string, durationSecs: number) => void
- * @param {Function}    deleteFn      async (filename: string) => void
- * @param {Function}    onDone        Called after a successful upload or delete (use to refresh parent)
- * @param {Function}   [fetchVoicesFn] async () => Array<{file,duration,date}|string>
- *                                    If provided, called on bind to load existing voices from GitHub manifest.
+ * @param {HTMLElement} root       Element that contains (or is) .voice-widget
+ * @param {Function}    uploadFn   async (blob: Blob, filename: string, durationSecs: number) => void
+ * @param {Function}    deleteFn   async (filename: string) => void
+ * @param {Function}    onDone     Called after a successful upload or delete (use to refresh parent)
  */
-export function bindVoiceWidget(root, uploadFn, deleteFn, onDone, fetchVoicesFn) {
+export function bindVoiceWidget(root, uploadFn, deleteFn, onDone) {
   const w =
     root?.classList?.contains("voice-widget")
       ? root
       : root?.querySelector?.(".voice-widget");
   if (!w) return;
-
-  // ── Load existing voices from manifest (async, non-blocking) ────────────
-  if (typeof fetchVoicesFn === "function") {
-    fetchVoicesFn().then((voices) => {
-      if (!voices?.length) return;
-      const list = w.querySelector(".voice-list");
-      if (!list) return;
-      // Only add entries not already rendered
-      const already = new Set([...list.querySelectorAll("[data-vfile]")].map((el) => el.dataset.vfile));
-      voices.forEach((v) => {
-        const file = typeof v === "string" ? v : v?.file;
-        if (!file || already.has(file)) return;
-        const studyFolder = w.dataset.studyFolder || "";
-        const src  = studyFolder ? `${studyFolder}/${file}` : file;
-        const dur  = typeof v === "object" && v?.duration != null ? fmtSecs(Math.round(v.duration)) : "";
-        const date = typeof v === "object" && v?.date ? v.date : "";
-        const entry = document.createElement("div");
-        entry.className = "voice-entry";
-        entry.dataset.vfile = file;
-        entry.innerHTML = `
-          <span class="voice-chip">🎙${dur ? " " + dur : ""}${date ? " · " + date : ""}</span>
-          <audio class="voice-player" src="${src}" controls preload="none"></audio>
-          <button class="voice-del btn-ghost btn-sm" data-vdel="${file}" title="Delete this recording from GitHub">🗑 Delete</button>`;
-        // Bind delete on this lazily-loaded entry
-        entry.querySelector("[data-vdel]")?.addEventListener("click", async (e) => {
-          const btn  = e.currentTarget;
-          const fname = btn.dataset.vdel;
-          if (!fname || !confirm(`Delete this voice recording from GitHub?\n\n${fname}\n\nThis cannot be undone.`)) return;
-          btn.disabled = true;
-          try {
-            await deleteFn(fname);
-            entry.remove();
-          } catch (err) {
-            alert(err.message || String(err));
-            btn.disabled = false;
-          }
-        });
-        list.appendChild(entry);
-      });
-    }).catch(() => { /* silent — GitHub may not be connected */ });
-  }
 
   const q        = (sel) => w.querySelector(sel);
   const recBtn   = q(".voice-rec");
@@ -235,8 +192,7 @@ export function bindVoiceWidget(root, uploadFn, deleteFn, onDone, fetchVoicesFn)
     try {
       await uploadFn(pendingBlob, pendingName, elapsed);
 
-      // Inject the new entry into the DOM immediately — don't wait for a re-render.
-      // Use a blob URL for instant playback; GitHub Pages URL works after next deploy.
+      // Show recording instantly using a blob URL — no need to wait for Pages deploy.
       const blobUrl  = URL.createObjectURL(pendingBlob);
       const dur      = fmtSecs(elapsed);
       const date     = new Date().toISOString().slice(0, 10);
@@ -250,7 +206,6 @@ export function bindVoiceWidget(root, uploadFn, deleteFn, onDone, fetchVoicesFn)
         <audio class="voice-player" src="${blobUrl}" controls preload="auto"></audio>
         <button class="voice-del btn-ghost btn-sm" data-vdel="${filename}" title="Delete this recording from GitHub">🗑 Delete</button>`;
 
-      // Bind delete on the newly created entry
       entry.querySelector("[data-vdel]")?.addEventListener("click", async (e) => {
         const btn  = e.currentTarget;
         const file = btn.dataset.vdel;
@@ -260,8 +215,7 @@ export function bindVoiceWidget(root, uploadFn, deleteFn, onDone, fetchVoicesFn)
           await deleteFn(file);
           URL.revokeObjectURL(blobUrl);
           entry.remove();
-          setStatus("Recording deleted from GitHub.");
-          onDone?.();
+          setStatus("Recording deleted.");
         } catch (err) {
           alert(err.message || String(err));
           btn.disabled = false;
@@ -271,6 +225,7 @@ export function bindVoiceWidget(root, uploadFn, deleteFn, onDone, fetchVoicesFn)
       w.querySelector(".voice-list")?.appendChild(entry);
       setStatus("Uploaded ✓");
       reset();
+      onDone?.();
     } catch (err) {
       setStatus(err.message || String(err));
       upBtn.disabled = false;

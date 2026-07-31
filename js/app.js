@@ -75,7 +75,7 @@ import {
   bindAllMaterialsUploads,
 } from "./github-upload-ui.js";
 import { renderVoiceWidget, bindVoiceWidget } from "./voice-recorder.js";
-import { uploadCaItemVoice, deleteCaItemVoice, fetchCaItemVoices } from "./github-upload.js";
+import { uploadCaItemVoice, deleteCaItemVoice } from "./github-upload.js";
 import { fieldIdForSection } from "./field-locks.js";
 import {
   renderRichNoteEditorHtml,
@@ -1247,8 +1247,7 @@ async function renderItemDetail(itemId) {
       voiceSection,
       (blob, name, secs) => uploadCaItemVoice(itemId, blob, name, secs, mf),
       (name)             => deleteCaItemVoice(itemId, name, mf),
-      ()                 => setTimeout(() => renderItemDetail(itemId), 1500),
-      ()                 => fetchCaItemVoices(itemId)
+      ()                 => setTimeout(() => renderItemDetail(itemId), 1500)
     );
   }
 }

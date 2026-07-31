@@ -510,12 +510,3 @@ export async function deleteThemeVoice(themeId, filename, fallbackManifest) {
   await saveManifest(manifest.path, manifest.sha, manifest.data, `Update theme manifest ${themeId}`);
   return { name: filename };
 }
-
-/** Fetch existing voice entries for a CA item from its manifest.json */
-export async function fetchCaItemVoices(itemId) {
-  try {
-    const file = await getRepoFile(`study/items/${itemId}/manifest.json`);
-    if (!file?.text) return [];
-    return JSON.parse(file.text)?.voices || [];
-  } catch { return []; }
-}
