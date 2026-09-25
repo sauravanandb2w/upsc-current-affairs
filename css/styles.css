@@ -4728,6 +4728,55 @@ a:focus-visible,
 *::-webkit-scrollbar-thumb { background: rgba(28,25,23,0.18); border-radius: 99px; }
 [data-theme="dark"] *::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); }
 
+/* ── CA Companion Banner ────────────────────────────────────────── */
+.ca-companion-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 20px;
+  background: linear-gradient(135deg, #7c2d12 0%, #431407 100%);
+  border-bottom: 1px solid rgba(251,146,60,0.25);
+  color: #fed7aa;
+  text-decoration: none;
+  transition: filter 0.18s;
+  cursor: pointer;
+}
+.ca-companion-banner:hover {
+  filter: brightness(1.15);
+  text-decoration: none;
+  color: #fff;
+}
+.ca-companion-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.ca-companion-text {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.ca-companion-text strong {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fb923c;
+}
+.ca-companion-text span {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+.ca-companion-arrow {
+  font-size: 1.1rem;
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+[data-theme="dark"] .ca-companion-banner {
+  background: linear-gradient(135deg, #6b1e08 0%, #350f04 100%);
+  border-bottom-color: rgba(251,146,60,0.2);
+}
+
 /* ── Mobile ─────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .ca-card { padding: 12px 13px; }
